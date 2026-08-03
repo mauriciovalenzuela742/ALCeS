@@ -59,12 +59,19 @@ en este repo). Si esto funciona y ves un prompt, estás en el login node.
 
 ```bash
 cd ~
-git clone https://github.com/mauriciovalenzuela742/Light-curves-Simulations-Vera-Rubin.git AUTOSIM
+git clone https://github.com/mauriciovalenzuela742/ALCeS.git AUTOSIM
 cd AUTOSIM
 ```
 
 (usa el nombre de carpeta que prefieras; el resto de esta guía asume
 `~/AUTOSIM`, que es lo que espera `activate_all.sh`).
+
+> El repo se llama `ALCeS` en GitHub pero se clona como `AUTOSIM` localmente
+> por convención — es el nombre que usan `activate_all.sh` y el resto de
+> esta guía. No confundir con
+> [`Light-curves-Simulations-Vera-Rubin`](https://github.com/mauriciovalenzuela742/Light-curves-Simulations-Vera-Rubin),
+> que es un repo aparte, solo de archivos de referencia (configs de modelo,
+> catálogos) — no tiene código y no se clona para instalar el pipeline.
 
 
 ## 2.5 Portabilidad entre cuentas NLHPC — leer antes de instalar para otro usuario

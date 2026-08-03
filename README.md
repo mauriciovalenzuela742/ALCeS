@@ -625,4 +625,6 @@ Ramírez+2024).
 - Ramírez+ 2024 — arXiv:2409.10701 (transporte óptico, modelos VC25)
 - Rubin v5.3 release — community.lsst.org/t/release-of-v5-3-simulations/12032
 - ALeRCE broker — alerce.science
-- Repo: github.com/mauriciovalenzuela742/Light-curves-Simulations-Vera-Rubin
+- Repo (este pipeline): github.com/mauriciovalenzuela742/ALCeS
+- Panel de estado en vivo: mauriciovalenzuela742.github.io/ALCeS
+- Repo de insumos curados (`model_config/`, `run_SNANA/`, `DATASIM_LSST/`): github.com/mauriciovalenzuela742/Light-curves-Simulations-Vera-Rubin
