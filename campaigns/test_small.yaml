@@ -1,0 +1,49 @@
+# ============================================================================
+# test_small.yaml — Campanha de prueba minima para validar el ciclo completo
+# ----------------------------------------------------------------------------
+# Objetivo: confirmar que Capa 3 (preflight + N sbatch directos a
+# snlc_sim.exe) + Capa 4 (postprocess) + Capa 5 (tagging) funcionan de punta
+# a punta en NLHPC ANTES de lanzar la campanha completa (42 clases x 2
+# estrategias, full_v5.3.yaml).
+#
+# 2 clases x 1 estrategia x NGEN chico = deberia tardar minutos, no horas.
+#
+# Rutas de 'defaults' confirmadas contra un .input REAL y ya ejecutado con
+# exito (DATASIM_LSST/DDF/input_files_v6/AGN/AGN_20251020.input).
+# ============================================================================
+
+name: "test_small"
+description: "Prueba de extremo a extremo (2 clases, WFD, NGEN reducido) antes de la campanha completa"
+
+models_catalog: "pipeline/models.yaml"
+
+runs:
+  - run: baseline_v5.3.1_10yrs
+    strategies: [WFD]
+
+classes:
+  - model: SNIa
+    ngen: 200          # vs. 50000 por defecto — solo para validar el pipeline
+  - model: SNII
+    ngen: 200           # vs. 50000 por defecto
+
+defaults:
+  ranseed: 12945
+  peakmjd_pad: 50
+  format_mask: 32       # 32=FITS ; usa 48 si ademas quieres CID aleatorio
+
+  # --- rutas confirmadas contra AGN_20251020.input (real, ya ejecutado) ---
+  kcor_file: "/home/mvalenzuela/run_SNANA/kcor_LSST.fits"
+  searcheff_pipeline_file: "/home/mvalenzuela/run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
+  searcheff_pipeline_logic_file: "/home/mvalenzuela/run_SNANA/LSST_PIPELINE_LOGIC.DAT"
+
+batch:
+  # Un sbatch por GENVERSION (patron probado: run_<CLASE>_<fecha>.sh),
+  # NO submit_batch_jobs.sh.
+  partition: "general"
+  mem_per_cpu: 2000      # MB (igual al run_AGN_20251020.sh real)
+  walltime: "01:00:00"
+  mail_user: ""           # opcional: tu correo para --mail-type=END,FAIL
+  snana_login_setup: |
+    ml  SNANA/11.05p
+    export SNDATA_ROOT=/home/mvalenzuela/SNDATA_ROOT

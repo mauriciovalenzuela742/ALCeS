@@ -1,0 +1,109 @@
+# ============================================================================
+# campaign.yaml — Campanha de simulacion completa v5.3.1 WFD + DDF
+# ============================================================================
+# Declara: que runs/estrategias combinar con que clases. compile_campaign.py
+# lo materializa en archivos .INPUT concretos + un sbatch por GENVERSION.
+#
+# Agregar una nueva version = nueva entrada en 'runs'.
+# Agregar una nueva clase   = nueva entrada en 'classes' (o en models.yaml).
+# ============================================================================
+
+name: "full_v5.3_10yrs"
+description: "Campanha PLAsTiCC completa sobre baseline_v5.3.1, WFD y DDF, 10 anhos completos del survey (senhal _10yrs: distingue esta corrida de la compilacion anterior con temporal_cut truncado a ~3.5 anhos)"
+
+# Referencia al catalogo de modelos (relativo a pipeline/)
+models_catalog: "pipeline/models.yaml"
+
+# --- Combinaciones run × estrategia ---
+# Cada run x estrategia genera un include_survey distinto.
+runs:
+  - run: baseline_v5.3.1_10yrs          # nombre del registro Capa 0
+    strategies: [WFD, DDF]
+
+  # Descomentar cuando esten verificadas:
+  # - run: baseline_v5.0.0_10yrs
+  #   strategies: [WFD, DDF]
+  # - run: ddf_sd_v5.3.1_10yrs
+  #   strategies: [DDF]
+
+# --- Clases a simular ---
+# Referencia modelos por su clave en models.yaml. Pueden sobreescribir ngen.
+# NOTA: claves actualizadas tras verificar contra los SIMGEN_INCLUDE reales
+# en NLHPC (ver models.yaml): 'SNIbc' -> 'SNIb'+'SNIc' (tu instalacion los
+# separa). uLens y PISN tienen 3 variantes cada uno en tu instalacion — las
+# 3 estan incluidas (no se elige una sola).
+classes:
+  # PLAsTiCC core
+  - model: SNIa
+  - model: SNIa-91bg
+  - model: SNIax
+  - model: SNII
+  - model: SNII-NMF
+  - model: SNIIn-MOSFIT
+  - model: SNIb                    # antes 'SNIbc' (tu instalacion separa Ib/Ic)
+  - model: SNIc                    # antes 'SNIbc'
+  - model: SLSN-I
+  - model: TDE
+  - model: KN-K17
+  - model: KN-BULLA19
+  - model: AGN
+  - model: RRL
+  - model: Mira
+  - model: M-dwarf
+  - model: EB
+  - model: uLens-Binary
+  - model: uLens-Single-GenLens
+  - model: uLens-Single-PyLIMA
+  - model: ILOT
+  - model: CaRT
+  - model: PISN-MOSFIT
+  - model: PISN-STELLA-HECORE
+  - model: PISN-STELLA-HYDROGENIC
+
+  # Extensiones ELASTiCC (Vincenzi+2019)
+  - model: V19_SNIb
+  - model: V19_SNIc
+  - model: V19_SNIcBL
+  - model: V19_SNII
+  - model: V19_SNIIb
+  - model: V19_SNIIn
+  - model: Cepheid
+  - model: d-Scuti
+  - model: Dwarf_nova
+  - model: Mdwarf-flare
+
+  # NON1ASED en desarrollo (OT, Ramirez+ 2024)
+  - model: SNIax_NON1ASED
+  - model: SNIa-91bg_NON1ASED
+  - model: TDE_NON1ASED
+  - model: SLSN-I_NON1ASED
+  - model: KN-BULLA-BNS-M2COMP
+
+  # VC25 — tus propios modelos de transporte optico (rutas confirmadas)
+  - model: VC25_SNIbc
+  - model: VC25_SNII    # recordar corregir PATH_NON1ASED en el archivo original antes de lanzar (ver models.yaml)
+
+  # --- Overrides por clase (opcional) ---
+  # - model: SNIa
+  #   ngen: 100000          # mas eventos para Ia
+
+# --- Defaults globales (si un modelo no los define) ---
+defaults:
+  format_mask: 32               # 32=FITS ; usa 48 si ademas quieres CID aleatorio
+  ranseed: 12945
+  peakmjd_pad: 50                # dias de ensanche para GENRANGE_PEAKMJD
+
+  # --- rutas confirmadas contra AGN_20251020.input (real, ya ejecutado) ---
+  kcor_file: "/home/mvalenzuela/run_SNANA/kcor_LSST.fits"
+  searcheff_pipeline_file: "/home/mvalenzuela/run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
+  searcheff_pipeline_logic_file: "/home/mvalenzuela/run_SNANA/LSST_PIPELINE_LOGIC.DAT"
+
+# --- SLURM: un sbatch por GENVERSION (patron probado run_<CLASE>_<fecha>.sh) ---
+batch:
+  partition: "general"
+  mem_per_cpu: 2000      # MB
+  walltime: "04:00:00"
+  mail_user: ""           # opcional: tu correo para --mail-type=END,FAIL
+  snana_login_setup: |
+    ml  SNANA/11.05p
+    export SNDATA_ROOT=/home/mvalenzuela/SNDATA_ROOT

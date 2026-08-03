@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+data/opsim/*.db
+data/opsim/*.db.part
+data/opsim/*.provenance.json
+data/simlib/
+pipeline/opsims.local.yaml
+build/
+.DS_Store
+.claude/
+nlhpc.alias.disabled

@@ -1,0 +1,270 @@
+# ============================================================================
+# opsims.yaml — Registro curado de bases OpSim / ObSim (Vera C. Rubin / LSST)
+# ----------------------------------------------------------------------------
+# Capa 0 del pipeline. Agregar una base nueva = agregar una entrada aqui.
+# fetch_opsim.py construye la URL como:
+#   {s3df_base}/sims_featureScheduler_runs{release}/{family}/{filename}
+#
+# Campos por run:
+#   release       (obligatorio)  "5.0" | "5.3" | ...
+#   family        (obligatorio)  "baseline" | "ddf_sd" | "roll_mash" | ...
+#   filename      (obligatorio)  nombre exacto del .db en el indice S3DF
+#   survey_years                 anhos de survey (10, 11, ...)
+#   label                        descripcion legible
+#   footprint                    resumen de cobertura
+#   status                       verified | registered | archived
+#   n_obs                        nro de observaciones (chequeo de sanidad)
+#   size_bytes                   tamanho del .db confirmado en el indice (chequeo de sanidad)
+#   sha256                       si se fija, fetch_opsim EXIGE que coincida
+#   notes                        comentarios libres
+#
+# Fuentes:
+#   Post oficial v5.3: community.lsst.org/t/release-of-v5-3-simulations/12032
+#   Indice (verificado en vivo, Jul-2026):
+#     https://s3df.slac.stanford.edu/data/rubin/sim-data/sims_featureScheduler_runs5.3/
+#   MAF: https://usdf-maf.slac.stanford.edu/
+#
+# NOTA: los filenames y tamanhos de este archivo fueron confirmados listando
+# el indice S3DF directamente (no solo el texto del post del foro), porque el
+# post decia "_11years" y el archivo real en el servidor es "_11yrs".
+# ============================================================================
+
+defaults:
+  s3df_base: "https://s3df.slac.stanford.edu/data/rubin/sim-data"
+  data_dir: "data/opsim"          # relativo a la raiz del repo (o usar $RUBIN_OPSIM_DIR)
+
+runs:
+
+  # -------------------------------------------------------------- VERIFICADAS
+  # (descargadas y analizadas en los notebooks — n_obs confirmado)
+  baseline_v5.0.0_10yrs:
+    release: "5.0"
+    family: "baseline"
+    filename: "baseline_v5.0.0_10yrs.db"
+    survey_years: 10
+    label: "Baseline v5.0.0 — estrategia de referencia (campanha del poster)"
+    footprint: "WFD + 5 DDF; estrategia 'ocean' en DDF"
+    status: "verified"
+    n_obs: 2048612                 # analysis_simlib_filev5_LSST.ipynb
+    size_bytes: 762941440          # confirmado en el indice, 30-Jul-2025
+    sha256: null                   # se registra tras la primera descarga verificada
+    notes: >
+      Version usada en las simulaciones previas (WFD/DDF, input_files_v6).
+      Inicio del survey: 2025-11-01. Tambien existe baseline_v5.0.1_10yrs.db
+      (patch posterior, no registrado aqui todavia).
+
+  baseline_v5.3.1_10yrs:
+    release: "5.3"
+    family: "baseline"
+    filename: "baseline_v5.3.1_10yrs.db"
+    survey_years: 10
+    label: "Baseline v5.3.1 — ~10% menos visitas, template tier Y1, dithering DDF"
+    footprint: "WFD + 5 DDF; mismo footprint que v5.0"
+    status: "verified"
+    n_obs: 1844189                 # analysis_simlib_filev5_3_LSST.ipynb
+    size_bytes: 742952960          # confirmado en el indice, 31-May-2026
+    sha256: null
+    notes: >
+      Compatibilidad de Capa 1 confirmada: OpSimSummaryV2 lo lee sin cambios de
+      esquema. Verificado -9.98% de visitas vs v5.0; aparecen notas 'templates'
+      (Y1) y 'pair_33 ... bs NN' (bloques). Inicio del survey: 2026-06-17.
+      Nuevas familias de scheduler_note requieren el filtrado por prefijo (Capa 1).
+      NO es la version mas reciente del patch — existen v5.3.2 y v5.3.3 (ver abajo).
+
+  # --------------------------------------------------- BASELINE v5.3.0 (release original)
+  baseline_v5.3.0_10yrs:
+    release: "5.3"
+    family: "baseline"
+    filename: "baseline_v5.3.0_10yrs.db"
+    survey_years: 10
+    label: "Baseline v5.3.0 — release original de v5.3 (pre-patches .1/.2/.3)"
+    footprint: "WFD + 5 DDF; mismo footprint y rolling cadence que v5.0"
+    status: "registered"
+    size_bytes: 743002112          # confirmado en el indice, 16-May-2026
+    notes: >
+      Filename y tamanho confirmados listando el indice S3DF directamente
+      (no solo el texto del post del foro). Sigue las recomendaciones SCOC
+      Phase 3 (PSTN-056). Sin snaps: cada visita es una exposicion unica de
+      30s (38s en u) en grizy. Dithering intra-noche en DDF ademas del
+      dithering entre noches.
+
+  baseline_v5.3.0_11yrs:
+    release: "5.3"
+    family: "baseline"
+    filename: "baseline_v5.3.0_11yrs.db"
+    survey_years: 11
+    label: "Baseline v5.3.0 — extension a 11 anhos (para evaluar recuperacion cientifica)"
+    footprint: "WFD + 5 DDF; igual que baseline_v5.3.0_10yrs"
+    status: "registered"
+    size_bytes: 819699712          # confirmado en el indice, 16-May-2026
+    notes: >
+      CORRECCION DE NOMBRE: el post del foro escribe "baseline_v5.3.0_11years.db"
+      pero el archivo REAL en el indice S3DF se llama "_11yrs" (sin "years").
+      Confirmado listando el directorio directamente. Anho 11 no aprobado;
+      sirve para evaluar como se recuperaria la ciencia del impacto de mas
+      tiempo de ingenieria con un anho adicional de survey.
+
+  # ----------------------------------------- BASELINE v5.3.2 / v5.3.3 (mas recientes)
+  # Patches posteriores al v5.3.1 que ya tenias analizado. No documentados en
+  # el post original del foro (son mas nuevos que ese post). Si vas a simular
+  # con la estrategia mas actualizada, estas son las candidatas.
+  baseline_v5.3.2_10yrs:
+    release: "5.3"
+    family: "baseline"
+    filename: "baseline_v5.3.2_10yrs.db"
+    survey_years: 10
+    label: "Baseline v5.3.2 — patch mas reciente que v5.3.1 (sin release notes propio)"
+    footprint: "WFD + 5 DDF; mismo footprint que v5.3.x"
+    status: "registered"
+    size_bytes: 742952960          # confirmado en el indice, 02-Jul-2026
+    notes: >
+      Confirmado en el indice S3DF (02-Jul-2026), NO en el post del foro
+      (ese post solo describe hasta v5.3.0/variantes). Mismo tamanho que
+      v5.3.1_10yrs — posiblemente un ajuste menor de scheduler/metadata.
+      Recomendado verificar contra MAF antes de adoptarlo como baseline.
+
+  baseline_v5.3.2_11yrs:
+    release: "5.3"
+    family: "baseline"
+    filename: "baseline_v5.3.2_11yrs.db"
+    survey_years: 11
+    label: "Baseline v5.3.2 — extension a 11 anhos"
+    status: "registered"
+    size_bytes: 819449856          # confirmado en el indice, 02-Jul-2026
+    notes: "Ver baseline_v5.3.2_10yrs. Confirmado en el indice, no en el foro."
+
+  baseline_v5.3.3_10yrs:
+    release: "5.3"
+    family: "baseline"
+    filename: "baseline_v5.3.3_10yrs.db"
+    survey_years: 10
+    label: "Baseline v5.3.3 — patch MAS RECIENTE disponible (03-Jul-2026)"
+    footprint: "WFD + 5 DDF; mismo footprint que v5.3.x"
+    status: "registered"
+    size_bytes: 746434560          # confirmado en el indice, 03-Jul-2026
+    notes: >
+      La version mas reciente de la baseline v5.3 al momento de escribir este
+      registro. Confirmado en el indice S3DF, no documentado aun en un post
+      propio del foro. Candidata natural si quieres la estrategia mas
+      actualizada; recomendado repetir el analisis de compatibilidad de la
+      Capa 1 (como se hizo para v5.3.1) antes de usarla en produccion.
+
+  baseline_v5.3.3_11yrs:
+    release: "5.3"
+    family: "baseline"
+    filename: "baseline_v5.3.3_11yrs.db"
+    survey_years: 11
+    label: "Baseline v5.3.3 — extension a 11 anhos (mas reciente)"
+    status: "registered"
+    size_bytes: 823803904          # confirmado en el indice, 03-Jul-2026
+    notes: "Ver baseline_v5.3.3_10yrs."
+
+  # ------------------------------------------------- OTRAS VARIANTES v5.3.0
+  # Filenames y tamanhos confirmados listando cada carpeta del indice.
+  comp_survey_v5.3.0_10yrs:
+    release: "5.3"
+    family: "comp_survey"
+    filename: "comp_survey_v5.3.0_10yrs.db"
+    survey_years: 10
+    label: "Comparacion 1-a-1 — estrategia v5.3 con el modelo de tiempo on-sky de v5.0"
+    status: "registered"
+    size_bytes: 787922944          # confirmado en el indice, 02-May-2026
+    notes: >
+      Implementa la estrategia v5.3 pero con el modelo de disponibilidad de
+      v5.0, para aislar el efecto de la estrategia del efecto del recorte de
+      tiempo on-sky.
+
+  roll_mash_v5.3.0_10yrs:
+    release: "5.3"
+    family: "roll_mash"
+    filename: "roll_mash_v5.3.0_10yrs.db"
+    survey_years: 10
+    label: "Rolling cadence retrasada — data releases uniformes en Y1,Y2,Y7,Y10"
+    status: "registered"
+    size_bytes: 713883648          # confirmado en el indice, 02-May-2026
+    notes: "Retrasa el inicio de la rolling cadence a Y2 para extender el template tier."
+
+  roll_u5_v5.3.0_10yrs:
+    release: "5.3"
+    family: "roll_u5"
+    filename: "roll_u5_v5.3.0_10yrs.db"
+    survey_years: 10
+    label: "Rolling cadence retrasada — data releases uniformes en Y1,Y2,Y5,Y10"
+    status: "registered"
+    size_bytes: 713990144          # confirmado en el indice, 08-May-2026
+    notes: "Variante de roll_mash con el release uniforme en Y5 en vez de Y7."
+
+  faster_templates_v5.3.0_10yrs:
+    release: "5.3"
+    family: "faster_templates"
+    filename: "faster_templates_v5.3.0_10yrs.db"
+    survey_years: 10
+    label: "Template tier con exposiciones mas cortas (20s/25s grizy/u)"
+    status: "registered"
+    size_bytes: 728723456          # confirmado en el indice, 02-May-2026
+    notes: >
+      Variante EXPERIMENTAL, aun no validada para uso on-sky ni para los
+      pipelines de Data Management (implicaciones de calibracion pendientes).
+      Reduce el duty cycle y lleva u-band a regimen dominado por read-noise.
+
+  ddf_sd_v5.3.0_10yrs:
+    release: "5.3"
+    family: "ddf_sd"
+    filename: "ddf_sd_v5.3.0_10yrs.db"
+    survey_years: 10
+    label: "DDF short-deep — 1-2 visitas extra en bandas azules (monitoreo AGN)"
+    footprint: "Variante DDF; relevante para AGN"
+    status: "registered"
+    size_bytes: 713924608          # confirmado en el indice, 06-May-2026
+    notes: >
+      Empuja la fraccion de tiempo DDF por sobre el 8% (SCOC recomienda
+      contener el programa en 7%, PSTN-055/PSTN-056). Relevante porque ya
+      simulas AGN.
+
+  # NOTA: la carpeta real en el indice es "desi/" (no "desi_3040/" como se
+  # habia registrado antes por error de transcripcion del nombre del archivo).
+  desi_3040_v5.3.0_10yrs:
+    release: "5.3"
+    family: "desi"
+    filename: "desi_3040_v5.3.0_10yrs.db"
+    survey_years: 10
+    label: "Prioriza u/g en Y1-Y4 en el norte del footprint (soporte a DESI)"
+    status: "registered"
+    size_bytes: 714588160          # confirmado en el indice, 03-May-2026
+    notes: >
+      CORRECCION: la carpeta del indice es 'desi/', no 'desi_3040/' (el
+      '3040' es parte del nombre del archivo, no de la carpeta). Impacto
+      fuerte en cadencia u/g del norte los anhos siguientes a Y4; la
+      uniformidad se empareja recien al final del survey.
+
+  desi_3040_v5.3.1_10yrs:
+    release: "5.3"
+    family: "desi"
+    filename: "desi_3040_v5.3.1_10yrs.db"
+    survey_years: 10
+    label: "Prioriza u/g en Y1-Y4 en el norte — patch v5.3.1"
+    status: "registered"
+    size_bytes: 714821632          # confirmado en el indice, 31-May-2026
+    notes: "Version actualizada de desi_3040 sobre el patch v5.3.1."
+
+  # --------------------------------------------------------- v5.3.1 (variantes heredadas)
+  # Filename no confirmado aun contra el indice para estas dos — quedan
+  # marcadas para verificar antes de descargar.
+  ddf_sd_v5.3.1_10yrs:
+    release: "5.3"
+    family: "ddf_sd"
+    filename: "ddf_sd_v5.3.1_10yrs.db"
+    survey_years: 10
+    label: "DDF short-deep (patch .1) — orientada a monitoreo (AGN)"
+    footprint: "Variante DDF; relevante para AGN"
+    status: "registered"
+    notes: "Confirmar filename exacto en el indice antes de descargar (solo v5.3.0 confirmado)."
+
+  roll_mash_v5.3.1_10yrs:
+    release: "5.3"
+    family: "roll_mash"
+    filename: "roll_mash_v5.3.1_10yrs.db"
+    survey_years: 10
+    label: "Rolling 'mash' (patch .1) — cadencia rotativa alternativa"
+    status: "registered"
+    notes: "Confirmar filename exacto en el indice antes de descargar (solo v5.3.0 confirmado)."

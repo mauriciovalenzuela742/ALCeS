@@ -1,0 +1,7 @@
+# Capa 0 — dependencias minimas
+PyYAML>=6.0
+requests>=2.28
+tqdm>=4.0          # opcional (barra de progreso); el codigo degrada si falta
+
+# Ya presentes en el entorno NLHPC via el stack de Rubin (no re-instalar):
+#   opsimsummaryv2, rubin_sim, rubin_scheduler, numpy<2, pandas, healpy, astropy

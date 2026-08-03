@@ -1,0 +1,39 @@
+# ============================================================================
+# simlib.yaml — Config declarativa del constructor de SIMLIB (Capa 1)
+# ----------------------------------------------------------------------------
+# Todo lo que cambia entre estrategias o versiones es dato, no codigo.
+# ============================================================================
+
+defaults:
+  nside: 256
+  pixsize: 0.2            # arcsec/pixel (LSST)
+  radius_deg: 1.75        # radio de agrupamiento por campo (query_radius)
+  ccd_gain: 1.0
+  ccd_noise: 0.25
+  zpt_err: 0.005
+  seed: 42
+  bands: "ugrizY"
+  author: "Mauricio Valenzuela C"
+
+# Numero de campos muestreados y corte de visitas minimas por estrategia.
+strategies:
+  WFD:
+    n_fields: 20000
+    min_visits: 250
+  DDF:
+    n_fields: 1000
+    min_visits: 500
+
+# --- AISLAMIENTO DE ESQUEMA: clasificacion de scheduler_note por prefijo ---
+# Cubre v5.0 y v5.3. Si una version futura agrega familias, se editan aqui.
+classification:
+  ddf_prefixes: ["DD:"]
+  wfd_prefixes: ["pair_", "blob_long", "blob", "long", "greedy", "templates"]
+  twilight_prefixes: ["twilight_near_sun"]
+
+# Recorte temporal (2 temporadas WFD). date_* en ISO; o usar mjd_* directo.
+temporal_cut:
+  date_min: null          # null = inicio del survey
+  date_max: "2029-12-31"
+  mjd_min: null
+  mjd_max: null

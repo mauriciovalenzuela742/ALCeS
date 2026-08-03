@@ -1,0 +1,4 @@
+# Bases OpSim descargadas y su procedencia — NO versionar (archivos ~700 MB).
+*.db
+*.db.part
+*.provenance.json
