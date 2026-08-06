@@ -344,6 +344,7 @@
 
   .status-bar span { height: 100%; }
   .status-bar .seg-done { background: var(--good); }
+  .status-bar .seg-running { background: var(--warn); }
   .status-bar .seg-fail { background: var(--critical); }
 
   .status-legend {
@@ -450,6 +451,7 @@
 
   .status-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   .status-chip.done { background: var(--good-bg); color: var(--good); }
+  .status-chip.running { background: var(--warn-bg); color: var(--warn); }
   .status-chip.failed { background: var(--critical-bg); color: var(--critical); }
 
   .table-note {
@@ -614,10 +616,10 @@
 
   <div class="facts">
     <div class="fact"><div class="num">10</div><div class="label">años de survey</div></div>
-    <div class="fact"><div class="num">42</div><div class="label">clases de transientes</div></div>
+    <div class="fact"><div class="num">40</div><div class="label">clases activas (42 en catálogo)</div></div>
     <div class="fact"><div class="num">2</div><div class="label">estrategias — WFD / DDF</div></div>
     <div class="fact"><div class="num">6</div><div class="label">capas del pipeline</div></div>
-    <div class="fact"><div class="num">84</div><div class="label">GENVERSION por campaña</div></div>
+    <div class="fact"><div class="num">80</div><div class="label">GENVERSION por campaña</div></div>
   </div>
 
   <section id="architecture">
@@ -627,21 +629,21 @@
   </section>
 
   <section id="campaign">
-    <div class="section-head"><span class="section-num">02</span><h2>Campaña activa — full_v5.3_10yrs</h2></div>
-    <p class="section-sub">42 clases × WFD + DDF, survey completo (10 años, corregido de un recorte previo a ~3.5 años). Snapshot del último <code>run_campaign --status</code>.</p>
+    <div class="section-head"><span class="section-num">02</span><h2>Campaña activa — full_v5.3_10yrs (v8)</h2></div>
+    <p class="section-sub">40 clases × WFD + DDF, survey completo (10 años). <code>Cepheid</code> y
+    <code>VC25_SNII</code> quedaron pausadas para esta campaña (ver nota abajo) — el catálogo completo
+    sigue siendo 42 clases. Snapshot del último <code>run_campaign --status</code>, verificado con la
+    marca real <code>DONE with snlc_sim.</code> en el <code>.out</code> de cada job (no existencia de
+    FITS).</p>
 
-    <div class="callout" style="border-left-color: var(--critical); margin-bottom: 24px;">
-      <strong>⚠ Esta tabla es un snapshot desactualizado (2026-08-03 01:56).</strong>
-      Se detectó después que la verificación original usaba la existencia del archivo
-      <code>PHOT.FITS</code> como señal de éxito, lo cual es un falso positivo — SNANA
-      escribe progresivamente y puede abortar a mitad de camino dejando un FITS parcial.
-      La marca real de éxito es <code>DONE with snlc_sim.</code> en el <code>.out</code> de
-      cada job. Con esa verificación correcta, el estado real fue
-      <strong>15/84 GENVERSION terminados (todos WFD) y 0/84 DDF</strong> — muy por debajo
-      de lo que muestra la tabla de abajo. Causas raíz identificadas: cuota de disco casi
-      agotada (~99.94/100&nbsp;GB), el límite fijo <code>MXOBS_SIMLIB=30000</code> del binario
-      SNANA 11.05p (afecta al 100% de DDF), y modelos NON1ASED/LCLIB incompletos. Detalle
-      completo en <code>NEXT_SESSION.md</code> del repo.
+    <div class="callout" style="margin-bottom: 24px;">
+      <strong>Campaña v8 lanzada 2026-08-06, todavía en curso.</strong>
+      Este snapshot es del <span id="live-note-time">2026-08-06</span> — varios GENVERSION siguen
+      <code>RUNNING</code>/<code>PENDING</code> en SLURM al momento de este chequeo, eso es normal, no
+      un error. Antes de este lanzamiento se resolvieron los 3 bloqueos que habían frenado el intento
+      anterior (cuota de disco, límite <code>MXOBS_SIMLIB=30000</code> vía binario SNANA compilado a
+      medida, y bloques <code>NON1A:</code> faltantes en 5 clases NON1ASED) — detalle en
+      <code>README.md</code> ítems 15-16 y <code>NEXT_SESSION.md</code>.
     </div>
 
     <div class="facts" id="campaign-facts"></div>
@@ -649,6 +651,7 @@
     <div class="status-bar" id="status-bar"></div>
     <div class="status-legend">
       <span><span class="dot" style="background:var(--good)"></span>Completadas</span>
+      <span><span class="dot" style="background:var(--warn)"></span>En curso (RUNNING/PENDING en SLURM)</span>
       <span><span class="dot" style="background:var(--critical)"></span>Fallidas — ver nota abajo</span>
     </div>
 
@@ -668,20 +671,21 @@
     <div style="height:20px"></div>
 
     <div class="callout">
-      <strong>Las 20 fallas comparten causa por familia, no son aleatorias.</strong>
-      Los 10 modelos que fallan (× WFD + DDF) caen en dos grupos ya documentados como
-      no verificados en <code>README.md</code>: variables tipo LCLIB de ELASTiCC
-      (Cepheid, d-Scuti, Dwarf_nova, Mdwarf-flare) y los 5 NON1ASED "en desarrollo",
-      más <code>VC25_SNII</code> (nota conocida: requiere corregir <code>PATH_NON1ASED</code>
-      en su archivo curado antes de lanzar). Ninguno bloqueó al resto de la campaña —
-      la orquestación por GENVERSION aísla fallas por clase.
+      <strong>Las fallas actuales son un bug nuevo, distinto a los 3 ya resueltos.</strong>
+      <code>AGN</code> y <code>M-dwarf</code> (WFD+DDF) más <code>uLens-Single-PyLIMA</code> (solo WFD)
+      abortan con <code>FATAL ERROR ABORT called by set_TOBS_OFFSET_LCLIB</code>: la plantilla LCLIB de
+      esos eventos no cubre el rango temporal de observación completo del survey de 10 años
+      (<code>LCLIB DAYRANGE cannot cover TobsRange</code>) — un evento individual con una ventana de
+      variabilidad más corta que los ~3501 días del survey. Ninguno bloqueó al resto de la campaña —
+      la orquestación por GENVERSION aísla fallas por clase. Pendiente de investigar en la próxima
+      sesión.
       <div class="pill-row" id="failed-pills"></div>
     </div>
   </section>
 
   <section id="catalog">
     <div class="section-head"><span class="section-num">03</span><h2>Catálogo de clases (42)</h2></div>
-    <p class="section-sub">Cada clase referencia un <code>SIMGEN_INCLUDE_*.INPUT</code> ya curado — ver <code>pipeline/models.yaml</code>.</p>
+    <p class="section-sub">Cada clase referencia un <code>SIMGEN_INCLUDE_*.INPUT</code> ya curado — ver <code>pipeline/models.yaml</code>. <code>Cepheid</code> y <code>VC25_SNII</code> están en el catálogo pero pausadas para la campaña v8 activa (no aparecen en la tabla de arriba).</p>
     <div class="families" id="families"></div>
   </section>
 
@@ -751,7 +755,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     { idx: "CAPA 5", name: "Procedencia", desc: "Hashea configs + entorno, un .provenance.json por GENVERSION.", cli: "tag_campaign.py", where: "login" },
   ];
 
-  const CAMPAIGN = [{"genversion":"SNIa_WFD_baseline_v5.3.1_10yrs","model":"SNIa","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"SNIa-91bg_WFD_baseline_v5.3.1_10yrs","model":"SNIa-91bg","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"SNIax_WFD_baseline_v5.3.1_10yrs","model":"SNIax","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"SNII_WFD_baseline_v5.3.1_10yrs","model":"SNII","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"SNII-NMF_WFD_baseline_v5.3.1_10yrs","model":"SNII-NMF","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs","model":"SNIIn-MOSFIT","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"SNIb_WFD_baseline_v5.3.1_10yrs","model":"SNIb","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"SNIc_WFD_baseline_v5.3.1_10yrs","model":"SNIc","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"SLSN-I_WFD_baseline_v5.3.1_10yrs","model":"SLSN-I","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"TDE_WFD_baseline_v5.3.1_10yrs","model":"TDE","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"KN-K17_WFD_baseline_v5.3.1_10yrs","model":"KN-K17","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"KN-BULLA19_WFD_baseline_v5.3.1_10yrs","model":"KN-BULLA19","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"AGN_WFD_baseline_v5.3.1_10yrs","model":"AGN","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"RRL_WFD_baseline_v5.3.1_10yrs","model":"RRL","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"Mira_WFD_baseline_v5.3.1_10yrs","model":"Mira","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"M-dwarf_WFD_baseline_v5.3.1_10yrs","model":"M-dwarf","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"EB_WFD_baseline_v5.3.1_10yrs","model":"EB","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"uLens-Binary_WFD_baseline_v5.3.1_10yrs","model":"uLens-Binary","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs","model":"uLens-Single-GenLens","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"uLens-Single-PyLIMA_WFD_baseline_v5.3.1_10yrs","model":"uLens-Single-PyLIMA","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"ILOT_WFD_baseline_v5.3.1_10yrs","model":"ILOT","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"CaRT_WFD_baseline_v5.3.1_10yrs","model":"CaRT","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs","model":"PISN-MOSFIT","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs","model":"PISN-STELLA-HECORE","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs","model":"PISN-STELLA-HYDROGENIC","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"V19_SNIb_WFD_baseline_v5.3.1_10yrs","model":"V19_SNIb","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"V19_SNIc_WFD_baseline_v5.3.1_10yrs","model":"V19_SNIc","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"V19_SNIcBL_WFD_baseline_v5.3.1_10yrs","model":"V19_SNIcBL","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"V19_SNII_WFD_baseline_v5.3.1_10yrs","model":"V19_SNII","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"V19_SNIIb_WFD_baseline_v5.3.1_10yrs","model":"V19_SNIIb","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"V19_SNIIn_WFD_baseline_v5.3.1_10yrs","model":"V19_SNIIn","strategy":"WFD","ngen_target":200000,"done":true},{"genversion":"Cepheid_WFD_baseline_v5.3.1_10yrs","model":"Cepheid","strategy":"WFD","ngen_target":200000,"done":false},{"genversion":"d-Scuti_WFD_baseline_v5.3.1_10yrs","model":"d-Scuti","strategy":"WFD","ngen_target":20000,"done":false},{"genversion":"Dwarf_nova_WFD_baseline_v5.3.1_10yrs","model":"Dwarf_nova","strategy":"WFD","ngen_target":200000,"done":false},{"genversion":"Mdwarf-flare_WFD_baseline_v5.3.1_10yrs","model":"Mdwarf-flare","strategy":"WFD","ngen_target":200000,"done":false},{"genversion":"SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs","model":"SNIax_NON1ASED","strategy":"WFD","ngen_target":10000,"done":false},{"genversion":"SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs","model":"SNIa-91bg_NON1ASED","strategy":"WFD","ngen_target":20000,"done":false},{"genversion":"TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs","model":"TDE_NON1ASED","strategy":"WFD","ngen_target":10000,"done":false},{"genversion":"SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs","model":"SLSN-I_NON1ASED","strategy":"WFD","ngen_target":20000,"done":false},{"genversion":"KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs","model":"KN-BULLA-BNS-M2COMP","strategy":"WFD","ngen_target":20000,"done":false},{"genversion":"VC25_SNIbc_WFD_baseline_v5.3.1_10yrs","model":"VC25_SNIbc","strategy":"WFD","ngen_target":20000,"done":true},{"genversion":"VC25_SNII_WFD_baseline_v5.3.1_10yrs","model":"VC25_SNII","strategy":"WFD","ngen_target":20000,"done":false},{"genversion":"SNIa_DDF_baseline_v5.3.1_10yrs","model":"SNIa","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"SNIa-91bg_DDF_baseline_v5.3.1_10yrs","model":"SNIa-91bg","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"SNIax_DDF_baseline_v5.3.1_10yrs","model":"SNIax","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"SNII_DDF_baseline_v5.3.1_10yrs","model":"SNII","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"SNII-NMF_DDF_baseline_v5.3.1_10yrs","model":"SNII-NMF","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs","model":"SNIIn-MOSFIT","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"SNIb_DDF_baseline_v5.3.1_10yrs","model":"SNIb","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"SNIc_DDF_baseline_v5.3.1_10yrs","model":"SNIc","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"SLSN-I_DDF_baseline_v5.3.1_10yrs","model":"SLSN-I","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"TDE_DDF_baseline_v5.3.1_10yrs","model":"TDE","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"KN-K17_DDF_baseline_v5.3.1_10yrs","model":"KN-K17","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"KN-BULLA19_DDF_baseline_v5.3.1_10yrs","model":"KN-BULLA19","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"AGN_DDF_baseline_v5.3.1_10yrs","model":"AGN","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"RRL_DDF_baseline_v5.3.1_10yrs","model":"RRL","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"Mira_DDF_baseline_v5.3.1_10yrs","model":"Mira","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"M-dwarf_DDF_baseline_v5.3.1_10yrs","model":"M-dwarf","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"EB_DDF_baseline_v5.3.1_10yrs","model":"EB","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"uLens-Binary_DDF_baseline_v5.3.1_10yrs","model":"uLens-Binary","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs","model":"uLens-Single-GenLens","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs","model":"uLens-Single-PyLIMA","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"ILOT_DDF_baseline_v5.3.1_10yrs","model":"ILOT","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"CaRT_DDF_baseline_v5.3.1_10yrs","model":"CaRT","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs","model":"PISN-MOSFIT","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs","model":"PISN-STELLA-HECORE","strategy":"DDF","ngen_target":2000,"done":true},{"genversion":"PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs","model":"PISN-STELLA-HYDROGENIC","strategy":"DDF","ngen_target":20000,"done":true},{"genversion":"V19_SNIb_DDF_baseline_v5.3.1_10yrs","model":"V19_SNIb","strategy":"DDF","ngen_target":20000,"done":true},{"genversion":"V19_SNIc_DDF_baseline_v5.3.1_10yrs","model":"V19_SNIc","strategy":"DDF","ngen_target":20000,"done":true},{"genversion":"V19_SNIcBL_DDF_baseline_v5.3.1_10yrs","model":"V19_SNIcBL","strategy":"DDF","ngen_target":20000,"done":true},{"genversion":"V19_SNII_DDF_baseline_v5.3.1_10yrs","model":"V19_SNII","strategy":"DDF","ngen_target":20000,"done":true},{"genversion":"V19_SNIIb_DDF_baseline_v5.3.1_10yrs","model":"V19_SNIIb","strategy":"DDF","ngen_target":20000,"done":true},{"genversion":"V19_SNIIn_DDF_baseline_v5.3.1_10yrs","model":"V19_SNIIn","strategy":"DDF","ngen_target":20000,"done":true},{"genversion":"Cepheid_DDF_baseline_v5.3.1_10yrs","model":"Cepheid","strategy":"DDF","ngen_target":20000,"done":false},{"genversion":"d-Scuti_DDF_baseline_v5.3.1_10yrs","model":"d-Scuti","strategy":"DDF","ngen_target":20000,"done":false},{"genversion":"Dwarf_nova_DDF_baseline_v5.3.1_10yrs","model":"Dwarf_nova","strategy":"DDF","ngen_target":20000,"done":false},{"genversion":"Mdwarf-flare_DDF_baseline_v5.3.1_10yrs","model":"Mdwarf-flare","strategy":"DDF","ngen_target":40000,"done":false},{"genversion":"SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs","model":"SNIax_NON1ASED","strategy":"DDF","ngen_target":10000,"done":false},{"genversion":"SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs","model":"SNIa-91bg_NON1ASED","strategy":"DDF","ngen_target":20000,"done":false},{"genversion":"TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs","model":"TDE_NON1ASED","strategy":"DDF","ngen_target":10000,"done":false},{"genversion":"SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs","model":"SLSN-I_NON1ASED","strategy":"DDF","ngen_target":20000,"done":false},{"genversion":"KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs","model":"KN-BULLA-BNS-M2COMP","strategy":"DDF","ngen_target":20000,"done":false},{"genversion":"VC25_SNIbc_DDF_baseline_v5.3.1_10yrs","model":"VC25_SNIbc","strategy":"DDF","ngen_target":20000,"done":true},{"genversion":"VC25_SNII_DDF_baseline_v5.3.1_10yrs","model":"VC25_SNII","strategy":"DDF","ngen_target":200000,"done":false}];
+  const CAMPAIGN = [{"genversion":"SNIa_WFD_baseline_v5.3.1_10yrs","model":"SNIa","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"SNIa-91bg_WFD_baseline_v5.3.1_10yrs","model":"SNIa-91bg","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"SNIax_WFD_baseline_v5.3.1_10yrs","model":"SNIax","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"SNII_WFD_baseline_v5.3.1_10yrs","model":"SNII","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"SNII-NMF_WFD_baseline_v5.3.1_10yrs","model":"SNII-NMF","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs","model":"SNIIn-MOSFIT","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"SNIb_WFD_baseline_v5.3.1_10yrs","model":"SNIb","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"SNIc_WFD_baseline_v5.3.1_10yrs","model":"SNIc","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"SLSN-I_WFD_baseline_v5.3.1_10yrs","model":"SLSN-I","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"TDE_WFD_baseline_v5.3.1_10yrs","model":"TDE","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"KN-K17_WFD_baseline_v5.3.1_10yrs","model":"KN-K17","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"KN-BULLA19_WFD_baseline_v5.3.1_10yrs","model":"KN-BULLA19","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"AGN_WFD_baseline_v5.3.1_10yrs","model":"AGN","strategy":"WFD","ngen_target":200000,"status":"failed"},{"genversion":"RRL_WFD_baseline_v5.3.1_10yrs","model":"RRL","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"Mira_WFD_baseline_v5.3.1_10yrs","model":"Mira","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"M-dwarf_WFD_baseline_v5.3.1_10yrs","model":"M-dwarf","strategy":"WFD","ngen_target":200000,"status":"failed"},{"genversion":"EB_WFD_baseline_v5.3.1_10yrs","model":"EB","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"uLens-Binary_WFD_baseline_v5.3.1_10yrs","model":"uLens-Binary","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs","model":"uLens-Single-GenLens","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"uLens-Single-PyLIMA_WFD_baseline_v5.3.1_10yrs","model":"uLens-Single-PyLIMA","strategy":"WFD","ngen_target":200000,"status":"failed"},{"genversion":"ILOT_WFD_baseline_v5.3.1_10yrs","model":"ILOT","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"CaRT_WFD_baseline_v5.3.1_10yrs","model":"CaRT","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs","model":"PISN-MOSFIT","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs","model":"PISN-STELLA-HECORE","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs","model":"PISN-STELLA-HYDROGENIC","strategy":"WFD","ngen_target":200000,"status":"done"},{"genversion":"V19_SNIb_WFD_baseline_v5.3.1_10yrs","model":"V19_SNIb","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"V19_SNIc_WFD_baseline_v5.3.1_10yrs","model":"V19_SNIc","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"V19_SNIcBL_WFD_baseline_v5.3.1_10yrs","model":"V19_SNIcBL","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"V19_SNII_WFD_baseline_v5.3.1_10yrs","model":"V19_SNII","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"V19_SNIIb_WFD_baseline_v5.3.1_10yrs","model":"V19_SNIIb","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"V19_SNIIn_WFD_baseline_v5.3.1_10yrs","model":"V19_SNIIn","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"d-Scuti_WFD_baseline_v5.3.1_10yrs","model":"d-Scuti","strategy":"WFD","ngen_target":20000,"status":"done"},{"genversion":"Dwarf_nova_WFD_baseline_v5.3.1_10yrs","model":"Dwarf_nova","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"Mdwarf-flare_WFD_baseline_v5.3.1_10yrs","model":"Mdwarf-flare","strategy":"WFD","ngen_target":200000,"status":"running"},{"genversion":"SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs","model":"SNIax_NON1ASED","strategy":"WFD","ngen_target":10000,"status":"done"},{"genversion":"SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs","model":"SNIa-91bg_NON1ASED","strategy":"WFD","ngen_target":20000,"status":"done"},{"genversion":"TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs","model":"TDE_NON1ASED","strategy":"WFD","ngen_target":10000,"status":"done"},{"genversion":"SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs","model":"SLSN-I_NON1ASED","strategy":"WFD","ngen_target":20000,"status":"done"},{"genversion":"KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs","model":"KN-BULLA-BNS-M2COMP","strategy":"WFD","ngen_target":20000,"status":"done"},{"genversion":"VC25_SNIbc_WFD_baseline_v5.3.1_10yrs","model":"VC25_SNIbc","strategy":"WFD","ngen_target":20000,"status":"done"},{"genversion":"SNIa_DDF_baseline_v5.3.1_10yrs","model":"SNIa","strategy":"DDF","ngen_target":2000,"status":"running"},{"genversion":"SNIa-91bg_DDF_baseline_v5.3.1_10yrs","model":"SNIa-91bg","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"SNIax_DDF_baseline_v5.3.1_10yrs","model":"SNIax","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"SNII_DDF_baseline_v5.3.1_10yrs","model":"SNII","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"SNII-NMF_DDF_baseline_v5.3.1_10yrs","model":"SNII-NMF","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs","model":"SNIIn-MOSFIT","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"SNIb_DDF_baseline_v5.3.1_10yrs","model":"SNIb","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"SNIc_DDF_baseline_v5.3.1_10yrs","model":"SNIc","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"SLSN-I_DDF_baseline_v5.3.1_10yrs","model":"SLSN-I","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"TDE_DDF_baseline_v5.3.1_10yrs","model":"TDE","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"KN-K17_DDF_baseline_v5.3.1_10yrs","model":"KN-K17","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"KN-BULLA19_DDF_baseline_v5.3.1_10yrs","model":"KN-BULLA19","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"AGN_DDF_baseline_v5.3.1_10yrs","model":"AGN","strategy":"DDF","ngen_target":2000,"status":"failed"},{"genversion":"RRL_DDF_baseline_v5.3.1_10yrs","model":"RRL","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"Mira_DDF_baseline_v5.3.1_10yrs","model":"Mira","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"M-dwarf_DDF_baseline_v5.3.1_10yrs","model":"M-dwarf","strategy":"DDF","ngen_target":2000,"status":"failed"},{"genversion":"EB_DDF_baseline_v5.3.1_10yrs","model":"EB","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"uLens-Binary_DDF_baseline_v5.3.1_10yrs","model":"uLens-Binary","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs","model":"uLens-Single-GenLens","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs","model":"uLens-Single-PyLIMA","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"ILOT_DDF_baseline_v5.3.1_10yrs","model":"ILOT","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"CaRT_DDF_baseline_v5.3.1_10yrs","model":"CaRT","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs","model":"PISN-MOSFIT","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs","model":"PISN-STELLA-HECORE","strategy":"DDF","ngen_target":2000,"status":"done"},{"genversion":"PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs","model":"PISN-STELLA-HYDROGENIC","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"V19_SNIb_DDF_baseline_v5.3.1_10yrs","model":"V19_SNIb","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"V19_SNIc_DDF_baseline_v5.3.1_10yrs","model":"V19_SNIc","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"V19_SNIcBL_DDF_baseline_v5.3.1_10yrs","model":"V19_SNIcBL","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"V19_SNII_DDF_baseline_v5.3.1_10yrs","model":"V19_SNII","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"V19_SNIIb_DDF_baseline_v5.3.1_10yrs","model":"V19_SNIIb","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"V19_SNIIn_DDF_baseline_v5.3.1_10yrs","model":"V19_SNIIn","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"d-Scuti_DDF_baseline_v5.3.1_10yrs","model":"d-Scuti","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"Dwarf_nova_DDF_baseline_v5.3.1_10yrs","model":"Dwarf_nova","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"Mdwarf-flare_DDF_baseline_v5.3.1_10yrs","model":"Mdwarf-flare","strategy":"DDF","ngen_target":40000,"status":"running"},{"genversion":"SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs","model":"SNIax_NON1ASED","strategy":"DDF","ngen_target":10000,"status":"running"},{"genversion":"SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs","model":"SNIa-91bg_NON1ASED","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs","model":"TDE_NON1ASED","strategy":"DDF","ngen_target":10000,"status":"running"},{"genversion":"SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs","model":"SLSN-I_NON1ASED","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs","model":"KN-BULLA-BNS-M2COMP","strategy":"DDF","ngen_target":20000,"status":"running"},{"genversion":"VC25_SNIbc_DDF_baseline_v5.3.1_10yrs","model":"VC25_SNIbc","strategy":"DDF","ngen_target":20000,"status":"running"}];
 
   const FAMILIES = {
     "PLAsTiCC": ["SNIa","SNIa-91bg","SNIax","SNII","SNII-NMF","SNIIn-MOSFIT","SNIb","SNIc","SLSN-I","TDE","KN-K17","KN-BULLA19","AGN","RRL","Mira","M-dwarf","EB","uLens-Binary","uLens-Single-GenLens","uLens-Single-PyLIMA","ILOT","CaRT","PISN-MOSFIT","PISN-STELLA-HECORE","PISN-STELLA-HYDROGENIC"],
@@ -764,7 +768,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
 
   // -------------------------------------------------- masthead timestamp
   document.getElementById("snapshot-time").textContent =
-    "snapshot 2026-08-03 01:56 (-04)";
+    "snapshot 2026-08-06 (-04) \u2014 campa\u00f1a v8 en curso";
 
   // -------------------------------------------------- pipeline flow
   const flow = document.getElementById("flow");
@@ -784,8 +788,9 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
 
   // -------------------------------------------------- campaign facts + bar
   const total = CAMPAIGN.length;
-  const done = CAMPAIGN.filter(r => r.done).length;
-  const failed = total - done;
+  const done = CAMPAIGN.filter(r => r.status === "done").length;
+  const running = CAMPAIGN.filter(r => r.status === "running").length;
+  const failed = CAMPAIGN.filter(r => r.status === "failed").length;
   const wfd = CAMPAIGN.filter(r => r.strategy === "WFD").length;
   const ddf = CAMPAIGN.filter(r => r.strategy === "DDF").length;
 
@@ -793,6 +798,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
   facts.innerHTML = `
     <div class="fact"><div class="num">${total}</div><div class="label">GENVERSION totales</div></div>
     <div class="fact"><div class="num" style="color:var(--good)">${done}</div><div class="label">completadas</div></div>
+    <div class="fact"><div class="num" style="color:var(--warn)">${running}</div><div class="label">en curso</div></div>
     <div class="fact"><div class="num" style="color:var(--critical)">${failed}</div><div class="label">fallidas</div></div>
     <div class="fact"><div class="num">${wfd} / ${ddf}</div><div class="label">WFD / DDF</div></div>
   `;
@@ -800,11 +806,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
   const bar = document.getElementById("status-bar");
   bar.innerHTML = `
     <span class="seg-done" style="width:${(done/total*100).toFixed(1)}%"></span>
+    <span class="seg-running" style="width:${(running/total*100).toFixed(1)}%"></span>
     <span class="seg-fail" style="width:${(failed/total*100).toFixed(1)}%"></span>
   `;
 
   // -------------------------------------------------- failed pills
-  const failedModels = [...new Set(CAMPAIGN.filter(r => !r.done).map(r => r.model))].sort();
+  const failedModels = [...new Set(CAMPAIGN.filter(r => r.status === "failed").map(r => r.model))].sort();
   document.getElementById("failed-pills").innerHTML =
     failedModels.map(m => `<span class="pill">${m}</span>`).join("");
 
@@ -817,23 +824,23 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     let rows = CAMPAIGN;
     if (activeFilter === "wfd") rows = rows.filter(r => r.strategy === "WFD");
     if (activeFilter === "ddf") rows = rows.filter(r => r.strategy === "DDF");
-    if (activeFilter === "failed") rows = rows.filter(r => !r.done);
+    if (activeFilter === "running") rows = rows.filter(r => r.status === "running");
+    if (activeFilter === "failed") rows = rows.filter(r => r.status === "failed");
 
+    const chipHtml = { done: "DONE", running: "RUNNING", failed: "FAILED" };
     tbody.innerHTML = rows.map(r => `
       <tr>
         <td class="model">${r.model}</td>
         <td><span class="tag">${familyOf[r.model] || "—"}</span></td>
         <td><span class="strategy-chip">${r.strategy}</span></td>
         <td class="ngen">${r.ngen_target.toLocaleString("es-CL")}</td>
-        <td>${r.done
-          ? `<span class="status-chip done">DONE</span>`
-          : `<span class="status-chip failed">FAILED</span>`}</td>
+        <td><span class="status-chip ${r.status}">${chipHtml[r.status]}</span></td>
       </tr>`).join("");
     countEl.textContent = `${rows.length} de ${total} GENVERSION mostradas`;
   }
 
   const filterDefs = [
-    ["all", "Todas"], ["wfd", "WFD"], ["ddf", "DDF"], ["failed", "Solo fallidas"],
+    ["all", "Todas"], ["wfd", "WFD"], ["ddf", "DDF"], ["running", "En curso"], ["failed", "Solo fallidas"],
   ];
   const filtersEl = document.getElementById("filters");
   filterDefs.forEach(([key, label]) => {
