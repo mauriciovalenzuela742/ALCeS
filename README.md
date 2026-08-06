@@ -600,6 +600,81 @@ referencia si algo similar vuelve a fallar:
     necesitan nativo — sin bytesswap fallaba con "Big-endian buffer not
     supported on little-endian compiler"; ahora `_read_fits_table` normaliza
     el byte order de cada columna al leer.
+15. **Las 5 clases `NON1ASED` "en desarrollo" abortaban con "found no NON1A"**
+    (ver `NEXT_SESSION.md`, ítem 3) porque sus `SIMGEN_INCLUDE_*.INPUT` (en
+    `run_SNANA/elastic/model_config/`) no traían el bloque
+    `NON1A_KEYS:`/`NON1A: <index> <peso> <MAGOFF> <MAGSMEAR> <SNTYPE>` que
+    selecciona y pesa los templates de su `NON1A.LIST`. Se agregó
+    `pipeline/tools/generate_non1a_block.py`, que genera ese bloque con peso
+    uniforme `1/N` sobre los índices reales del `NON1A.LIST` (sin inventar
+    pesos ni `SNTYPE` — ambos se pasan como argumento), y se insertó en los 5
+    archivos en NLHPC. Validado 2026-08-06 con jobs de prueba
+    (`NGENTOT_LC: 300`, WFD, `build/test_non1a_fix`): las 5 terminan con
+    `DONE with snlc_sim.` sin `ABORT`/`FATAL` — el bloque `NON1A:` funciona.
+    4/5 (`SLSN-I_NON1ASED`, `TDE_NON1ASED`, `SNIa-91bg_NON1ASED`,
+    `SNIax_NON1ASED`) además escribieron curvas de luz reales
+    (`NGENLC_WRITE` entre 2 y 111 de 300). `KN-BULLA-BNS-M2COMP` terminó
+    igual de limpio pero con `NGENLC_WRITE: 0/300` — el `HEAD.FITS`/
+    `PHOT.FITS` resultante tiene `NAXIS2=0` (confirmado con
+    `astropy.io.fits`), por lo que no se generó el `.gz` — comportamiento
+    esperado de `snlc_sim.exe` cuando no hay eventos que escribir, no un
+    bug del pipeline ni del bloque `NON1A:`. Pendiente repetir con el
+    `NGENTOT_LC` real de producción para esa clase antes de darla por
+    completamente validada.
+16. **`MXOBS_SIMLIB=30000` (constante compilada del binario `SNANA/11.05p`
+    del módulo) bloqueaba el 100% de las clases DDF** — 104 de 1000 campos
+    DDF superan 30,000 observaciones en el SIMLIB real de 10 años (hasta
+    47,210). No es un parámetro de `.INPUT`, así que no hay override en
+    runtime. Solución: en `~/github/SNANA_src` (NLHPC) ya había un clone
+    actualizado de SNANA (upstream `RickKessler/SNANA`, commit jul-2026)
+    donde `MXOBS_SIMLIB` está atado a `MXEPOCH=60000` — por encima del
+    máximo real, sin necesidad de tocar ninguna constante. Se compiló ese
+    source (`src/Makefile.legacy`, target `snlc_sim.exe`, con módulos
+    `cfitsio`/`gsl`, **sin** el compilador nativo Zen4 del login node —
+    mismo criterio que el ítem 13, los jobs corren en nodos Skylake) y se
+    dejó en `~/AUTOSIM/bin/snana_custom/snlc_sim.exe`. Se aplicaron 2 parches
+    triviales al checkout (`git diff` en `~/github/SNANA_src`) para que
+    compile sin dependencias que este pipeline no usa: `USE_PYTHON`
+    comentado en `genmag_PySEDMODEL.h` (no usamos PySEDMODEL/BYOSED) y
+    `USE_ROOT` comentado en `sntools_output.h` (ROOT solo disponible en
+    build Zen4 en NLHPC, no en Skylake). El pipeline no cambió de código: `campaigns/full_v5.3.yaml` → `batch.snana_login_setup`
+    ahora antepone ese directorio al `PATH` después del `ml SNANA/11.05p`,
+    así que el resto de utilidades SNANA siguen viniendo del módulo y solo
+    `snlc_sim.exe` resuelve al binario custom.
+
+    **Diferencia de comportamiento detectada:** el source actual de SNANA
+    (~v12_02) ya no asume por defecto `GENSIGMA_MWEBV_RATIO: 0.16` como sí
+    lo hacía (implícitamente) el binario 11.05p del módulo. Sin fijarlo
+    explícito, correr con el binario custom cambiaría resultados de forma
+    silenciosa. Se agregó `GENSIGMA_MWEBV_RATIO: 0.16` en
+    `pipeline/campaign/templates.py::render_survey_include` (nuevo campo
+    `SurveyContext.gensigma_mwebv_ratio`, default `0.16`) para que quede
+    explícito e idéntico entre ambos binarios, en vez de depender de un
+    default implícito que cambia entre versiones.
+
+    Validado 2026-08-06: jobs de prueba reales en partición `general`
+    (Skylake) contra el SIMLIB DDF completo de 10 años (`CaRT_DDF`, 50
+    eventos) y WFD (`CaRT_WFD`, 2000 eventos) usando el binario custom —
+    ambos terminan con `DONE with snlc_sim.`, `.err` vacío, sin abort de
+    `MXOBS_SIMLIB` pese a leer el SIMLIB real completo (confirmado
+    `which snlc_sim.exe` → `~/AUTOSIM/bin/snana_custom/snlc_sim.exe` en el
+    log). No se hizo una comparación exhaustiva `NGENLC_WRITE` binario
+    custom vs. módulo en una clase de control más allá de confirmar que la
+    única diferencia de default conocida (`GENSIGMA_MWEBV_RATIO`) ya está
+    neutralizada — si aparecen discrepancias inesperadas en la campaña
+    real, revisar primero otros defaults que hayan cambiado entre 11.05p y
+    el source actual.
+
+    **Confirmación definitiva (no solo probabilística):** se identificó el
+    LIBID DDF real con el máximo de observaciones (47,210, ej. LIBID 99) y
+    se forzó `SIMLIB_MINOBS: 40000` (job 11083357, `CaRT_DDF`,
+    `NGENTOT_LC: 20`) para que SNANA solo pudiera usar campos por encima de
+    ese umbral — es decir, garantizado a tocar uno de los 104 campos que
+    antes abortaban. Resultado: `DONE with snlc_sim.`, `.err` vacío, sin
+    ningún mensaje de `MXOBS_SIMLIB`/overflow. (Nota: `SIMLIB_IDLOCK`
+    también existe como keyword pero no se puede combinar con el
+    `IDSTART` implícito del include de survey — usar `SIMLIB_MINOBS` para
+    este tipo de test dirigido en el futuro.)
 
 
 ## Clases de transientes incluidas (42)

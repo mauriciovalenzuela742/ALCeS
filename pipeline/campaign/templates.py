@@ -72,6 +72,7 @@ class SurveyContext:
     simlib_maxranstart: int = 1000
     simlib_mskopt: int = 128
     gensigma_search_peakmjd: float = 1.0
+    gensigma_mwebv_ratio: float = 0.16  # default legacy SNANA; ver README "binario custom"
     opt_mwebv: int = 1
     opt_mwcolorlaw: int = 99
     smearflag_flux: int = 1
@@ -129,6 +130,9 @@ def render_survey_include(ctx: SurveyContext) -> str:
         f"GENRANGE_PEAKMJD:  {ctx.peakmjd_min:.0f} {ctx.peakmjd_max:.0f}   # mas ancho, para capturar el ascenso",
         f"",
         f"GENSIGMA_SEARCH_PEAKMJD:  {ctx.gensigma_search_peakmjd}     # sigma-smearing (dias)",
+        f"",
+        f"GENSIGMA_MWEBV_RATIO: {ctx.gensigma_mwebv_ratio}   # default legacy que SNANA >=v12_02",
+        f"                                    # (binario custom, Paso 1) ya no asume implicito",
         f"",
         f"# OPT_MWEBV/OPT_MWCOLORLAW NO van aqui — se inyectan por clase en el",
         f"# include_model_ (ver render_model_include) porque algunos modelos",

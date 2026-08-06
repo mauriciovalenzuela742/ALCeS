@@ -67,7 +67,9 @@ classes:
   - model: V19_SNII
   - model: V19_SNIIb
   - model: V19_SNIIn
-  - model: Cepheid
+  # - model: Cepheid   # PAUSADO v8: catalogo LCLIB solo cubre |b|<=52 grados,
+  #                    # sin fix de config real sin introducir aproximacion no
+  #                    # fisica (GENMODEL_MSKOPT:1 descartado). Ver NEXT_SESSION.md item 4.
   - model: d-Scuti
   - model: Dwarf_nova
   - model: Mdwarf-flare
@@ -81,7 +83,9 @@ classes:
 
   # VC25 — tus propios modelos de transporte optico (rutas confirmadas)
   - model: VC25_SNIbc
-  - model: VC25_SNII    # recordar corregir PATH_NON1ASED en el archivo original antes de lanzar (ver models.yaml)
+  # - model: VC25_SNII   # PAUSADO v8: 21/31 SED faltantes, fase no cuadra con
+  #                      # los 10 SED.gz que si funcionan. Ver NEXT_SESSION.md
+  #                      # seccion "Pausado por decision tuya".
 
   # --- Overrides por clase (opcional) ---
   # - model: SNIa
@@ -107,3 +111,5 @@ batch:
   snana_login_setup: |
     ml  SNANA/11.05p
     export SNDATA_ROOT=/home/mvalenzuela/SNDATA_ROOT
+    export PATH=$HOME/AUTOSIM/bin/snana_custom:$PATH
+    export LD_LIBRARY_PATH=/home/modules/spack/opt/spack/linux-rocky9-zen4/aocc-4.2.0/cfitsio-4.4.0-3g3y7mzaigrbbxm3e2lmghmg37cavzge/lib:/home/modules/spack/opt/spack/linux-rocky9-zen4/gcc-14.2.0/gsl-2.8-qpko6b5lua5ufqfpif2g6zzeecls7gxk/lib:$LD_LIBRARY_PATH
