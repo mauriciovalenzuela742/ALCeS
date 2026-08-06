@@ -7,11 +7,16 @@ corre via su propio sbatch (slurm/run_<GENVERSION>.sh), que redirige stdout/
 stderr a run_<GENVERSION>_<jobid>.out/.err en build_dir. El estado se arma
 combinando:
 
-    1. squeue (PENDING/RUNNING mientras el job este en cola)
-    2. la salida FITS real bajo $SNDATA_ROOT/SIM/<GENVERSION>/ (señal DONE
-       mas confiable que parsear texto de log, ya que no conocemos el string
-       exacto que imprime snlc_sim.exe al terminar en invocacion directa)
-    3. el .out/.err de SLURM (para detectar ABORT/FATAL/Error si algo fallo)
+    1. el .out/.err de SLURM: `DONE with snlc_sim.` es la UNICA senhal DONE
+       confiable (confirmado empiricamente contra decenas de corridas
+       reales) — la existencia de un .FITS en $SNDATA_ROOT/SIM/<GENVERSION>/
+       NO implica que termino bien, porque snlc_sim.exe escribe eventos de
+       forma progresiva y puede abortar a mitad de camino dejando un FITS
+       parcial. Este mismo error (usar existencia de FITS como señal de
+       DONE) ya causo falsos positivos en sesiones anteriores — no repetir.
+       ABORT/FATAL/Segmentation fault en el log es la señal FAILED.
+    2. squeue (PENDING/RUNNING mientras el job este en cola, solo si el log
+       todavia no dio una señal DONE/FAILED definitiva)
 
     GENVERSION                               STATUS    NGEN     TIME    SLURM
     SNIa_WFD_baseline_v5.3.1_10yrs           DONE     50000     3m12s   —
@@ -96,18 +101,13 @@ def campaign_status(build_dir: str | Path) -> CampaignStatus:
         if dump:
             vs.ngen_done = _count_dump(dump)
 
-        # senhal DONE mas confiable: existe el output FITS real
-        if _output_exists(gv, sim_root):
-            vs.status = "DONE"
-
-        # SLURM status (solo si aun no se confirmo DONE)
-        if slurm_jobs and vs.status != "DONE":
+        # SLURM status (solo si aun no se confirmo DONE/FAILED via log)
+        if slurm_jobs and vs.status not in ("DONE", "FAILED"):
             for jid, jname, jstate in slurm_jobs:
                 if gv in jname:
                     vs.slurm_id = jid
-                    if vs.status not in ("FAILED",):
-                        vs.status = {"PENDING": "PENDING", "RUNNING": "RUNNING",
-                                     "COMPLETING": "RUNNING"}.get(jstate, vs.status)
+                    vs.status = {"PENDING": "PENDING", "RUNNING": "RUNNING",
+                                 "COMPLETING": "RUNNING"}.get(jstate, vs.status)
                     break
 
         if vs.status == "UNKNOWN" and log:
@@ -117,8 +117,8 @@ def campaign_status(build_dir: str | Path) -> CampaignStatus:
             # para que el usuario revise el log a mano.
             vs.status = "UNKNOWN"
             if not vs.error_msg:
-                vs.error_msg = ("sin senhal clara: no esta en squeue, no hay FITS en "
-                                "$SNDATA_ROOT/SIM/, y el log no tiene ABORT/FATAL — "
+                vs.error_msg = ("sin senhal clara: no esta en squeue, el log no tiene "
+                                "'DONE with snlc_sim.' ni ABORT/FATAL — "
                                 f"revisar a mano: {log}")
 
         versions.append(vs)
@@ -182,14 +182,6 @@ def _find_log(gv: str, *dirs: Path) -> Path | None:
     return None
 
 
-def _output_exists(gv: str, sim_root: Path) -> bool:
-    """Senhal DONE mas confiable: existe el directorio de salida con FITS reales."""
-    gdir = sim_root / gv
-    if not gdir.is_dir():
-        return False
-    return any(gdir.glob("*.FITS*")) or any(gdir.glob("*HEAD.FITS*"))
-
-
 def _find_file(gv: str, suffix: str, *dirs: Path) -> Path | None:
     for d in dirs:
         if not d.is_dir():
@@ -202,30 +194,34 @@ def _find_file(gv: str, suffix: str, *dirs: Path) -> Path | None:
 
 
 def _parse_log(vs: VersionStatus, log: Path) -> None:
-    """Parsea el .out/.err de SLURM buscando ABORT/FATAL/Error (senhal FAILED).
-
-    No se busca un string de 'exito' especifico porque no esta confirmado que
-    imprima snlc_sim.exe en invocacion directa (sin submit_batch_jobs.sh); el
-    DONE definitivo lo da _output_exists() con el FITS real, no este parseo.
+    """Parsea el .out/.err de SLURM: 'DONE with snlc_sim.' es la señal DONE
+    confiable (confirmado empiricamente, ver docstring del modulo); ABORT/
+    FATAL/Segmentation fault es la señal FAILED. Se lee el archivo completo
+    (no solo el tail) porque 'DONE with snlc_sim.' puede quedar antes de
+    bloques de AUXILIARY FILES / DOCUMENTATION que se imprimen despues.
     """
     try:
         text = log.read_text(errors="replace")
-        tail = "\n".join(text.splitlines()[-80:])
     except Exception:
         return
 
+    if re.search(r"DONE with snlc_sim\.", text):
+        vs.status = "DONE"
+        return  # DONE es definitivo, no hace falta seguir revisando ABORT viejo
+
+    tail = "\n".join(text.splitlines()[-80:])
     if re.search(r"ABORT|FATAL|Segmentation fault", tail, re.IGNORECASE):
         vs.status = "FAILED"
         for line in tail.splitlines():
             if re.search(r"ABORT|FATAL|Segmentation fault", line, re.IGNORECASE):
                 vs.error_msg = line.strip()[:120]
                 break
-    # NOTA: ya NO se asume RUNNING por defecto si no hay ABORT/FATAL. Un log
-    # sin senhal clara puede significar tanto "sigue corriendo" como "termino
-    # hace rato y el patron de exito no matcheaba" — asumir RUNNING aca genera
-    # falsos positivos (ej. reportar RUNNING con squeue vacio). Se deja
-    # vs.status como esta (UNKNOWN si nada mas lo cambio) y que la
-    # confirmacion real venga de squeue o de la existencia del FITS.
+    # NOTA: ya NO se asume RUNNING por defecto si no hay DONE ni ABORT/FATAL.
+    # Un log sin senhal clara puede significar tanto "sigue corriendo" como
+    # "termino hace rato de forma rara" — asumir RUNNING aca genera falsos
+    # positivos (ej. reportar RUNNING con squeue vacio). Se deja vs.status
+    # como esta (UNKNOWN si nada mas lo cambio) y la confirmacion real viene
+    # de squeue o de este mismo parseo.
 
     # elapsed time (si snlc_sim lo imprime; formato variable, best-effort)
     m = re.search(r"Elapsed.*?time[:\s]*([\d.]+)\s*(sec|min|hr)", tail, re.IGNORECASE)
