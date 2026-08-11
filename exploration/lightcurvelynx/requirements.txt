@@ -1,0 +1,8 @@
+# Instalado en NLHPC via:
+#   module load python/3.12.3-legacy-skylake
+#   cd exploration/lightcurvelynx && python3 -m venv venv
+#   source venv/bin/activate
+#   pip install "lightcurvelynx[all]"
+#
+# Version instalada y usada para el spike de Fase 0 (ver NOTES.md):
+lightcurvelynx==0.5.2
