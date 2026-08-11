@@ -98,7 +98,10 @@ defaults:
   peakmjd_pad: 50                # dias de ensanche para GENRANGE_PEAKMJD
 
   # --- rutas confirmadas contra AGN_20251020.input (real, ya ejecutado) ---
-  kcor_file: "/home/mvalenzuela/run_SNANA/kcor_LSST.fits"
+  # kcor_file: reconstruido de forma reproducible desde pipeline/kcor/kcor_LSST.input
+  # (muestra oficial SNANA LSST/baseline_1.9, ver pipeline/kcor/README.md). Contenido
+  # verificado idéntico al kcor_LSST.fits anterior (mismo grid/filtros/SED).
+  kcor_file: "/home/mvalenzuela/AUTOSIM/pipeline/kcor/kcor_LSST.fits"
   searcheff_pipeline_file: "/home/mvalenzuela/run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
   searcheff_pipeline_logic_file: "/home/mvalenzuela/run_SNANA/LSST_PIPELINE_LOGIC.DAT"
 

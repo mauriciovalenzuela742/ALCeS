@@ -803,8 +803,9 @@ defaults:
   ranseed: 12945
   ngen_season: 0               # 0 = NGEN_LC (no por temporada)
   # SEARCHEFF: se deriva automaticamente del SIMLIB
+  kcor_file: "/home/mvalenzuela/AUTOSIM/pipeline/kcor/kcor_LSST.fits"
   searcheff_pipeline_logic_file: "$SNDATA_ROOT/models/searcheff/SEARCHEFF_PIPELINE_LOGIC.DAT"
-  searcheff_pipeline_eff_file: "SEARCHEFF_PIPELINE_LSST.DAT"
+  searcheff_pipeline_file: "SEARCHEFF_PIPELINE_LSST.DAT"
   # PEAKMJD se calcula del SIMLIB range
   peakmjd_pad: 50              # dias de padding respecto al SIMLIB
 
