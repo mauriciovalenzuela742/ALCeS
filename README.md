@@ -9,6 +9,7 @@ datasets alimentan el pipeline de clasificación fotométrica de ALeRCE.
 **Infraestructura:** NLHPC (SLURM, Lmod) · SNANA `11.05p`
 **Bases verificadas:** `baseline_v5.0.0_10yrs` · `baseline_v5.3.1_10yrs`
 (17 bases registradas en total — ver `pipeline/opsims.yaml`)
+**Visualizer:** https://mauriciovalenzuela742.github.io/ALCeS/ 
 
 > Este README refleja el estado **verificado contra la instalación real en
 > NLHPC**, no solo contra la documentación genérica de SNANA. Varias rutas,
