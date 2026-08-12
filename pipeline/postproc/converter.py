@@ -38,18 +38,30 @@ def _to_native_byteorder(arr: np.ndarray) -> np.ndarray:
 
 
 def _read_fits_table(path: Path, hdu: int = 1) -> pd.DataFrame:
-    """Lee un HDU de un FITS como DataFrame, intentando fitsio luego astropy."""
+    """Lee un HDU de un FITS como DataFrame, intentando fitsio luego astropy.
+
+    Algunos HEAD.FITS traen columnas vector-valuadas por fila (p.ej. los grids
+    HOSTGALz_QUANTILE_*/HOSTGALz_LOGMASS_* de HOSTLIB, forma (N, 20) o (N, 40)) —
+    pandas no puede guardar un array 2D como una columna plana, y el QC no las
+    usa, asi que se descartan aqui en vez de romper la lectura completa.
+    """
     try:
         import fitsio
         data = fitsio.read(str(path), ext=hdu)
-        return pd.DataFrame({col: _to_native_byteorder(data[col]) for col in data.dtype.names})
+        return pd.DataFrame({
+            col: _to_native_byteorder(data[col])
+            for col in data.dtype.names if data[col].ndim == 1
+        })
     except ImportError:
         pass
     try:
         from astropy.io import fits
         with fits.open(str(path), memmap=True) as hdul:
             arr = np.array(hdul[hdu].data)
-            return pd.DataFrame({name: _to_native_byteorder(arr[name]) for name in arr.dtype.names})
+            return pd.DataFrame({
+                name: _to_native_byteorder(arr[name])
+                for name in arr.dtype.names if arr[name].ndim == 1
+            })
     except ImportError:
         raise ImportError(
             "Se necesita fitsio o astropy para leer FITS. "
