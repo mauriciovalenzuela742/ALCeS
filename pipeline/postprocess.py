@@ -72,12 +72,13 @@ def process_genversion(
     result = converter.read_genversion(gv_dir)
     head_df = result.pop("head_df")
     phot_df = result.pop("phot_df")
+    dump_df = result.pop("dump_df", None)
     print(f"    ✓ {result['n_objects']:,} objetos · {result['n_observations']:,} observaciones (desde FITS)")
 
     # QC
     qc_paths = {}
     if not skip_qc:
-        qc_paths = qc.run_all_qc(head_df, phot_df, out_base / "qc", gv_name)
+        qc_paths = qc.run_all_qc(head_df, phot_df, out_base / "qc", gv_name, dump_df=dump_df)
         qc_paths = {k: str(v) for k, v in qc_paths.items()}
         print(f"    ✓ {len(qc_paths)} graficos QC generados")
 

@@ -70,17 +70,50 @@ def redshift_distribution(
     head_df: pd.DataFrame,
     out_path: str | Path,
     *,
+    dump_df: pd.DataFrame | None = None,
     z_sim_col: str = "REDSHIFT_HELIO",
-    z_det_col: str = "REDSHIFT_CMB",
+    z_det_col: str = "REDSHIFT_FINAL",
     type_col: str = "SNTYPE",
     bins: int = 40,
 ) -> Path:
-    """Distribución de redshift simulado vs detectado (coloreado por clase)."""
+    """Distribución de redshift simulado vs detectado (coloreado por clase).
+
+    Si se pasa `dump_df` (el .DUMP de SNANA, que trae TODOS los eventos
+    generados cuando el .INPUT pide SELECTION: NONE — no solo los que
+    pasaron a HEAD.FITS), la comparacion es real: ZHELIO de dump_df completo
+    ("z simulado") vs el subconjunto de dump_df cuyo CID aparece en
+    head_df.SNID ("z detectado", i.e. paso el pipeline de deteccion).
+    head_df solo contiene eventos YA detectados, asi que sin dump_df no hay
+    forma real de contrastar contra la poblacion completa — se usa como
+    fallback (misma columna de head_df dos veces filtrada por tipo, menos
+    informativo pero mejor que nada)."""
     _setup_style()
     import matplotlib.pyplot as plt
 
     out_path = Path(out_path)
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
+
+    if dump_df is not None and not dump_df.empty and "ZHELIO" in dump_df.columns and "CID" in dump_df.columns:
+        # SNANA usa -9 como centinela de "no definido" -- se descarta antes
+        # de graficar (son ~0.1% de los eventos, no una senal real).
+        dump_df = dump_df[dump_df["ZHELIO"] > -1]
+        detected_cids = set(head_df["SNID"].astype(str)) if "SNID" in head_df.columns else set()
+        detected_mask = dump_df["CID"].astype(str).isin(detected_cids)
+        panels = [
+            (dump_df["ZHELIO"].dropna(), f"z simulado (N={len(dump_df):,})"),
+            (dump_df.loc[detected_mask, "ZHELIO"].dropna(),
+             f"z detectado (N={int(detected_mask.sum()):,})"),
+        ]
+        for ax, (sub, label) in zip(axes, panels):
+            ax.hist(sub, bins=bins, alpha=0.75, color=_ACCENT, histtype="stepfilled")
+            ax.set_xlabel(label.split(" (")[0])
+            ax.set_title(label, fontsize=11)
+        axes[0].set_ylabel("N eventos")
+        fig.suptitle("Distribución de redshift (simulado vs detectado, vía .DUMP)",
+                     color=_ACCENT, fontsize=13, y=1.02)
+        fig.savefig(out_path)
+        plt.close(fig)
+        return out_path
 
     for ax, col, label in zip(axes, [z_sim_col, z_det_col], ["z simulado", "z detectado"]):
         if col not in head_df.columns:
@@ -118,12 +151,10 @@ def magnitude_histograms(
 
     out_path = Path(out_path)
     bands = bands or ["u", "g", "r", "i", "z", "Y"]
-    present = [b for b in bands if b in phot_df[band_col].unique()]
-    if not present:
-        # intentar sin case sensitivity
-        phot_df = phot_df.copy()
-        phot_df[band_col] = phot_df[band_col].str.strip()
-        present = [b for b in bands if b in phot_df[band_col].unique()]
+    # SNANA suele prefijar la banda (p.ej. "LSST-r") en vez del caracter
+    # suelto ("r") — se compara por el sufijo tras el ultimo "-".
+    band_short = phot_df[band_col].astype(str).str.strip().str.rsplit("-", n=1).str[-1]
+    present = [b for b in bands if b in band_short.unique()]
 
     ncols = min(3, len(present)) or 1
     nrows = max(1, (len(present) + ncols - 1) // ncols)
@@ -131,7 +162,7 @@ def magnitude_histograms(
 
     for idx, b in enumerate(present):
         ax = axes[idx // ncols][idx % ncols]
-        sub = phot_df[phot_df[band_col] == b][mag_col].dropna()
+        sub = phot_df.loc[band_short == b, mag_col].dropna()
         sub = sub[(sub > 15) & (sub < 30)]  # rango razonable
         ax.hist(sub, bins=bins, color=BAND_COLORS.get(b, _ACCENT), alpha=0.8, histtype="stepfilled")
         ax.set_xlabel("mag AB")
@@ -153,25 +184,32 @@ def detection_distribution(
     out_path: str | Path,
     *,
     snid_col: str = "SNID",
+    photflag_col: str = "PHOTFLAG",
+    detected_flags: tuple[int, ...] = (4096, 6144),
     bins: int = 50,
 ) -> Path:
-    """Distribución del número de detecciones (épocas) por objeto."""
+    """Distribución del número de detecciones reales (no todas las épocas
+    observadas — PHOTFLAG=0 es una no-deteccion/upper-limit, no una
+    deteccion) por objeto. PHOTFLAG 4096/6144 son los valores estandar de
+    SNANA para deteccion (ver readme de cada GENVERSION)."""
     _setup_style()
     import matplotlib.pyplot as plt
 
     out_path = Path(out_path)
-    if snid_col not in phot_df.columns:
-        # fallback: usar head_df.NOBS si se pasa como phot
+    valid = phot_df[phot_df[snid_col] != ""] if snid_col in phot_df.columns else phot_df.iloc[0:0]
+    if photflag_col in valid.columns:
+        valid = valid[valid[photflag_col].isin(detected_flags)]
+    if snid_col not in phot_df.columns or valid.empty:
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, f"columna '{snid_col}' no encontrada", transform=ax.transAxes,
                 ha="center", color=_INK_DIM)
         fig.savefig(out_path); plt.close(fig); return out_path
 
-    counts = phot_df.groupby(snid_col).size()
+    counts = valid.groupby(snid_col).size()
     fig, ax = plt.subplots(figsize=(7, 4.5))
     ax.hist(counts, bins=bins, color=_ACCENT, alpha=0.85, histtype="stepfilled", edgecolor=_LINE)
     ax.axvline(counts.median(), color="#e0b23c", ls="--", lw=1.2, label=f"mediana = {counts.median():.0f}")
-    ax.set_xlabel("Nº de épocas por objeto")
+    ax.set_xlabel("Nº de detecciones reales por objeto (PHOTFLAG ∈ {4096, 6144})")
     ax.set_ylabel("N objetos")
     ax.set_title("Distribución de detecciones", color=_ACCENT, fontsize=13)
     ax.legend()
@@ -194,6 +232,8 @@ def sample_lightcurves(
     flux_col: str = "FLUXCAL",
     fluxerr_col: str = "FLUXCALERR",
     band_col: str = "FLT",
+    photflag_col: str = "PHOTFLAG",
+    detected_flags: tuple[int, ...] = (4096, 6144),
     seed: int = 42,
 ) -> Path:
     """Muestra aleatoria de curvas de luz (flujo vs MJD, multibanda)."""
@@ -201,11 +241,13 @@ def sample_lightcurves(
     import matplotlib.pyplot as plt
 
     out_path = Path(out_path)
-    if snid_col not in phot_df.columns:
+    valid = phot_df[phot_df[snid_col] != ""] if snid_col in phot_df.columns else phot_df.iloc[0:0]
+    if snid_col not in phot_df.columns or valid.empty:
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, f"columna '{snid_col}' no encontrada", transform=ax.transAxes,
                 ha="center", color=_INK_DIM)
         fig.savefig(out_path); plt.close(fig); return out_path
+    phot_df = valid
 
     rng = np.random.default_rng(seed)
     all_snids = phot_df[snid_col].unique()
@@ -226,13 +268,23 @@ def sample_lightcurves(
             if len(match):
                 label_extra = f"  tipo={match.iloc[0]['SNTYPE']}"
 
+        has_photflag = photflag_col in sub.columns
         for b in sub[band_col].unique():
+            b_short = str(b).rsplit("-", 1)[-1]
             bsub = sub[sub[band_col] == b].sort_values(mjd_col)
-            color = BAND_COLORS.get(b, _INK_DIM)
-            ax.errorbar(bsub[mjd_col], bsub[flux_col],
-                        yerr=bsub[fluxerr_col] if fluxerr_col in bsub else None,
-                        fmt="o", ms=3, color=color, ecolor=color, alpha=0.8,
-                        label=b, elinewidth=0.8, capsize=0)
+            color = BAND_COLORS.get(b_short, _INK_DIM)
+            det = bsub[bsub[photflag_col].isin(detected_flags)] if has_photflag else bsub
+            nondet = bsub[~bsub[photflag_col].isin(detected_flags)] if has_photflag else bsub.iloc[0:0]
+            if not det.empty:
+                ax.errorbar(det[mjd_col], det[flux_col],
+                            yerr=det[fluxerr_col] if fluxerr_col in det else None,
+                            fmt="o", ms=3, color=color, ecolor=color, alpha=0.85,
+                            label=f"{b_short} det", elinewidth=0.8, capsize=0)
+            if not nondet.empty:
+                ax.errorbar(nondet[mjd_col], nondet[flux_col],
+                            yerr=nondet[fluxerr_col] if fluxerr_col in nondet else None,
+                            fmt="v", ms=3, color=color, ecolor=color, alpha=0.3,
+                            label=f"{b_short} no det", elinewidth=0.6, capsize=0)
         ax.set_title(f"SNID {snid}{label_extra}", fontsize=9)
         ax.set_xlabel("MJD")
         ax.set_ylabel("FLUXCAL")
@@ -254,6 +306,8 @@ def run_all_qc(
     phot_df: pd.DataFrame,
     out_dir: str | Path,
     genversion: str = "",
+    *,
+    dump_df: pd.DataFrame | None = None,
 ) -> dict[str, Path]:
     """Corre los 4 QC y devuelve las rutas generadas."""
     out_dir = Path(out_dir)
@@ -262,7 +316,7 @@ def run_all_qc(
 
     paths = {}
     paths["redshift"] = redshift_distribution(
-        head_df, out_dir / f"{prefix}qc_redshift.png")
+        head_df, out_dir / f"{prefix}qc_redshift.png", dump_df=dump_df)
     paths["magnitudes"] = magnitude_histograms(
         phot_df, out_dir / f"{prefix}qc_magnitudes.png")
     paths["detections"] = detection_distribution(

@@ -120,16 +120,59 @@ def read_phot(path: str | Path) -> pd.DataFrame:
     return df
 
 
+def read_dump(path: str | Path) -> pd.DataFrame:
+    """Lee un .DUMP de SNANA (texto, una fila por evento GENERADO, no solo
+    los detectados) a DataFrame. Formato: linea 'VARNAMES: <col1> <col2> ...'
+    seguida de filas 'SN: <val1> <val2> ...' (el token 'SN:' no es dato).
+
+    A diferencia de HEAD.FITS (que solo contiene los eventos que SNANA
+    selecciono/detecto), el .DUMP trae TODOS los eventos generados cuando
+    el .INPUT tiene SELECTION: NONE — es la unica fuente para comparar
+    redshift simulado vs detectado de forma real (no solo dos columnas
+    del mismo head_df, que ya esta pre-filtrado a detectados)."""
+    path = Path(path)
+    columns: list[str] | None = None
+    rows: list[list[str]] = []
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("VARNAMES:"):
+                columns = line.split()[1:]
+                continue
+            if line.startswith("SN:") and columns is not None:
+                rows.append(line.split()[1:])
+    if not columns or not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows, columns=columns)
+    for col in df.columns:
+        if col != "CID":
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
+
+
 def link_phot_head(phot_df: pd.DataFrame, head_df: pd.DataFrame) -> pd.DataFrame:
-    """Asocia cada fila de phot con su SNID usando PTROBS_MIN/MAX de head."""
+    """Asocia cada fila de phot con su SNID usando PTROBS_MIN/MAX de head.
+
+    SNANA agrega una fila terminadora (MJD=-777) al final del bloque de
+    fotometria de cada objeto, fuera del rango [PTROBS_MIN, PTROBS_MAX] —
+    por eso el total de filas de phot_df siempre supera a la suma de rangos
+    en exactamente n_objects, y una comparacion estricta de largos (version
+    anterior) descartaba el link para el 100% de las clases. Se rellena por
+    slice de indices en vez de concatenar y comparar largos; las filas
+    terminadoras quedan con SNID="" y se filtran rio abajo (ver qc.py)."""
     if "PTROBS_MIN" in head_df.columns and "PTROBS_MAX" in head_df.columns:
-        snids = []
-        for _, row in head_df.iterrows():
-            lo, hi = int(row["PTROBS_MIN"]) - 1, int(row["PTROBS_MAX"])  # 1-indexed
-            snids.extend([row["SNID"]] * (hi - lo))
-        if len(snids) == len(phot_df):
-            phot_df = phot_df.copy()
-            phot_df["SNID"] = snids
+        snid_arr = np.full(len(phot_df), "", dtype=object)
+        lo_arr = head_df["PTROBS_MIN"].to_numpy(dtype=np.int64) - 1  # 1-indexed -> 0-indexed
+        hi_arr = head_df["PTROBS_MAX"].to_numpy(dtype=np.int64)
+        snid_vals = head_df["SNID"].to_numpy()
+        n = len(snid_arr)
+        for lo, hi, snid in zip(lo_arr, hi_arr, snid_vals):
+            if 0 <= lo < hi <= n:
+                snid_arr[lo:hi] = snid
+        phot_df = phot_df.copy()
+        phot_df["SNID"] = snid_arr
     return phot_df
 
 
@@ -166,6 +209,11 @@ def read_genversion(genversion_dir: str | Path) -> dict:
     if "SNID" not in phot_df.columns and len(head_files) == 1:
         phot_df = link_phot_head(phot_df, head_df)
 
+    # .DUMP (todos los eventos generados, no solo los detectados) — opcional,
+    # solo existe si el .INPUT pide SELECTION: NONE
+    dump_files = sorted(gdir.glob("*.DUMP"))
+    dump_df = read_dump(dump_files[0]) if dump_files else pd.DataFrame()
+
     return {
         "genversion_dir": str(gdir),
         "n_objects": len(head_df),
@@ -175,7 +223,9 @@ def read_genversion(genversion_dir: str | Path) -> dict:
         "fits_files": {
             "head": [str(f) for f in head_files],
             "phot": [str(f) for f in phot_files],
+            "dump": [str(f) for f in dump_files],
         },
         "head_df": head_df,
         "phot_df": phot_df,
+        "dump_df": dump_df,
     }
