@@ -534,6 +534,133 @@
     border-radius: 3px;
   }
 
+  /* ---------------------------------------------------------- quality controls */
+  .qc-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 22px;
+  }
+
+  .qc-class-btn {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--ink-dim);
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+
+  .qc-class-btn:hover:not(:disabled) { border-color: var(--border-strong); color: var(--ink); }
+
+  .qc-class-btn[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .qc-class-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    text-decoration: line-through;
+  }
+
+  .qc-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 18px;
+  }
+
+  .qc-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+
+  .qc-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .qc-panel-head h3 {
+    margin: 0;
+    font-size: 0.92rem;
+    font-weight: 700;
+  }
+
+  .qc-img-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .qc-img-cell figure { margin: 0; }
+
+  .qc-img-cell img {
+    width: 100%;
+    display: block;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    cursor: zoom-in;
+    background: var(--surface-2);
+  }
+
+  .qc-img-cell figcaption {
+    margin-top: 5px;
+    font-size: 0.7rem;
+    color: var(--ink-faint);
+    text-align: center;
+  }
+
+  .qc-unavailable {
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+    padding: 28px 14px;
+    text-align: center;
+    color: var(--ink-faint);
+    font-size: 0.82rem;
+  }
+
+  .qc-unavailable.pending { border-color: var(--warn); color: var(--warn); }
+  .qc-unavailable.broken { border-color: var(--critical); color: var(--critical); }
+
+  .qc-field-toggle { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+
+  .qc-field-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  .qc-lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 5, 14, 0.86);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    z-index: 50;
+    cursor: zoom-out;
+  }
+
+  .qc-lightbox.open { display: flex; }
+
+  .qc-lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 4px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+
   /* ---------------------------------------------------------- recipe */
   .recipe {
     display: flex;
@@ -690,14 +817,30 @@
     </div>
   </section>
 
+  <section id="qc">
+    <div class="section-head"><span class="section-num">03</span><h2>Quality Controls</h2></div>
+    <p class="section-sub">Salida real de la Capa 4 (<code>pipeline/postproc/qc.py</code>) — leída directo de los FITS de
+    cada GENVERSION, no simulada. Elegí un campo (WFD/DDF) y una clase para ver sus 4 gráficos de control.
+    Las clases tachadas no tienen QC disponible (simulación falló, FITS corrupto, o quedaron pausadas para v8 —
+    ver sección 02); pasa el mouse sobre el motivo. Datos cargados desde <code>qc/qc_index.json</code>.</p>
+
+    <div class="qc-field-toggle" id="qc-field-toggle">
+      <span class="qc-field-label">Campo</span>
+    </div>
+    <div class="qc-selector" id="qc-selector"></div>
+    <div class="qc-panels" id="qc-panels"></div>
+  </section>
+
+  <div class="qc-lightbox" id="qc-lightbox"><img id="qc-lightbox-img" src="" alt=""></div>
+
   <section id="catalog">
-    <div class="section-head"><span class="section-num">03</span><h2>Catálogo de clases (42)</h2></div>
+    <div class="section-head"><span class="section-num">04</span><h2>Catálogo de clases (42)</h2></div>
     <p class="section-sub">Cada clase referencia un <code>SIMGEN_INCLUDE_*.INPUT</code> ya curado — ver <code>pipeline/models.yaml</code>. <code>Cepheid</code> y <code>VC25_SNII</code> están en el catálogo pero pausadas para la campaña v8 activa (no aparecen en la tabla de arriba).</p>
     <div class="families" id="families"></div>
   </section>
 
   <section id="recipe">
-    <div class="section-head"><span class="section-num">04</span><h2>Agregar una base OpSim nueva</h2></div>
+    <div class="section-head"><span class="section-num">05</span><h2>Agregar una base OpSim nueva</h2></div>
     <p class="section-sub">Receta de una sola instrucción para Claude — ver el detalle completo en <code>README.md</code>.</p>
     <ol class="recipe">
       <li>
@@ -880,6 +1023,136 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     `;
     famEl.appendChild(card);
   });
+
+  // -------------------------------------------------- quality controls
+  const QC_KINDS = [
+    ["redshift", "Redshift"],
+    ["magnitudes", "Magnitudes"],
+    ["detections", "Detecciones"],
+    ["lightcurves", "Curvas de luz"],
+  ];
+
+  const ALL_CLASSES = Object.values(FAMILIES).flat();
+  let QC_DATA = {};   // cargado desde qc/qc_index.json — {model: {WFD|DDF: {status, images|reason}}}
+  let qcField = "WFD";
+  let qcSelected = "SNIa";
+
+  function qcEntryFor(model, field) {
+    return (QC_DATA[model] && QC_DATA[model][field]) || null;
+  }
+
+  function qcPanelHtml(model, field) {
+    const entry = qcEntryFor(model, field);
+    const fieldName = field === "WFD" ? "Wide-Fast-Deep" : "Deep Drilling";
+
+    if (!entry || entry.status !== "ok") {
+      const cls = entry && entry.status === "pending_rerun" ? "pending" : "broken";
+      const label = entry && entry.status === "pending_rerun" ? "reproceso pendiente" : "no disponible";
+      const reason = (entry && entry.reason) || "clase pausada para v8 — no incluida en esta campaña.";
+      return `
+        <div class="qc-panel">
+          <div class="qc-panel-head"><span class="strategy-chip">${field}</span><h3>${label}</h3></div>
+          <div class="qc-unavailable ${cls}">${reason}</div>
+        </div>`;
+    }
+    return `
+      <div class="qc-panel">
+        <div class="qc-panel-head"><span class="strategy-chip">${field}</span><h3>${fieldName}</h3></div>
+        <div class="qc-img-grid">
+          ${QC_KINDS.map(([kind, label]) => `
+            <div class="qc-img-cell">
+              <figure>
+                <img src="${entry.images[kind]}" alt="${label}" loading="lazy">
+                <figcaption>${label}</figcaption>
+              </figure>
+            </div>`).join("")}
+        </div>
+      </div>`;
+  }
+
+  function renderQcPanels() {
+    document.getElementById("qc-panels").innerHTML = qcPanelHtml(qcSelected, qcField);
+  }
+
+  function qcButtonTitle(entry) {
+    if (!entry) return "pausada para v8 — no incluida en esta campaña";
+    if (entry.status === "pending_rerun") return `reproceso pendiente — ${entry.reason}`;
+    if (entry.status === "unavailable") return entry.reason;
+    return "";
+  }
+
+  function renderQcSelector() {
+    const qcSelectorEl = document.getElementById("qc-selector");
+    qcSelectorEl.innerHTML = "";
+    ALL_CLASSES.forEach(model => {
+      const entry = qcEntryFor(model, qcField);
+      const isOk = entry && entry.status === "ok";
+      const btn = document.createElement("button");
+      btn.className = "qc-class-btn";
+      btn.textContent = model;
+      btn.setAttribute("aria-pressed", model === qcSelected ? "true" : "false");
+      if (!isOk) {
+        btn.disabled = true;
+        btn.title = qcButtonTitle(entry);
+      } else {
+        btn.addEventListener("click", () => {
+          qcSelected = model;
+          [...qcSelectorEl.children].forEach(b => b.setAttribute("aria-pressed", "false"));
+          btn.setAttribute("aria-pressed", "true");
+          renderQcPanels();
+        });
+      }
+      qcSelectorEl.appendChild(btn);
+    });
+  }
+
+  function renderQcFieldToggle() {
+    const toggleEl = document.getElementById("qc-field-toggle");
+    ["WFD", "DDF"].forEach(field => {
+      const btn = document.createElement("button");
+      btn.className = "filter-btn";
+      btn.textContent = field;
+      btn.setAttribute("aria-pressed", field === qcField ? "true" : "false");
+      btn.addEventListener("click", () => {
+        qcField = field;
+        [...toggleEl.querySelectorAll(".filter-btn")].forEach(b => b.setAttribute("aria-pressed", "false"));
+        btn.setAttribute("aria-pressed", "true");
+        // si la clase seleccionada no tiene datos "ok" en el nuevo campo, salta a la primera que sí tenga
+        if (!qcEntryFor(qcSelected, qcField) || qcEntryFor(qcSelected, qcField).status !== "ok") {
+          const fallback = ALL_CLASSES.find(m => qcEntryFor(m, qcField) && qcEntryFor(m, qcField).status === "ok");
+          if (fallback) qcSelected = fallback;
+        }
+        renderQcSelector();
+        renderQcPanels();
+      });
+      toggleEl.appendChild(btn);
+    });
+  }
+
+  fetch("qc/qc_index.json")
+    .then(r => r.json())
+    .then(data => {
+      QC_DATA = data.classes || {};
+      qcSelected = ALL_CLASSES.find(m => qcEntryFor(m, qcField) && qcEntryFor(m, qcField).status === "ok") || qcSelected;
+      renderQcFieldToggle();
+      renderQcSelector();
+      renderQcPanels();
+    })
+    .catch(err => {
+      document.getElementById("qc-panels").innerHTML =
+        `<div class="qc-panel"><div class="qc-unavailable broken">No se pudo cargar qc/qc_index.json (${err}).</div></div>`;
+    });
+
+  // lightbox
+  const lightbox = document.getElementById("qc-lightbox");
+  const lightboxImg = document.getElementById("qc-lightbox-img");
+  document.getElementById("qc-panels").addEventListener("click", e => {
+    if (e.target.tagName === "IMG") {
+      lightboxImg.src = e.target.src;
+      lightbox.classList.add("open");
+    }
+  });
+  lightbox.addEventListener("click", () => lightbox.classList.remove("open"));
 </script>
 </body>
 </html>

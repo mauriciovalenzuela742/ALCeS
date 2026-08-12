@@ -1,0 +1,857 @@
+{
+  "generated_at": "2026-08-12T07:29:53+00:00",
+  "campaign": "full_v5.3_10yrs",
+  "kinds": [
+    "redshift",
+    "magnitudes",
+    "detections",
+    "lightcurves"
+  ],
+  "classes": {
+    "AGN": {
+      "WFD": {
+        "status": "unavailable",
+        "genversion": "AGN_WFD_baseline_v5.3.1_10yrs",
+        "reason": "clase aun no simulada para v8 (bloqueada por un bug estructural, ver README)."
+      },
+      "DDF": {
+        "status": "unavailable",
+        "genversion": "AGN_DDF_baseline_v5.3.1_10yrs",
+        "reason": "clase aun no simulada para v8 (bloqueada por un bug estructural, ver README)."
+      }
+    },
+    "CaRT": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "CaRT_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/CaRT_WFD_baseline_v5.3.1_10yrs/CaRT_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/CaRT_WFD_baseline_v5.3.1_10yrs/CaRT_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/CaRT_WFD_baseline_v5.3.1_10yrs/CaRT_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/CaRT_WFD_baseline_v5.3.1_10yrs/CaRT_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "CaRT_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/CaRT_DDF_baseline_v5.3.1_10yrs/CaRT_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/CaRT_DDF_baseline_v5.3.1_10yrs/CaRT_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/CaRT_DDF_baseline_v5.3.1_10yrs/CaRT_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/CaRT_DDF_baseline_v5.3.1_10yrs/CaRT_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "Dwarf_nova": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "Dwarf_nova_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/Dwarf_nova_WFD_baseline_v5.3.1_10yrs/Dwarf_nova_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/Dwarf_nova_WFD_baseline_v5.3.1_10yrs/Dwarf_nova_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/Dwarf_nova_WFD_baseline_v5.3.1_10yrs/Dwarf_nova_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/Dwarf_nova_WFD_baseline_v5.3.1_10yrs/Dwarf_nova_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "Dwarf_nova_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/Dwarf_nova_DDF_baseline_v5.3.1_10yrs/Dwarf_nova_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/Dwarf_nova_DDF_baseline_v5.3.1_10yrs/Dwarf_nova_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/Dwarf_nova_DDF_baseline_v5.3.1_10yrs/Dwarf_nova_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/Dwarf_nova_DDF_baseline_v5.3.1_10yrs/Dwarf_nova_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "EB": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "EB_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/EB_WFD_baseline_v5.3.1_10yrs/EB_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/EB_WFD_baseline_v5.3.1_10yrs/EB_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/EB_WFD_baseline_v5.3.1_10yrs/EB_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/EB_WFD_baseline_v5.3.1_10yrs/EB_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "EB_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/EB_DDF_baseline_v5.3.1_10yrs/EB_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/EB_DDF_baseline_v5.3.1_10yrs/EB_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/EB_DDF_baseline_v5.3.1_10yrs/EB_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/EB_DDF_baseline_v5.3.1_10yrs/EB_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "ILOT": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "ILOT_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/ILOT_WFD_baseline_v5.3.1_10yrs/ILOT_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/ILOT_WFD_baseline_v5.3.1_10yrs/ILOT_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/ILOT_WFD_baseline_v5.3.1_10yrs/ILOT_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/ILOT_WFD_baseline_v5.3.1_10yrs/ILOT_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "ILOT_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/ILOT_DDF_baseline_v5.3.1_10yrs/ILOT_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/ILOT_DDF_baseline_v5.3.1_10yrs/ILOT_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/ILOT_DDF_baseline_v5.3.1_10yrs/ILOT_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/ILOT_DDF_baseline_v5.3.1_10yrs/ILOT_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "KN-BULLA-BNS-M2COMP": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs/KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs/KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs/KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs/KN-BULLA-BNS-M2COMP_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs/KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs/KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs/KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs/KN-BULLA-BNS-M2COMP_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "KN-BULLA19": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "KN-BULLA19_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/KN-BULLA19_WFD_baseline_v5.3.1_10yrs/KN-BULLA19_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/KN-BULLA19_WFD_baseline_v5.3.1_10yrs/KN-BULLA19_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/KN-BULLA19_WFD_baseline_v5.3.1_10yrs/KN-BULLA19_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/KN-BULLA19_WFD_baseline_v5.3.1_10yrs/KN-BULLA19_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "KN-BULLA19_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/KN-BULLA19_DDF_baseline_v5.3.1_10yrs/KN-BULLA19_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/KN-BULLA19_DDF_baseline_v5.3.1_10yrs/KN-BULLA19_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/KN-BULLA19_DDF_baseline_v5.3.1_10yrs/KN-BULLA19_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/KN-BULLA19_DDF_baseline_v5.3.1_10yrs/KN-BULLA19_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "KN-K17": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "KN-K17_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/KN-K17_WFD_baseline_v5.3.1_10yrs/KN-K17_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/KN-K17_WFD_baseline_v5.3.1_10yrs/KN-K17_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/KN-K17_WFD_baseline_v5.3.1_10yrs/KN-K17_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/KN-K17_WFD_baseline_v5.3.1_10yrs/KN-K17_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "KN-K17_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/KN-K17_DDF_baseline_v5.3.1_10yrs/KN-K17_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/KN-K17_DDF_baseline_v5.3.1_10yrs/KN-K17_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/KN-K17_DDF_baseline_v5.3.1_10yrs/KN-K17_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/KN-K17_DDF_baseline_v5.3.1_10yrs/KN-K17_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "M-dwarf": {
+      "WFD": {
+        "status": "unavailable",
+        "genversion": "M-dwarf_WFD_baseline_v5.3.1_10yrs",
+        "reason": "FITS de 0 bytes, pre-existente desde 2026-08-06 -- bug estructural sin relacion a la cuota de disco."
+      },
+      "DDF": {
+        "status": "unavailable",
+        "genversion": "M-dwarf_DDF_baseline_v5.3.1_10yrs",
+        "reason": "FITS de 0 bytes, pre-existente desde 2026-08-06 -- bug estructural sin relacion a la cuota de disco."
+      }
+    },
+    "Mdwarf-flare": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "Mdwarf-flare_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/Mdwarf-flare_WFD_baseline_v5.3.1_10yrs/Mdwarf-flare_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/Mdwarf-flare_WFD_baseline_v5.3.1_10yrs/Mdwarf-flare_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/Mdwarf-flare_WFD_baseline_v5.3.1_10yrs/Mdwarf-flare_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/Mdwarf-flare_WFD_baseline_v5.3.1_10yrs/Mdwarf-flare_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "Mdwarf-flare_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/Mdwarf-flare_DDF_baseline_v5.3.1_10yrs/Mdwarf-flare_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/Mdwarf-flare_DDF_baseline_v5.3.1_10yrs/Mdwarf-flare_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/Mdwarf-flare_DDF_baseline_v5.3.1_10yrs/Mdwarf-flare_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/Mdwarf-flare_DDF_baseline_v5.3.1_10yrs/Mdwarf-flare_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "Mira": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "Mira_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/Mira_WFD_baseline_v5.3.1_10yrs/Mira_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/Mira_WFD_baseline_v5.3.1_10yrs/Mira_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/Mira_WFD_baseline_v5.3.1_10yrs/Mira_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/Mira_WFD_baseline_v5.3.1_10yrs/Mira_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "Mira_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/Mira_DDF_baseline_v5.3.1_10yrs/Mira_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/Mira_DDF_baseline_v5.3.1_10yrs/Mira_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/Mira_DDF_baseline_v5.3.1_10yrs/Mira_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/Mira_DDF_baseline_v5.3.1_10yrs/Mira_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "PISN-MOSFIT": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs/PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs/PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs/PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs/PISN-MOSFIT_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs/PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs/PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs/PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs/PISN-MOSFIT_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "PISN-STELLA-HECORE": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs/PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs/PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs/PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs/PISN-STELLA-HECORE_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs/PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs/PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs/PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs/PISN-STELLA-HECORE_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "PISN-STELLA-HYDROGENIC": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs/PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs/PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs/PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs/PISN-STELLA-HYDROGENIC_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs/PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs/PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs/PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs/PISN-STELLA-HYDROGENIC_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "RRL": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "RRL_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/RRL_WFD_baseline_v5.3.1_10yrs/RRL_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/RRL_WFD_baseline_v5.3.1_10yrs/RRL_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/RRL_WFD_baseline_v5.3.1_10yrs/RRL_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/RRL_WFD_baseline_v5.3.1_10yrs/RRL_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "RRL_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/RRL_DDF_baseline_v5.3.1_10yrs/RRL_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/RRL_DDF_baseline_v5.3.1_10yrs/RRL_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/RRL_DDF_baseline_v5.3.1_10yrs/RRL_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/RRL_DDF_baseline_v5.3.1_10yrs/RRL_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SLSN-I": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "SLSN-I_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SLSN-I_WFD_baseline_v5.3.1_10yrs/SLSN-I_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SLSN-I_WFD_baseline_v5.3.1_10yrs/SLSN-I_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SLSN-I_WFD_baseline_v5.3.1_10yrs/SLSN-I_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SLSN-I_WFD_baseline_v5.3.1_10yrs/SLSN-I_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SLSN-I_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SLSN-I_DDF_baseline_v5.3.1_10yrs/SLSN-I_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SLSN-I_DDF_baseline_v5.3.1_10yrs/SLSN-I_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SLSN-I_DDF_baseline_v5.3.1_10yrs/SLSN-I_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SLSN-I_DDF_baseline_v5.3.1_10yrs/SLSN-I_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SLSN-I_NON1ASED": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs/SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs/SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs/SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs/SLSN-I_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs/SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs/SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs/SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs/SLSN-I_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SNII": {
+      "WFD": {
+        "status": "pending_rerun",
+        "genversion": "SNII_WFD_baseline_v5.3.1_10yrs",
+        "reason": "FITS corrupto por un job de simulacion cancelado el 2026-08-12 a mitad de escritura -- no es un bug de QC. Resimulacion cancelada por el usuario, pendiente de relanzar."
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SNII_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNII_DDF_baseline_v5.3.1_10yrs/SNII_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNII_DDF_baseline_v5.3.1_10yrs/SNII_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNII_DDF_baseline_v5.3.1_10yrs/SNII_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNII_DDF_baseline_v5.3.1_10yrs/SNII_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SNII-NMF": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "SNII-NMF_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNII-NMF_WFD_baseline_v5.3.1_10yrs/SNII-NMF_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNII-NMF_WFD_baseline_v5.3.1_10yrs/SNII-NMF_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNII-NMF_WFD_baseline_v5.3.1_10yrs/SNII-NMF_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNII-NMF_WFD_baseline_v5.3.1_10yrs/SNII-NMF_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SNII-NMF_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNII-NMF_DDF_baseline_v5.3.1_10yrs/SNII-NMF_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNII-NMF_DDF_baseline_v5.3.1_10yrs/SNII-NMF_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNII-NMF_DDF_baseline_v5.3.1_10yrs/SNII-NMF_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNII-NMF_DDF_baseline_v5.3.1_10yrs/SNII-NMF_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SNIIn-MOSFIT": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs/SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs/SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs/SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs/SNIIn-MOSFIT_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs/SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs/SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs/SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs/SNIIn-MOSFIT_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SNIa": {
+      "WFD": {
+        "status": "pending_rerun",
+        "genversion": "SNIa_WFD_baseline_v5.3.1_10yrs",
+        "reason": "FITS corrupto por un job de simulacion cancelado el 2026-08-12 a mitad de escritura -- no es un bug de QC. Resimulacion cancelada por el usuario, pendiente de relanzar."
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SNIa_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIa_DDF_baseline_v5.3.1_10yrs/SNIa_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIa_DDF_baseline_v5.3.1_10yrs/SNIa_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIa_DDF_baseline_v5.3.1_10yrs/SNIa_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIa_DDF_baseline_v5.3.1_10yrs/SNIa_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SNIa-91bg": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "SNIa-91bg_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIa-91bg_WFD_baseline_v5.3.1_10yrs/SNIa-91bg_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIa-91bg_WFD_baseline_v5.3.1_10yrs/SNIa-91bg_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIa-91bg_WFD_baseline_v5.3.1_10yrs/SNIa-91bg_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIa-91bg_WFD_baseline_v5.3.1_10yrs/SNIa-91bg_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SNIa-91bg_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIa-91bg_DDF_baseline_v5.3.1_10yrs/SNIa-91bg_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIa-91bg_DDF_baseline_v5.3.1_10yrs/SNIa-91bg_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIa-91bg_DDF_baseline_v5.3.1_10yrs/SNIa-91bg_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIa-91bg_DDF_baseline_v5.3.1_10yrs/SNIa-91bg_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SNIa-91bg_NON1ASED": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs/SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs/SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs/SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs/SNIa-91bg_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs/SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs/SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs/SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs/SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SNIax": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "SNIax_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIax_WFD_baseline_v5.3.1_10yrs/SNIax_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIax_WFD_baseline_v5.3.1_10yrs/SNIax_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIax_WFD_baseline_v5.3.1_10yrs/SNIax_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIax_WFD_baseline_v5.3.1_10yrs/SNIax_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SNIax_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIax_DDF_baseline_v5.3.1_10yrs/SNIax_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIax_DDF_baseline_v5.3.1_10yrs/SNIax_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIax_DDF_baseline_v5.3.1_10yrs/SNIax_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIax_DDF_baseline_v5.3.1_10yrs/SNIax_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SNIax_NON1ASED": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs/SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs/SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs/SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs/SNIax_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs/SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs/SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs/SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs/SNIax_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SNIb": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "SNIb_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIb_WFD_baseline_v5.3.1_10yrs/SNIb_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIb_WFD_baseline_v5.3.1_10yrs/SNIb_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIb_WFD_baseline_v5.3.1_10yrs/SNIb_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIb_WFD_baseline_v5.3.1_10yrs/SNIb_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SNIb_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIb_DDF_baseline_v5.3.1_10yrs/SNIb_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIb_DDF_baseline_v5.3.1_10yrs/SNIb_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIb_DDF_baseline_v5.3.1_10yrs/SNIb_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIb_DDF_baseline_v5.3.1_10yrs/SNIb_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "SNIc": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "SNIc_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIc_WFD_baseline_v5.3.1_10yrs/SNIc_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIc_WFD_baseline_v5.3.1_10yrs/SNIc_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIc_WFD_baseline_v5.3.1_10yrs/SNIc_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIc_WFD_baseline_v5.3.1_10yrs/SNIc_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "SNIc_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/SNIc_DDF_baseline_v5.3.1_10yrs/SNIc_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/SNIc_DDF_baseline_v5.3.1_10yrs/SNIc_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/SNIc_DDF_baseline_v5.3.1_10yrs/SNIc_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/SNIc_DDF_baseline_v5.3.1_10yrs/SNIc_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "TDE": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "TDE_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/TDE_WFD_baseline_v5.3.1_10yrs/TDE_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/TDE_WFD_baseline_v5.3.1_10yrs/TDE_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/TDE_WFD_baseline_v5.3.1_10yrs/TDE_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/TDE_WFD_baseline_v5.3.1_10yrs/TDE_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "TDE_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/TDE_DDF_baseline_v5.3.1_10yrs/TDE_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/TDE_DDF_baseline_v5.3.1_10yrs/TDE_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/TDE_DDF_baseline_v5.3.1_10yrs/TDE_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/TDE_DDF_baseline_v5.3.1_10yrs/TDE_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "TDE_NON1ASED": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs/TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs/TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs/TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs/TDE_NON1ASED_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs/TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs/TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs/TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs/TDE_NON1ASED_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "V19_SNII": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "V19_SNII_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNII_WFD_baseline_v5.3.1_10yrs/V19_SNII_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNII_WFD_baseline_v5.3.1_10yrs/V19_SNII_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNII_WFD_baseline_v5.3.1_10yrs/V19_SNII_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNII_WFD_baseline_v5.3.1_10yrs/V19_SNII_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "V19_SNII_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNII_DDF_baseline_v5.3.1_10yrs/V19_SNII_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNII_DDF_baseline_v5.3.1_10yrs/V19_SNII_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNII_DDF_baseline_v5.3.1_10yrs/V19_SNII_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNII_DDF_baseline_v5.3.1_10yrs/V19_SNII_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "V19_SNIIb": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "V19_SNIIb_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNIIb_WFD_baseline_v5.3.1_10yrs/V19_SNIIb_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNIIb_WFD_baseline_v5.3.1_10yrs/V19_SNIIb_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNIIb_WFD_baseline_v5.3.1_10yrs/V19_SNIIb_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNIIb_WFD_baseline_v5.3.1_10yrs/V19_SNIIb_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "V19_SNIIb_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNIIb_DDF_baseline_v5.3.1_10yrs/V19_SNIIb_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNIIb_DDF_baseline_v5.3.1_10yrs/V19_SNIIb_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNIIb_DDF_baseline_v5.3.1_10yrs/V19_SNIIb_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNIIb_DDF_baseline_v5.3.1_10yrs/V19_SNIIb_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "V19_SNIIn": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "V19_SNIIn_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNIIn_WFD_baseline_v5.3.1_10yrs/V19_SNIIn_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNIIn_WFD_baseline_v5.3.1_10yrs/V19_SNIIn_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNIIn_WFD_baseline_v5.3.1_10yrs/V19_SNIIn_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNIIn_WFD_baseline_v5.3.1_10yrs/V19_SNIIn_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "V19_SNIIn_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNIIn_DDF_baseline_v5.3.1_10yrs/V19_SNIIn_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNIIn_DDF_baseline_v5.3.1_10yrs/V19_SNIIn_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNIIn_DDF_baseline_v5.3.1_10yrs/V19_SNIIn_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNIIn_DDF_baseline_v5.3.1_10yrs/V19_SNIIn_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "V19_SNIb": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "V19_SNIb_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNIb_WFD_baseline_v5.3.1_10yrs/V19_SNIb_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNIb_WFD_baseline_v5.3.1_10yrs/V19_SNIb_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNIb_WFD_baseline_v5.3.1_10yrs/V19_SNIb_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNIb_WFD_baseline_v5.3.1_10yrs/V19_SNIb_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "V19_SNIb_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNIb_DDF_baseline_v5.3.1_10yrs/V19_SNIb_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNIb_DDF_baseline_v5.3.1_10yrs/V19_SNIb_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNIb_DDF_baseline_v5.3.1_10yrs/V19_SNIb_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNIb_DDF_baseline_v5.3.1_10yrs/V19_SNIb_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "V19_SNIc": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "V19_SNIc_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNIc_WFD_baseline_v5.3.1_10yrs/V19_SNIc_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNIc_WFD_baseline_v5.3.1_10yrs/V19_SNIc_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNIc_WFD_baseline_v5.3.1_10yrs/V19_SNIc_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNIc_WFD_baseline_v5.3.1_10yrs/V19_SNIc_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "V19_SNIc_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNIc_DDF_baseline_v5.3.1_10yrs/V19_SNIc_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNIc_DDF_baseline_v5.3.1_10yrs/V19_SNIc_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNIc_DDF_baseline_v5.3.1_10yrs/V19_SNIc_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNIc_DDF_baseline_v5.3.1_10yrs/V19_SNIc_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "V19_SNIcBL": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "V19_SNIcBL_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNIcBL_WFD_baseline_v5.3.1_10yrs/V19_SNIcBL_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNIcBL_WFD_baseline_v5.3.1_10yrs/V19_SNIcBL_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNIcBL_WFD_baseline_v5.3.1_10yrs/V19_SNIcBL_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNIcBL_WFD_baseline_v5.3.1_10yrs/V19_SNIcBL_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "V19_SNIcBL_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/V19_SNIcBL_DDF_baseline_v5.3.1_10yrs/V19_SNIcBL_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/V19_SNIcBL_DDF_baseline_v5.3.1_10yrs/V19_SNIcBL_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/V19_SNIcBL_DDF_baseline_v5.3.1_10yrs/V19_SNIcBL_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/V19_SNIcBL_DDF_baseline_v5.3.1_10yrs/V19_SNIcBL_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "VC25_SNIbc": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "VC25_SNIbc_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/VC25_SNIbc_WFD_baseline_v5.3.1_10yrs/VC25_SNIbc_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/VC25_SNIbc_WFD_baseline_v5.3.1_10yrs/VC25_SNIbc_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/VC25_SNIbc_WFD_baseline_v5.3.1_10yrs/VC25_SNIbc_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/VC25_SNIbc_WFD_baseline_v5.3.1_10yrs/VC25_SNIbc_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "VC25_SNIbc_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/VC25_SNIbc_DDF_baseline_v5.3.1_10yrs/VC25_SNIbc_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/VC25_SNIbc_DDF_baseline_v5.3.1_10yrs/VC25_SNIbc_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/VC25_SNIbc_DDF_baseline_v5.3.1_10yrs/VC25_SNIbc_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/VC25_SNIbc_DDF_baseline_v5.3.1_10yrs/VC25_SNIbc_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "d-Scuti": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "d-Scuti_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/d-Scuti_WFD_baseline_v5.3.1_10yrs/d-Scuti_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/d-Scuti_WFD_baseline_v5.3.1_10yrs/d-Scuti_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/d-Scuti_WFD_baseline_v5.3.1_10yrs/d-Scuti_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/d-Scuti_WFD_baseline_v5.3.1_10yrs/d-Scuti_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "d-Scuti_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/d-Scuti_DDF_baseline_v5.3.1_10yrs/d-Scuti_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/d-Scuti_DDF_baseline_v5.3.1_10yrs/d-Scuti_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/d-Scuti_DDF_baseline_v5.3.1_10yrs/d-Scuti_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/d-Scuti_DDF_baseline_v5.3.1_10yrs/d-Scuti_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "uLens-Binary": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "uLens-Binary_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/uLens-Binary_WFD_baseline_v5.3.1_10yrs/uLens-Binary_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/uLens-Binary_WFD_baseline_v5.3.1_10yrs/uLens-Binary_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/uLens-Binary_WFD_baseline_v5.3.1_10yrs/uLens-Binary_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/uLens-Binary_WFD_baseline_v5.3.1_10yrs/uLens-Binary_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "uLens-Binary_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/uLens-Binary_DDF_baseline_v5.3.1_10yrs/uLens-Binary_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/uLens-Binary_DDF_baseline_v5.3.1_10yrs/uLens-Binary_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/uLens-Binary_DDF_baseline_v5.3.1_10yrs/uLens-Binary_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/uLens-Binary_DDF_baseline_v5.3.1_10yrs/uLens-Binary_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "uLens-Single-GenLens": {
+      "WFD": {
+        "status": "ok",
+        "genversion": "uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs/uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs/uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs/uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs/uLens-Single-GenLens_WFD_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs/uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs/uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs/uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs/uLens-Single-GenLens_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    },
+    "uLens-Single-PyLIMA": {
+      "WFD": {
+        "status": "unavailable",
+        "genversion": "uLens-Single-PyLIMA_WFD_baseline_v5.3.1_10yrs",
+        "reason": "FITS corrupto (header incompleto), pre-existente -- ver README."
+      },
+      "DDF": {
+        "status": "ok",
+        "genversion": "uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs",
+        "images": {
+          "redshift": "qc/uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs/uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs_qc_redshift.png",
+          "magnitudes": "qc/uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs/uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs_qc_magnitudes.png",
+          "detections": "qc/uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs/uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs_qc_detections.png",
+          "lightcurves": "qc/uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs/uLens-Single-PyLIMA_DDF_baseline_v5.3.1_10yrs_qc_lightcurves.png"
+        }
+      }
+    }
+  }
+}
