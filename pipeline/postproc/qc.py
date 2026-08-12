@@ -80,41 +80,69 @@ def redshift_distribution(
 
     Si se pasa `dump_df` (el .DUMP de SNANA, que trae TODOS los eventos
     generados cuando el .INPUT pide SELECTION: NONE — no solo los que
-    pasaron a HEAD.FITS), la comparacion es real: ZHELIO de dump_df completo
-    ("z simulado") vs el subconjunto de dump_df cuyo CID aparece en
-    head_df.SNID ("z detectado", i.e. paso el pipeline de deteccion).
-    head_df solo contiene eventos YA detectados, asi que sin dump_df no hay
-    forma real de contrastar contra la poblacion completa — se usa como
-    fallback (misma columna de head_df dos veces filtrada por tipo, menos
-    informativo pero mejor que nada)."""
+    pasaron a HEAD.FITS), la comparacion es real y en el mismo estilo que el
+    analisis de referencia del equipo (histograma ZCMB superpuesto, escala
+    log, caja de estadisticas): ZCMB de dump_df completo ("todos los
+    simulados", paso negro) vs el subconjunto de dump_df cuyo CID aparece en
+    head_df.SNID ("detectados", relleno rojo). head_df solo contiene eventos
+    YA detectados, asi que sin dump_df no hay forma real de contrastar
+    contra la poblacion completa — se usa como fallback (dos paneles con la
+    misma columna de head_df, menos informativo pero mejor que nada)."""
     _setup_style()
     import matplotlib.pyplot as plt
 
     out_path = Path(out_path)
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
 
-    if dump_df is not None and not dump_df.empty and "ZHELIO" in dump_df.columns and "CID" in dump_df.columns:
+    zcmb_col = next((c for c in (dump_df.columns if dump_df is not None else []) if "ZCMB" in c.upper()
+                      and "SMEAR" not in c.upper()), None)
+    if dump_df is not None and not dump_df.empty and zcmb_col and "CID" in dump_df.columns:
         # SNANA usa -9 como centinela de "no definido" -- se descarta antes
         # de graficar (son ~0.1% de los eventos, no una senal real).
-        dump_df = dump_df[dump_df["ZHELIO"] > -1]
+        dump_df = dump_df[dump_df[zcmb_col] > -1]
         detected_cids = set(head_df["SNID"].astype(str)) if "SNID" in head_df.columns else set()
         detected_mask = dump_df["CID"].astype(str).isin(detected_cids)
-        panels = [
-            (dump_df["ZHELIO"].dropna(), f"z simulado (N={len(dump_df):,})"),
-            (dump_df.loc[detected_mask, "ZHELIO"].dropna(),
-             f"z detectado (N={int(detected_mask.sum()):,})"),
-        ]
-        for ax, (sub, label) in zip(axes, panels):
-            ax.hist(sub, bins=bins, alpha=0.75, color=_ACCENT, histtype="stepfilled")
-            ax.set_xlabel(label.split(" (")[0])
-            ax.set_title(label, fontsize=11)
-        axes[0].set_ylabel("N eventos")
-        fig.suptitle("Distribución de redshift (simulado vs detectado, vía .DUMP)",
-                     color=_ACCENT, fontsize=13, y=1.02)
+        n_sim, n_det = len(dump_df), int(detected_mask.sum())
+
+        fig, ax = plt.subplots(figsize=(10, 6.5))
+        ax.hist(dump_df[zcmb_col], bins=35, color="#c8ccd8", histtype="step",
+                linewidth=2, label="Todos los eventos simulados", log=True)
+        if n_det:
+            ax.hist(dump_df.loc[detected_mask, zcmb_col], bins=40, color="#e0525f",
+                    alpha=0.75, label="Eventos detectados", log=True)
+        ax.set_xlabel(f"Redshift CMB ({zcmb_col})", fontsize=12)
+        ax.set_ylabel("Frecuencia (log)", fontsize=12)
+        ax.set_title("Distribución de Redshifts CMB (Simulado vs Detectado)",
+                     color=_ACCENT, fontsize=13)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+        if n_det:
+            stats_text = (
+                f"Estadísticas:\n"
+                f"• Simulados: {n_sim:,}\n"
+                f"• Detectados: {n_det:,}\n"
+                f"• Eficiencia: {n_det / n_sim * 100:.1f}%\n"
+                f"• z_max simulado: {dump_df[zcmb_col].max():.3f}\n"
+                f"• z_max detectado: {dump_df.loc[detected_mask, zcmb_col].max():.3f}"
+            )
+            ax.annotate(stats_text, xy=(0.02, 0.98), xycoords="axes fraction",
+                        verticalalignment="top", fontsize=10, color=_INK,
+                        bbox=dict(boxstyle="round,pad=0.3", facecolor=_PANEL, edgecolor=_LINE, alpha=0.9))
+
+            print("  eficiencia por bin de redshift:")
+            z_bins = np.linspace(0, dump_df[zcmb_col].max(), 6)
+            for i in range(len(z_bins) - 1):
+                bin_mask = (dump_df[zcmb_col] >= z_bins[i]) & (dump_df[zcmb_col] < z_bins[i + 1])
+                bin_det = detected_mask & bin_mask
+                eff = bin_det.sum() / bin_mask.sum() * 100 if bin_mask.sum() > 0 else 0
+                print(f"    z = [{z_bins[i]:.2f}, {z_bins[i+1]:.2f}): {eff:.1f}%")
+
+        fig.tight_layout()
         fig.savefig(out_path)
         plt.close(fig)
         return out_path
 
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), sharey=True)
     for ax, col, label in zip(axes, [z_sim_col, z_det_col], ["z simulado", "z detectado"]):
         if col not in head_df.columns:
             ax.set_title(f"{label} (columna ausente)")
