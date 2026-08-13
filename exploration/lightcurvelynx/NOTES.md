@@ -994,3 +994,121 @@ de dejarla sin probar. 10/11 clases SIMSED evaluadas de punta a punta, con halla
 en ambas direcciones (confirmaciones y refutaciones de hipótesis) documentados en todas las
 rondas. Suficiente cobertura para una recomendación final de la evaluación LightCurveLynx —
 `KN-BULLA19` queda como único pendiente conocido, no bloqueante.
+
+# Fase 2 — parte B (continuación 4): cierre del catálogo — `KN-BULLA19`,
+# `PISN-STELLA-HECORE`, `PISN-STELLA-HYDROGENIC`
+
+`KN-BULLA19` es la última de las 11 clases SIMSED originales. Al revisar de nuevo
+`pipeline/models.yaml` para confirmar que no quedaba nada suelto, aparecieron 2 clases más
+allá de las 11 originales que también usan `GENMODEL: .../SIMSED.*` y nunca se habían corrido:
+`PISN-STELLA-HECORE` y `PISN-STELLA-HYDROGENIC` (variantes alternativas de PISN, distintas de
+`PISN-MOSFIT` — modelos de S.Blondin basados en Heger & Woosley 2002 y Gilmer et al. 2017
+respectivamente).
+
+## 1. `KN-BULLA19`: la estructura anidada resultó ser simple, pero escondía un bug de dato real
+
+`GENMODEL` apunta a `SIMSED.KN-BULLA19/SIMSED.BULLA-BNS-M2-2COMP` — de las 3 sub-variantes
+anidadas que existen en el directorio (`BULLA-BHNS-M1-2COMP`, `BULLA-BNS-M2-2COMP`,
+`BULLA-BNS-M3-3COMP`, confirmado con `find`), el `.INPUT` real solo usa una. No hacía falta
+elegir entre las 3 "a ciegas" como se temía en Fase 2B ronda 1 — el `.INPUT` ya lo resuelve.
+
+Al cargar esa sub-variante (550 templates), `SIMSEDModel.from_dir()` falló con
+`gzip.BadGzipFile: Not a gzipped file (b'PK')`. Diagnóstico con `file`/`xxd` en NLHPC: los 550
+archivos `*.txt.gz` que declara `SED.INFO` **no son gzip** — son archivos **ZIP** (firma real
+`PK\x03\x04`) mal etiquetados con extensión `.gz`, cada uno con un solo miembro interno del
+mismo nombre. Confirmado con una muestra de 20/550 archivos, todos con el mismo problema — no
+es un caso aislado, es sistémico en esta librería SIMSED específica (probablemente un paso de
+compresión equivocado al publicarla, no algo que afecte a las otras 10 clases ya corridas). El
+parser de SNANA lo tolera (probablemente vía una utilidad de sistema más laxa); el nuestro no.
+
+**Fix**: `setup_knbulla19_local.py` (nuevo) — descomprime cada ZIP (`zipfile`) y re-comprime el
+contenido como gzip real (`gzip.open(...).write(...)`), mismo nombre de archivo, `SED.INFO` sin
+tocar (ya parsea limpio). Corrida real: 550/550 archivos arreglados en ~2 min, verificado
+`np.loadtxt()` cargando una grilla `(50000, 3)` fase×longitud de onda×flujo correctamente
+después del fix. No se toca el archivo real de SNANA — copia local en
+`simsed_knbulla19_local/` (no versionada).
+
+## 2. `WV07_REWGT_EXPAV`: otra forma de activar el mismo camino de código bugueado
+
+`KN-BULLA19` declara `WV07_REWGT_EXPAV: 0.5` en vez de `GENAV_WV07: 1` directo — a primera
+vista parece un mecanismo distinto. Confirmado leyendo `snlc_sim.c` (línea ~7887-7888):
+cualquier valor real de `WV07_REWGT_EXPAV` (`> -1.0E-9`) activa
+`INPUTS.WV07_GENAV_FLAG = DO_WV07 = 1`, el mismo flag que `KN-K17`/`CaRT`/`SLSN-I`/
+`ILOT-MOSFIT`/`SNIIn-MOSFIT`/`PISN-MOSFIT` activan directo — mismo camino de código con el bug
+histórico ya documentado (Fase 2B ronda 1). Se omite por el mismo criterio, no una excepción
+nueva sin analizar.
+
+## 3. `PISN-STELLA-HECORE`/`PISN-STELLA-HYDROGENIC`: reuso directo, sin sorpresas de config
+
+Ambas declaran `GENAV_WV07: 1` (el camino bugueado directo, se omite igual que `PISN-MOSFIT`)
+y `DNDZ: PISN_PLK12` — la misma fórmula real ya implementada la ronda anterior
+(`build_dndz_pisn_cdf()`), reusada sin cambios. `GENRANGE_REDSHIFT: 0.02 2.2` (ligeramente más
+angosto que el `0.02 2.4` de `PISN-MOSFIT`). Ambos `SED.INFO` parsean limpio, ambos directorios
+son pequeños (11M/14 templates y 5.3M/6 templates respectivamente) — las corridas más rápidas
+de todo el catálogo SIMSED hasta ahora.
+
+## 4. `PISN-STELLA-HYDROGENIC` usa `NGENTOT_LC=20000`, no 2000 — y eso reveló un límite real de memoria
+
+A diferencia de las demás 10 clases (todas con `ngen_ddf: 2000` en `pipeline/models.yaml`),
+`PISN-STELLA-HYDROGENIC` usa `ngen_ddf: 20000` — confirmado, no un valor por defecto sin
+verificar. `run_simsed_poc.py` se generalizó (`main(class_key, ngentot_override=None)`,
+`CLASS_CONFIGS[...]["ngentot_lc"]` como override opcional) para soportar esto sin tocar las
+otras 10 clases.
+
+El primer intento (mismo `--mem=16G` que todas las clases anteriores) terminó en
+`OUT_OF_MEMORY` a los 109s, justo después de cargar los 6 templates — 10x más objetos que el
+caso normal (2000→20000) implica ~10x más filas de fotometría aplanada (confirmado después:
+45.5M filas vs los ~4.5M típicos de N=2000), y el objeto intermedio de curvas de luz por
+objeto de `simulate_lightcurves()` excede los 16GB antes de llegar siquiera a esa etapa.
+**Fix**: resubmit con `sbatch --mem=64G` (override de CLI sobre el `#SBATCH --mem=16G` del
+script, sin tocar el `.sbatch` compartido por las otras clases) — corrió limpio, `MaxRSS` no
+llegó a excederse. Tiempo total: **62 minutos** (804s simulación + 2671s aplanado + resto) —
+resultó ser proporcional a N (10x el tiempo de una corrida N=2000 típica, no superlineal como
+se sospechó a mitad de la espera), solo que en términos absolutos es una corrida larga.
+
+## 5. Resultado: 3/3 corridas limpias
+
+| clase | `NGENTOT_LC` | extinción host | SNR mediana | SNR p90 | detectados SNANA | detectados LCL | razón |
+|---|---|---|---|---|---|---|---|
+| `KN-BULLA19` | 2000 | omitida (`WV07_REWGT_EXPAV` → mismo camino WV07 real) | 0.683 | 1.685 | 103/2000 (5.15%) | 294/2000 (14.7%) | 2.85x |
+| `PISN-STELLA-HECORE` | 2000 | omitida (`GENAV_WV07` real) | 0.746 | 2.054 | 384/2000 (19.2%) | 577/2000 (28.85%) | 1.50x |
+| `PISN-STELLA-HYDROGENIC` | 20000 | omitida (`GENAV_WV07` real) | 0.754 | 2.021 | 4268/20000 (21.34%) | 6106/20000 (30.53%) | 1.43x |
+
+Las 3 clases omiten extinción de host (las 3 usan el camino WV07 real, confirmado línea por
+línea) — sus razones (1.43x-2.85x) caen dentro del mismo rango amplio ya visto en rondas
+anteriores para clases sin extinción (1.5x-8.5x), sin sorpresas nuevas. `PISN-STELLA-HECORE`
+(1.50x) y `PISN-STELLA-HYDROGENIC` (1.43x) caen cerca del extremo bueno de ese rango — similar
+a `PISN-MOSFIT` (1.74x) y `SLSN-I` (1.54x), clases intrínsecamente más brillantes/comunes.
+`KN-BULLA19` (2.85x) es comparable a `KN-K17` (2.56x), su análogo del mismo tipo de evento
+(kilonova) — señal cruzada razonable: dos librerías SIMSED distintas para el mismo tipo físico
+de evento (kilonovas de fusión de estrellas de neutrones) muestran una brecha similar, lo que
+sugiere que el factor dominante es el tipo de evento/población, no una peculiaridad de una
+librería de templates en particular.
+
+## 6. Estado del catálogo: 11/11 clases SIMSED + `SNIa`/SALT2 — cobertura completa
+
+Con esta ronda se cierra el catálogo completo de clases basadas en SIMSED del proyecto: las 11
+originales (`SNIa-91bg`, `KN-K17`, `CaRT`, `SLSN-I`, `SNIax`, `TDE-MOSFIT`, `SNII-NMF`,
+`ILOT-MOSFIT`, `SNIIn-MOSFIT`, `PISN-MOSFIT`, `KN-BULLA19`) más las 2 variantes PISN-STELLA
+encontradas esta ronda, más `SNIa`/SALT2 de Fase 1 — 14 clases evaluadas de punta a punta en
+total. Cobertura de todos los patrones de implementación encontrados: peso uniforme,
+`SIMSED_REDCOR` (1D y 3D), extinción de host exponencial pura, extinción de host mezcla
+exp+semi-Gauss real, 5 modelos `DNDZ` distintos (`POWERLAW`, `POWERLAW2`, `MD14`, `CC_S15`,
+`TDE`, `PISN_PLK12`), y ahora también el caso de `NGENTOT_LC` no estándar.
+
+## Archivos de esta ronda
+
+- `setup_knbulla19_local.py` (nuevo) — descomprime los 550 templates ZIP-mal-etiquetados de
+  `KN-BULLA19` y los re-comprime como gzip real; `simsed_knbulla19_local/` (no versionado).
+- `run_simsed_poc.py` — `main()` acepta `ngentot_override` opcional, `CLASS_CONFIGS` soporta
+  `ngentot_lc` por clase; 3 configs nuevas (`KN-BULLA19`, `PISN-STELLA-HECORE`,
+  `PISN-STELLA-HYDROGENIC`).
+- `poc_output_knbulla19/`, `poc_output_pisnstellahecore/`, `poc_output_pisnstellahydrogenic/`
+  — resultados reales (`summary.json` + 4 QC c/u).
+
+## Estado y siguiente decisión
+
+Catálogo SIMSED/SALT2 completo (14/14 clases planificadas). No quedan clases SIMSED conocidas
+sin evaluar en el catálogo activo del proyecto. Recomendación: con esta cobertura, el próximo
+paso natural es una recomendación final consolidada de la evaluación LightCurveLynx (síntesis
+de las 4 rondas de Fase 2B + Fase 1/2A), no más escalado de clases — a decidir con el usuario.

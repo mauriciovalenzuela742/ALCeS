@@ -176,6 +176,49 @@ CLASS_CONFIGS = {
         dndz=("pisn", 1.0),
         sntype=70,
     ),
+    # Fase 2B ronda 4: cierra el catalogo. KN-BULLA19 es la ultima de las
+    # 11 clases SIMSED originales (su estructura de 3 sub-variantes
+    # anidadas -- SIMSED.BULLA-BHNS-M1-2COMP, -BNS-M2-2COMP, -BNS-M3-3COMP
+    # -- quedo sin investigar desde Fase 2B ronda 1; el .INPUT real usa
+    # solo BNS-M2-2COMP via GENMODEL). PISN-STELLA-HECORE/-HYDROGENIC son
+    # 2 clases mas alla de las 11 originales, encontradas al re-revisar
+    # pipeline/models.yaml -- mismo GENMODEL:.../SIMSED.* que las demas,
+    # nunca corridas.
+    #
+    # KN-BULLA19 usa `WV07_REWGT_EXPAV: 0.5` (no `GENAV_WV07: 1` directo) --
+    # confirmado leyendo snlc_sim.c (linea ~7887): cualquier valor real de
+    # WV07_REWGT_EXPAV activa `INPUTS.WV07_GENAV_FLAG = DO_WV07 = 1`, el
+    # mismo flag que usan KN-K17/CaRT/SLSN-I -- mismo camino de codigo
+    # bugueado, se omite por el mismo criterio (no una excepcion nueva).
+    # PISN-STELLA-HECORE/-HYDROGENIC declaran `GENAV_WV07: 1` directo, igual
+    # que PISN-MOSFIT -- tambien omitida.
+    "KN-BULLA19": dict(
+        # los 550 "*.txt.gz" reales no son gzip -- son ZIP mal etiquetados
+        # (firma PK, confirmado con `file`), cada uno con 1 miembro interno
+        # del mismo nombre. Ver setup_knbulla19_local.py: copia local con
+        # cada archivo descomprimido del ZIP y re-comprimido como gzip real
+        # (SED.INFO no necesita fix, ya parsea limpio). Archivo real no
+        # tocado.
+        simsed_dir=HERE / "simsed_knbulla19_local",
+        genrange_redshift=(0.011, 0.28),
+        dndz=("powerlaw", [(320e-9, 0.0, 0.011, 0.28)]),  # identico a KN-K17
+        sntype=52,
+    ),
+    "PISN-STELLA-HECORE": dict(
+        simsed_dir=SNANA_HOME / "run_SNANA/elastic/model_libs_updates/SIMSED.PISN-STELLA-HECORE",
+        genrange_redshift=(0.02, 2.2),
+        dndz=("pisn", 1.0),
+        sntype=71,
+    ),
+    "PISN-STELLA-HYDROGENIC": dict(
+        simsed_dir=SNANA_HOME / "run_SNANA/elastic/model_libs_updates/SIMSED.PISN-STELLA-HYDROGENIC",
+        genrange_redshift=(0.02, 2.2),
+        dndz=("pisn", 1.0),
+        sntype=72,
+        # unica clase del catalogo con ngen_ddf != 2000 (pipeline/models.yaml:
+        # 20000) -- confirmado, no un valor por defecto sin verificar.
+        ngentot_lc=20000,
+    ),
 }
 
 
@@ -190,8 +233,13 @@ def snana_noise_columns(df_ddf: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def main(class_key: str):
+def main(class_key: str, ngentot_override: int | None = None):
     cfg = CLASS_CONFIGS[class_key]
+    # la mayoria de las clases DDF usan NGENTOT_LC=2000 (pipeline/models.yaml:
+    # ngen_ddf), pero PISN-STELLA-HYDROGENIC es la excepcion real (ngen_ddf:
+    # 20000) -- cfg["ngentot_lc"] la overridea; ngentot_override (usado por
+    # los smoke tests) tiene prioridad sobre ambas.
+    ngentot = ngentot_override if ngentot_override is not None else cfg.get("ngentot_lc", NGENTOT_LC)
     out_dir = HERE / f"poc_output_{class_key.lower().replace('-', '')}"
     out_dir.mkdir(exist_ok=True)
     t_start = time.time()
@@ -319,7 +367,7 @@ def main(class_key: str):
     print(f"[{time.time()-t_start:.1f}s] SIMSEDModel cargado ({len(source_model)} templates)")
 
     t_sim0 = time.time()
-    lc = simulate_lightcurves(source_model, NGENTOT_LC, survey_info=SurveyInfo(
+    lc = simulate_lightcurves(source_model, ngentot, survey_info=SurveyInfo(
         obstable=obs_table, passbands=passband_group, survey_name="LSST",
     ), rest_time_window_offset=(-30, 100))
     sim_wall_time = time.time() - t_sim0
@@ -371,12 +419,12 @@ def main(class_key: str):
 
     (out_dir / "summary.json").write_text(json.dumps({
         "class_key": class_key,
-        "ngentot_lc": NGENTOT_LC,
+        "ngentot_lc": ngentot,
         "n_with_obs": len(head_df),
         "n_detected": len(detected_snids),
         "n_total_dump": len(dump_df),
         "sim_wall_time_s": sim_wall_time,
-        "detection_efficiency_pct": 100.0 * len(detected_snids) / NGENTOT_LC,
+        "detection_efficiency_pct": 100.0 * len(detected_snids) / ngentot,
         "snr_median": float(snr_sim.median()),
         "snr_p90": float(snr_sim.quantile(0.9)),
     }, indent=2))
