@@ -1,0 +1,255 @@
+"""
+Fase 1 -- PoC SNIa_DDF con LightCurveLynx, parametros reales de SNANA.
+
+Basado en bench_snia.py (Fase 0) pero:
+  - Filtra el OpSim a los 6 campos DDF oficiales (target_name contiene 'ddf_').
+  - NGENTOT_LC=2000 (igual que SNANA para DDF, ver pipeline/models.yaml).
+  - SALT2 real: modelo H17 cargado DIRECTO de los archivos de SNANA
+    (run_SNANA/plasticc_models/SALT2.WFIRST-H17), no del mirror remoto de
+    sncosmo.github.io (esta caido -- 404 confirmado). El color law se
+    reconstruyo a mano desde SALT2.INFO::COLORCOR_PARAMS (mismos 4
+    coeficientes que usa snlc_sim.exe).
+  - GENRANGE_REDSHIFT, SALT2c/x1 bifurcados, DNDZ real (ver snana_params.py).
+  - RA/Dec muestreadas de las posiciones reales de pointings DDF
+    (ObsTableRADECSampler, visit-weighted) -- no una caja uniforme de cielo
+    (con eso casi todos los objetos caian fuera del footprint DDF real,
+    nobs=0).
+  - SIGMA_INT=0.090 (de SALT2.INFO) como dispersion acromatica coherente
+    por evento -- aproximacion aceptada del modelo G10 completo (que
+    correlaciona la dispersion con x1/c via una covarianza espectral; fuera
+    de alcance para un PoC, ver NOTES.md Fase 0 punto 1).
+  - Eficiencia de deteccion real (searcheff.py) aplicada como post-proceso
+    sobre flux/fluxerr, no el escalon SNR>5 que trae LightCurveLynx nativo.
+  - Extincion MW real (ExtinctionEffect, frame='observer', modelo O94/CCM89-
+    like, R_V=3.1 -- misma familia que usa SNANA segun OPT_MWCOLORLAW): un
+    E(B-V) por evento segun el campo DDF donde cae (6 campos, valores reales
+    consultados al servicio IRSA Dust Extinction de NASA/IPAC -- el mapa SFD
+    remoto de `dustmaps`/`sfdmap2` esta inalcanzable desde NLHPC via su
+    mecanismo de descarga habitual, asi que se consulto por coordenadas
+    via la API REST de IRSA en vez de bajar el mapa completo).
+    RESULTADO: la extincion casi no cambio la eficiencia (59.95% -> 57.2%,
+    la primera corrida sin extincion ya reportaba ~2x la eficiencia real de
+    SNANA -- 29.85%) -- los 6 campos DDF tienen E(B-V) muy bajo por diseno
+    (0.006-0.025, elegidos asi justamente), asi que no era la explicacion
+    principal de la brecha. El diagnostico real: el SNR simulado
+    (flux/fluxerr, TODAS las observaciones, no solo detectadas) sale
+    sistematicamente mas alto que el SNR real de SNANA para la misma
+    campana (mediana LCL=1.008 vs SNANA=0.78; p90 LCL=5.68 vs SNANA=2.26,
+    ~2.5x en la cola alta) -- el modelo de ruido fotometrico de
+    LightCurveLynx (derivado de profundidad/PSF/cielo del OpSim) subestima
+    el ruido por-epoca real que usa SNANA para esta campana. Esto, no la
+    poblacion de brillo/color/redshift, es la explicacion mas probable de
+    la eficiencia de deteccion ~2x mas alta -- ver NOTES.md Fase 1 para el
+    detalle completo. Queda como brecha abierta para Fase 2 (no resuelta
+    en este PoC): calibrar o reemplazar el modelo de ruido de
+    LightCurveLynx contra el de SNANA antes de usar esto para conclusiones
+    cuantitativas, no solo cualitativas/de forma.
+
+Uso (dentro de un job sbatch, nunca en el login node):
+    python3 run_snia_ddf_poc.py
+"""
+from __future__ import annotations
+
+import json
+import sqlite3
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import sncosmo
+
+from lightcurvelynx.astro_utils.passbands import PassbandGroup
+from lightcurvelynx.astro_utils.snia_utils import DistModFromRedshift, X0FromDistMod
+from lightcurvelynx.effects.extinction import ExtinctionEffect
+from lightcurvelynx.math_nodes.np_random import NumpyRandomFunc
+from lightcurvelynx.math_nodes.ra_dec_sampler import ObsTableRADECSampler
+from lightcurvelynx.models.sncosmo_models import SncosmoWrapperModel
+from lightcurvelynx.obstable.opsim import OpSim
+from lightcurvelynx.simulate import simulate_lightcurves
+from lightcurvelynx.survey_info import SurveyInfo
+from lightcurvelynx.utils.extrapolate import LinearDecay, ZeroPadding
+
+from snana_params import (
+    build_dndz_powerlaw2_cdf, make_dndz_sampler, make_bifurcated_normal_sampler,
+    SizeAwareFunctionNode,
+)
+from searcheff import parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency
+
+HERE = Path(__file__).resolve().parent
+SNANA_HOME = Path("/home/mvalenzuela")
+OPSIM_DB = SNANA_HOME / "AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db"
+SALT2_LOCAL_DIR = HERE / "salt2_h17_local"
+SEARCHEFF_PIPELINE_FILE = SNANA_HOME / "run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
+SEARCHEFF_LOGIC_FILE = SNANA_HOME / "run_SNANA/LSST_PIPELINE_LOGIC.DAT"
+OUT_DIR = HERE / "poc_output"
+
+NGENTOT_LC = 2000  # igual que SNANA DDF (pipeline/models.yaml: ngen_ddf)
+SEED_BASE = 20260812
+
+# --- parametros reales de SIMGEN_INCLUDE_SNIa-SALT2.INPUT ---
+GENRANGE_REDSHIFT = (0.011, 1.2)
+SALT2C = dict(peak=-0.054, sigma_lo=0.043, sigma_hi=0.101, lo=-0.3, hi=0.5)
+SALT2X1 = dict(peak=0.973, sigma_lo=1.472, sigma_hi=0.222, lo=-3.0, hi=2.0)
+ALPHA, BETA = 0.14, 3.1
+SIGMA_INT = 0.090  # SALT2.INFO -- aproximacion coherente de G10 (ver docstring)
+DNDZ_SEGMENTS = [(2.5e-5, 1.5, 0.0, 1.0), (9.7e-5, -0.5, 1.0, 3.0)]
+
+# E(B-V) real por campo DDF (mapa SFD, consultado via IRSA Dust Extinction
+# Service -- https://irsa.ipac.caltech.edu/applications/DUST/ -- en los 6
+# centros de campo reales calculados desde baseline_v5.3.1_10yrs.db). Estos
+# 6 campos fueron elegidos por el survey precisamente por su baja extincion
+# (todos < 0.03 mag), consistente con lo esperado para deep fields
+# extragalacticos.
+DDF_FIELD_EBV = {
+    "cosmos": 0.0182, "ecdfs": 0.0084, "edfs_a": 0.0062,
+    "edfs_b": 0.0152, "elaiss1": 0.0080, "xmm_lss": 0.0251,
+}
+MW_RV = 3.1  # promedio Galaxia estandar, misma familia que OPT_MWCOLORLAW de SNANA
+
+
+def main():
+    t_start = time.time()
+    OUT_DIR.mkdir(exist_ok=True)
+
+    con = sqlite3.connect(str(OPSIM_DB))
+    df = pd.read_sql_query("SELECT * FROM observations", con)
+    df_ddf = df[df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
+    # etiqueta de campo por fila (primer match ddf_<campo> en target_name) --
+    # se usa para asignar el E(B-V) real correcto a cada objeto simulado
+    # segun en que pointing cayo (ver ObsTableRADECSampler mas abajo).
+    df_ddf["field"] = df_ddf["target_name"].str.extract(r"ddf_(\w+)")
+    obs_table = OpSim(df_ddf)
+    print(f"[{time.time()-t_start:.1f}s] OpSim DDF: {len(df_ddf):,} / {len(df):,} obs totales")
+
+    passband_group = PassbandGroup.from_preset(preset="LSST")
+    print(f"[{time.time()-t_start:.1f}s] passbands cargados")
+
+    local_src = sncosmo.SALT2Source(modeldir=str(SALT2_LOCAL_DIR), name="salt2-h17-local")
+    print(f"[{time.time()-t_start:.1f}s] SALT2.WFIRST-H17 local cargado "
+          f"(mismo modelo que SNIa_DDF de SNANA, no el mirror remoto)")
+
+    z_grid, cdf = build_dndz_powerlaw2_cdf(
+        segments=DNDZ_SEGMENTS, z_min=GENRANGE_REDSHIFT[0], z_max=GENRANGE_REDSHIFT[1],
+    )
+    redshift_func = SizeAwareFunctionNode(
+        make_dndz_sampler(z_grid, cdf, seed=SEED_BASE + 1), node_label="redshift"
+    )
+    c_func = SizeAwareFunctionNode(
+        make_bifurcated_normal_sampler(**SALT2C, seed=SEED_BASE + 2), node_label="c"
+    )
+    x1_func = SizeAwareFunctionNode(
+        make_bifurcated_normal_sampler(**SALT2X1, seed=SEED_BASE + 3), node_label="x1"
+    )
+    distmod_func = DistModFromRedshift(redshift_func, H0=73.0, Omega_m=0.3)
+    m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=SIGMA_INT, seed=SEED_BASE + 4)
+    x0_func = X0FromDistMod(
+        distmod=distmod_func, x1=x1_func, c=c_func, alpha=ALPHA, beta=BETA, m_abs=m_abs_func,
+    )
+    radec_sampler = ObsTableRADECSampler(obs_table, extra_cols=["field"], seed=SEED_BASE + 5)
+    t0_func = NumpyRandomFunc(
+        "uniform", low=float(obs_table["time"].min()), high=float(obs_table["time"].max()),
+        seed=SEED_BASE + 6,
+    )
+
+    def _field_to_ebv(size=None, field=None, **_kwargs):
+        arr = np.asarray(field)
+        return np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+
+    ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
+    mw_extinction = ExtinctionEffect(
+        extinction_model="O94", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
+    )
+
+    source = SncosmoWrapperModel(
+        local_src, t0=t0_func, x0=x0_func, x1=x1_func, c=c_func,
+        ra=radec_sampler.ra, dec=radec_sampler.dec, redshift=redshift_func,
+        node_label="source", time_extrapolation=LinearDecay(50.0), wave_extrapolation=ZeroPadding(),
+    )
+    source.add_effect(mw_extinction)
+    survey_info = SurveyInfo(obstable=obs_table, passbands=passband_group, survey_name="LSST")
+    print(f"[{time.time()-t_start:.1f}s] modelo armado, simulando {NGENTOT_LC} objetos...")
+
+    t_sim0 = time.time()
+    lc = simulate_lightcurves(source, NGENTOT_LC, survey_info, rest_time_window_offset=(-30, 100))
+    sim_wall_time = time.time() - t_sim0
+    print(f"[{time.time()-t_start:.1f}s] simulacion terminada: {len(lc)} objetos, "
+          f"{sim_wall_time:.1f}s ({sim_wall_time/len(lc)*1000:.2f} ms/objeto)")
+
+    # -- aplanar a phot_df + head_df --
+    head_rows = []
+    phot_rows = []
+    for _, row in lc.iterrows():
+        sub = row["lightcurve"]
+        if sub is None or len(sub) == 0:
+            continue
+        snid = str(int(row["id"]))
+        head_rows.append({
+            "SNID": snid, "SNTYPE": 1, "RA": row["ra"], "DEC": row["dec"],
+            "REDSHIFT_HELIO": row["z"], "PEAKMJD": row["t0"], "NOBS": len(sub),
+        })
+        for _, obs in sub.iterrows():
+            # normaliza 'y' -> 'Y' para calzar con la convencion de banda de
+            # SNANA que ya usa pipeline/postproc/qc.py (bands=[...,"Y"]).
+            flt = str(obs["filter"])
+            flt = "Y" if flt == "y" else flt
+            phot_rows.append({
+                "SNID": snid, "MJD": obs["mjd"], "FLT": flt,
+                "FLUXCAL": obs["flux"], "FLUXCALERR": obs["fluxerr"],
+            })
+
+    head_df = pd.DataFrame(head_rows)
+    phot_df = pd.DataFrame(phot_rows)
+    # LightCurveLynx usa flujo en nJy (no el FLUXCAL/ZEROPT=27.5 de SNANA) --
+    # zeropoint AB estandar para nJy: mag = 8.9 + 2.5*9 - 2.5*log10(flux_njy)
+    # (misma constante que lightcurvelynx.astro_utils.mag_flux.MAG_AB_ZP_NJY).
+    MAG_AB_ZP_NJY = 8.9 + 2.5 * 9
+    positive = phot_df["FLUXCAL"] > 0
+    phot_df["MAG"] = np.where(positive, MAG_AB_ZP_NJY - 2.5 * np.log10(phot_df["FLUXCAL"].where(positive)), np.nan)
+    print(f"[{time.time()-t_start:.1f}s] aplanado: {len(head_df)} objetos con obs, "
+          f"{len(phot_df)} filas de fotometria")
+
+    # -- eficiencia de deteccion real (SEARCHEFF) --
+    band_curves = parse_searcheff_pipeline(SEARCHEFF_PIPELINE_FILE)
+    min_epochs = parse_pipeline_logic(SEARCHEFF_LOGIC_FILE)
+    detected_mask = apply_detection_efficiency(
+        phot_df, band_curves, seed=SEED_BASE + 7,
+    )
+    phot_df["PHOTFLAG"] = np.where(detected_mask, 4096, 0)
+    counts = phot_df[phot_df["PHOTFLAG"] == 4096].groupby("SNID").size()
+    detected_snids = set(counts[counts >= min_epochs].index)
+    print(f"[{time.time()-t_start:.1f}s] SEARCHEFF aplicado: {len(detected_snids)}/{len(head_df)} "
+          f"objetos detectados (>= {min_epochs} epocas)")
+
+    # dump_df-equivalente: TODOS los NGENTOT_LC generados (no solo los con obs)
+    all_ids = lc["id"].astype(int).astype(str)
+    dump_df = pd.DataFrame({
+        "CID": all_ids, "ZHELIO": lc["z"].to_numpy(), "ZCMB": lc["z"].to_numpy(),
+    })
+    # marcar detectados en head_df (subconjunto que paso SEARCHEFF)
+    head_df_detected = head_df[head_df["SNID"].isin(detected_snids)].reset_index(drop=True)
+
+    (OUT_DIR / "summary.json").write_text(json.dumps({
+        "ngentot_lc": NGENTOT_LC,
+        "n_with_obs": len(head_df),
+        "n_detected": len(detected_snids),
+        "n_total_dump": len(dump_df),
+        "sim_wall_time_s": sim_wall_time,
+        "detection_efficiency_pct": 100.0 * len(detected_snids) / NGENTOT_LC,
+    }, indent=2))
+
+    # -- QC reusando pipeline.postproc.qc sin modificar --
+    sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
+    from pipeline.postproc import qc
+
+    qc_dir = OUT_DIR / "qc"
+    paths = qc.run_all_qc(head_df_detected, phot_df, qc_dir, "LightCurveLynx_SNIa_DDF_poc",
+                          dump_df=dump_df)
+    print(f"[{time.time()-t_start:.1f}s] QC generado: {list(paths.keys())}")
+
+    print(f"[{time.time()-t_start:.1f}s] TOTAL")
+
+
+if __name__ == "__main__":
+    main()

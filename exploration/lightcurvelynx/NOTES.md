@@ -128,3 +128,195 @@ cambia el resultado de este spike.
   VBMicrolensing, synphot, bilby, pzflow, lsdb.
 - Scripts de verificación: `check_opsim_schema.py`, `test_opsim_load.py`, `bench_snia.py`
   (este directorio).
+
+---
+
+# Fase 1 — PoC SNIa_DDF: parámetros reales de SNANA, comparación directa
+
+Plan completo: `C:\Users\HOME\.claude\plans\delegated-tumbling-petal.md`. Objetivo acordado:
+un PoC de una sola clase (SNIa) con parámetros reales (no placeholders) que confirme o
+descarte equivalencia científica con SNANA — no solo velocidad — usando `SNIa_DDF` como
+baseline (`SNIa_WFD` seguía con el FITS corrupto de antes, verificado de nuevo al iniciar
+esta fase: mismo timestamp, mismo `UnicodeDecodeError`, sin resimulación exitosa desde
+entonces).
+
+## Resumen ejecutivo
+
+**Resultado: la mecánica del PoC funciona de punta a punta — parámetros reales, samplers
+custom (DNDZ, Gaussianas bifurcadas), extinción MW real, eficiencia de detección real
+(SEARCHEFF real, no el escalón nativo), reuso directo del QC ya arreglado esta sesión — pero
+la eficiencia de detección global sale ~2x más alta que SNANA real (57.2% vs 29.85%), y la
+causa más probable diagnosticada es que el modelo de ruido fotométrico de LightCurveLynx
+subestima el ruido por-época real, no un problema con la población simulada (redshift/color/
+extinción). Esta brecha queda abierta, no resuelta — recomendación: GO condicional a Fase 2,
+contingente en calibrar/reemplazar el modelo de ruido de LightCurveLynx antes de sacar
+conclusiones cuantitativas de cualquier corrida futura.**
+
+## 1. Parámetros reales de `SIMGEN_INCLUDE_SNIa-SALT2.INPUT`
+
+El spike de Fase 0 (`bench_snia.py`) usaba placeholders (redshift uniforme, Gaussianas
+simples, sin DNDZ). Verificado contra el `.INPUT` real en NLHPC:
+
+| Parámetro | Placeholder (Fase 0) | Real (usado en Fase 1) |
+|---|---|---|
+| `GENRANGE_REDSHIFT` | uniforme 0.01–0.6 | DNDZ POWERLAW2 real, 0.011–1.2 |
+| `GENSIGMA_SALT2c` | Normal simple, σ=0.02 | bifurcada: peak=-0.054, σ=(0.043, 0.101) |
+| `GENSIGMA_SALT2x1` | Normal simple, σ=2.0 | bifurcada: peak=0.973, σ=(1.472, 0.222) |
+| `alpha`/`beta` | 0.14/3.1 | igual (ya coincidía) |
+| `GENMAG_SMEAR_MODELNAME: G10` | no implementado | aproximado: dispersión acromática coherente,
+  `SIGMA_INT=0.090` de `SALT2.INFO` (no la covarianza x1/c completa de G10 — fuera de alcance
+  de un PoC, ver Fase 0 punto 1) |
+
+`snana_params.py` (nuevo): `build_dndz_powerlaw2_cdf()` construye la tasa diferencial
+`dN/dz = DNDZ(z)·dVc/dz/(1+z)` (dilución temporal incluida) numéricamente y samplea por
+inversión de CDF; `make_bifurcated_normal_sampler()` samplea una Gaussiana con σ distinto a
+cada lado del pico, con corte por rechazo en `GENRANGE_SALT2{c,x1}`. Verificado standalone
+(fuera del grafo de LightCurveLynx) contra 5000 muestras: formas y percentiles razonables,
+CDF sube monótonamente 0→1 sin degeneración.
+
+## 2. Bug real encontrado: `FunctionNode` nunca pasa `size=` a la función envuelta
+
+Al conectar los samplers custom al grafo de LightCurveLynx (`FunctionNode(mi_sampler,
+node_label=...)`), la primera corrida completa produjo un redshift casi degenerado (un solo
+bin angosto cerca de z≈1.2 en vez de la distribución esperada 0.011–1.2). Diagnóstico:
+`FunctionNode.compute()` (base, `lightcurvelynx/base_models.py`) llama
+`self.func(**args)` **sin `size` en absoluto** — a diferencia de `NumpyRandomFunc.compute()`,
+que sí inyecta `size=graph_state.num_samples` explícitamente. Con la firma
+`sampler(size=None, **kw)`, cada llamada devolvía un solo valor escalar que el grafo
+terminaba difundiendo (broadcast) a los N samples — confirmado con
+`FunctionNode(sampler, node_label='z').generate(num_samples=10)` devolviendo el mismo
+valor 10 veces.
+
+**Fix**: `SizeAwareFunctionNode` (en `snana_params.py`), una subclase mínima de
+`FunctionNode` que sobreescribe `compute()` para inyectar `size=graph_state.num_samples` —
+mismo patrón que usa `NumpyRandomFunc` internamente, aplicado a un callable arbitrario.
+Verificado: `SizeAwareFunctionNode(sampler, ...).generate(num_samples=2000)` devuelve 2000
+valores únicos con la forma esperada.
+
+## 3. SALT2 H17: el mirror remoto de sncosmo está caído — se usó el modelo real de SNANA
+
+`get_source("salt2-h17")` (usado en `bench_snia.py`) intenta descargar desde
+`https://sncosmo.github.io/data/models/snana/salt2-h17/` — **404 confirmado** (GitHub Pages,
+recurso no existe más). En vez de reintentar contra un mirror caído, se cargó el modelo H17
+real que ya usa `SNIa_DDF` de SNANA (`run_SNANA/plasticc_models/SALT2.WFIRST-H17/*.dat.gz`)
+directo vía `sncosmo.SALT2Source(modeldir=...)` — mismo modelo físico, no una aproximación.
+Dos ajustes de formato (no de contenido científico, ver `setup_salt2_local.py`):
+descomprimir los `.dat.gz`, y reescribir `salt2_color_correction.dat` en el formato de texto
+que espera `sncosmo` (`<ncoeffs>\n<coefs>\nSalt2ExtinctionLaw.version 1\n...`) usando los
+coeficientes reales de `SALT2.INFO::COLORCOR_PARAMS` (`-1.33154627 0.61225710 -0.12117791
+0.00840832`, rango 2800–9500Å) — el archivo de SNANA con ese mismo nombre es una tabla de
+dispersión de ~4.9MB, un producto distinto, no los ~4 coeficientes que separa `sncosmo`.
+Verificado: `SALT2Source` carga y evalúa flujo correctamente con este modelo local.
+
+## 4. Posiciones RA/Dec: hay que samplear del footprint real, no una caja uniforme
+
+Primer intento con RA/Dec uniformes sobre todo el cielo (mismo patrón que `bench_snia.py`):
+la mayoría de los objetos caían con `nobs=0` porque DDF son solo 6 pointings angostos, no
+todo el cielo. Fix: `ObsTableRADECSampler(obs_table)` — samplea posiciones reales
+(visit-weighted) de los pointings del `OpSim` ya filtrado a DDF, con el radio de campo de
+visión real. `extra_cols=["field"]` además devuelve, ya emparejada por fila, la etiqueta del
+campo DDF real (`cosmos`, `ecdfs`, `edfs_a`, `edfs_b`, `elaiss1`, `xmm_lss`) — necesaria para
+asignar extinción MW correcta por campo (punto 6).
+
+## 5. SEARCHEFF real (no el escalón SNR>5 nativo)
+
+`searcheff.py` (nuevo): parsea `LSST_SEARCHEFF_PIPELINE.DAT` (curva de eficiencia vs SNR por
+banda, u/g comparten curva y z/Y comparten curva, r e i propias — interpolación lineal,
+formato validado contra el archivo real) y `LSST_PIPELINE_LOGIC.DAT` (`LSST: 2
+u+g+r+i+z+Y` → ≥2 épocas detectadas en cualquier combinación de filtros). Aplica Monte Carlo
+por observación (SNR=flux/fluxerr → interpola eficiencia → sortea detección), luego el mismo
+umbral de trigger que usa `snlc_sim.exe`. Mismo `PHOTFLAG` (4096/6144) que ya usa
+`pipeline/postproc/qc.py` tras el fix de esta sesión, así que ambos lados de la comparación
+usan la misma definición de "detección real".
+
+## 6. Extinción MW real — no era la explicación de la brecha de eficiencia
+
+`ExtinctionEffect(extinction_model="O94", frame="observer", r_v=3.1)` — misma familia que
+`OPT_MWCOLORLAW` de SNANA (CCM89+O'Donnell94). `dustmaps`/`sfdmap2` no pudieron descargar el
+mapa SFD completo desde NLHPC (Harvard Dataverse API devuelve cuerpo vacío pese a HTTP 202;
+el mirror de GitHub `kbarbary/sfddata` solo tiene un README, sin los `.fits`) — en vez de
+mapear posiciones individuales, se consultó el **servicio REST IRSA Dust Extinction** de
+NASA/IPAC (sí alcanzable) para los 6 centros de campo DDF reales (calculados desde
+`baseline_v5.3.1_10yrs.db`, no de memoria):
+
+| Campo | RA | Dec | E(B-V) SFD |
+|---|---|---|---|
+| cosmos | 150.110 | 2.234 | 0.0182 |
+| ecdfs | 52.981 | -28.119 | 0.0084 |
+| edfs_a | 59.374 | -49.150 | 0.0062 |
+| edfs_b | 63.151 | -47.772 | 0.0152 |
+| elaiss1 | 9.446 | -44.030 | 0.0080 |
+| xmm_lss | 35.575 | -4.820 | 0.0251 |
+
+Cada objeto simulado recibe el E(B-V) de su campo real (vía `extra_cols=["field"]` del punto
+4, para que posición y extinción vengan de la misma fila sampleada, no independientes).
+**Resultado**: la eficiencia global apenas bajó (59.95% sin extinción → 57.2% con extinción)
+— estos 6 campos fueron elegidos por el survey precisamente por su baja extinción (todos
+< 0.03 mag), así que no explican la brecha de ~2x contra SNANA real (29.85%).
+
+## 7. Diagnóstico real de la brecha de eficiencia: ruido fotométrico, no población
+
+Con extinción descartada como explicación principal, se comparó el SNR simulado
+(`|flux/fluxerr|`, **todas** las observaciones, no solo las detectadas) contra el SNR real de
+SNANA para la misma campaña:
+
+| | mediana SNR | p90 SNR |
+|---|---|---|
+| SNANA real (`SNIa_DDF`) | 0.78 | 2.26 |
+| LightCurveLynx (este PoC) | 1.008 | 5.68 |
+
+La mediana ya sale ~29% más alta, pero la cola alta (p90) sale **2.5x** más alta — es decir,
+las épocas de mayor SNR (las que más pesan en el trigger "≥2 detecciones") están
+sistemáticamente menos ruidosas en la simulación de LightCurveLynx que en la de SNANA para
+el mismo `OpSim` (misma profundidad, PSF, cielo). Como el ratio SNR=flux/fluxerr no depende
+de la convención de unidades de flujo (nJy vs FLUXCAL — un error de escala afectaría flux Y
+fluxerr por igual, cancelándose en el ratio), esto no es un bug de conversión de unidades en
+este script: apunta a que el modelo de ruido fotométrico interno de LightCurveLynx (derivado
+de profundidad/PSF/cielo del `OpSim`) subestima el ruido por-época real que usa SNANA para
+esta campaña — probablemente porque el pipeline real de SNANA/LSST incluye términos de ruido
+sistemático/calibración adicionales que el modelo de LightCurveLynx no captura, o usa una
+calibración de ruido distinta para el mismo profundidad nominal.
+
+**No resuelto en este PoC** — calibrar o reemplazar el modelo de ruido de LightCurveLynx
+contra el de SNANA es trabajo real de integración (no un ajuste de una línea), apropiado para
+Fase 2 si se decide seguir, no para cerrar aquí. Es la brecha concreta más importante que
+queda abierta.
+
+## 8. Rendimiento — sigue siendo dramáticamente más rápido
+
+`NGENTOT_LC=2000` (SNIa_DDF real, `pipeline/models.yaml::ngen_ddf`) completo — ingesta OpSim
++ SALT2 + samplers custom + extinción + 2000 objetos — en **60–73 segundos** de wall time
+dentro de un job SLURM liviano (16GB, 4 cores), confirmando de nuevo el orden de magnitud de
+ventaja de velocidad medido en Fase 0 (~150x vs SNANA en throughput crudo).
+
+## 9. Recomendación: GO condicional a Fase 2
+
+Lo que **sí** quedó confirmado y funcionando de punta a punta: parámetros reales de SNANA
+(DNDZ, bifurcadas, rango de redshift), el modelo SALT2 H17 real (no una aproximación),
+posiciones reales del footprint DDF, extinción MW real por campo, eficiencia de detección
+real (SEARCHEFF real, no el escalón nativo), reuso directo de la infraestructura de QC ya
+arreglada esta sesión (mismos 4 gráficos, mismos criterios de detección), y la ventaja de
+velocidad de Fase 0 se sostiene. Se encontraron y corrigieron 3 problemas reales en el camino
+(bug de broadcast en `FunctionNode`, mirror de SALT2 caído, formato de color law) — ninguno
+bloqueante, todos con fix concreto documentado arriba.
+
+Lo que **no** quedó confirmado: equivalencia cuantitativa de detección (~2x de brecha,
+diagnosticada pero no cerrada — ruido fotométrico, no población). Por eso la recomendación es
+**GO condicional**, no un GO sin reservas: seguir a Fase 2 (cobertura de más clases, wrapper
+SIMSED) es razonable dado que la mecánica funciona y la brecha tiene un candidato de causa
+concreto y acotado (no un problema difuso de "LightCurveLynx no sirve para esto") — pero
+cualquier resultado cuantitativo de Fase 1/2 debe tratarse como preliminar hasta calibrar el
+modelo de ruido contra SNANA real, no como una comparación científica cerrada todavía.
+
+## Archivos de esta fase
+
+- `snana_params.py` — samplers DNDZ + bifurcado + `SizeAwareFunctionNode` (fix del bug de
+  broadcast).
+- `searcheff.py` — parser de `LSST_SEARCHEFF_PIPELINE.DAT`/`LSST_PIPELINE_LOGIC.DAT` +
+  aplicación Monte Carlo de detección real.
+- `setup_salt2_local.py` — reproduce `salt2_h17_local/` (no versionado, se regenera desde los
+  archivos de SNANA ya en NLHPC) desde cero.
+- `run_snia_ddf_poc.py` + `run_snia_ddf_poc.sbatch` — script principal, corre en NLHPC vía
+  SLURM (nunca login node).
+- `poc_output/summary.json` + `poc_output/qc/*.png` — resultado real de la última corrida
+  (con extinción, `n_detected=1144/2000`, eficiencia 57.2%).
