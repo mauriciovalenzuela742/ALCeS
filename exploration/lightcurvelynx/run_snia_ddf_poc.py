@@ -120,8 +120,15 @@ def main():
     # se usa para asignar el E(B-V) real correcto a cada objeto simulado
     # segun en que pointing cayo (ver ObsTableRADECSampler mas abajo).
     df_ddf["field"] = df_ddf["target_name"].str.extract(r"ddf_(\w+)")
-    obs_table = OpSim(df_ddf)
-    print(f"[{time.time()-t_start:.1f}s] OpSim DDF: {len(df_ddf):,} / {len(df):,} obs totales")
+    # LightCurveLynx default zp_err_mag=1e-4 es ~50x mas chico que el
+    # ZEROPT_ERR real de SNANA para esta campana (mediana=0.005, std=7.5e-5,
+    # confirmado contra el phot_df real de SNIa_DDF) -- ese termino escala
+    # con bandflux^2 (ver noise_models/noise_utils.py::poisson_bandflux_std),
+    # asi que domina justo en las epocas de mayor SNR, que son las que mas
+    # pesan en el trigger de deteccion. Ver NOTES.md Fase 1 punto 7.
+    obs_table = OpSim(df_ddf, zp_err_mag=0.005)
+    print(f"[{time.time()-t_start:.1f}s] OpSim DDF: {len(df_ddf):,} / {len(df):,} obs totales "
+          f"(zp_err_mag=0.005, calibrado contra ZEROPT_ERR real de SNANA)")
 
     passband_group = PassbandGroup.from_preset(preset="LSST")
     print(f"[{time.time()-t_start:.1f}s] passbands cargados")
@@ -209,6 +216,15 @@ def main():
     phot_df["MAG"] = np.where(positive, MAG_AB_ZP_NJY - 2.5 * np.log10(phot_df["FLUXCAL"].where(positive)), np.nan)
     print(f"[{time.time()-t_start:.1f}s] aplanado: {len(head_df)} objetos con obs, "
           f"{len(phot_df)} filas de fotometria")
+
+    # -- diagnostico de SNR simulado (todas las obs, antes del corte SEARCHEFF) --
+    # mismo metodo usado para diagnosticar la brecha de eficiencia vs SNANA real
+    # (ver NOTES.md Fase 1 punto 7) -- se deja permanente para que cada corrida
+    # reporte esto sin necesidad de recalcularlo aparte.
+    snr_sim = (phot_df["FLUXCAL"] / phot_df["FLUXCALERR"]).abs()
+    print(f"[{time.time()-t_start:.1f}s] SNR simulado (todas las obs): "
+          f"mediana={snr_sim.median():.3f}, p90={snr_sim.quantile(0.9):.3f} "
+          f"(referencia SNANA real SNIa_DDF: mediana=0.78, p90=2.26)")
 
     # -- eficiencia de deteccion real (SEARCHEFF) --
     band_curves = parse_searcheff_pipeline(SEARCHEFF_PIPELINE_FILE)

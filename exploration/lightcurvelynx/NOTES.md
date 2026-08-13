@@ -145,10 +145,14 @@ entonces).
 **Resultado: la mecánica del PoC funciona de punta a punta — parámetros reales, samplers
 custom (DNDZ, Gaussianas bifurcadas), extinción MW real, eficiencia de detección real
 (SEARCHEFF real, no el escalón nativo), reuso directo del QC ya arreglado esta sesión — pero
-la eficiencia de detección global sale ~2x más alta que SNANA real (57.2% vs 29.85%), y la
+la eficiencia de detección global sale ~2x más alta que SNANA real (60.75% vs 29.85%, tras
+intentar calibrar `zp_err_mag` contra el valor real de SNANA sin éxito — ver punto 7b), y la
 causa más probable diagnosticada es que el modelo de ruido fotométrico de LightCurveLynx
 subestima el ruido por-época real, no un problema con la población simulada (redshift/color/
-extinción). Esta brecha queda abierta, no resuelta — recomendación: GO condicional a Fase 2,
+extinción); dos rondas de investigación no encontraron el componente exacto responsable.
+Esta brecha queda abierta, no resuelta. Por separado, se validó el patrón de orquestación
+propuesto para Fase 2 (`dask.distributed.LocalCluster` dentro de un único job SLURM, sin
+tocar el login node): 3.16x de speedup real medido. Recomendación: GO condicional a Fase 2,
 contingente en calibrar/reemplazar el modelo de ruido de LightCurveLynx antes de sacar
 conclusiones cuantitativas de cualquier corrida futura.**
 
@@ -282,6 +286,44 @@ contra el de SNANA es trabajo real de integración (no un ajuste de una línea),
 Fase 2 si se decide seguir, no para cerrar aquí. Es la brecha concreta más importante que
 queda abierta.
 
+## 7b. Intento de calibración — candidatos descartados, brecha sigue abierta
+
+Dos rondas de investigación real después del punto 7, ninguna cerró la brecha:
+
+**`zp_err_mag` (calibración de zeropoint) — descartado empíricamente.** El termino de
+varianza por incertidumbre de zeropoint en `poisson_bandflux_std()`
+(`noise_models/noise_utils.py`) escala con `bandflux²` (a diferencia de los términos Poisson,
+que escalan con `bandflux¹`), así que en principio pesa más justo en las épocas de mayor SNR
+— coincidiendo con que la brecha p90 (2.5x) es peor que la de mediana (29%). `OpSim` por
+defecto usa `zp_err_mag=1e-4`, pero el `ZEROPT_ERR` real de SNANA para esta campaña es
+`0.005` (mediana, std=7.5e-5 — un valor de calibración fijo, no ruido). Se corrigió
+`OpSim(df_ddf, zp_err_mag=0.005)` (parámetro documentado del constructor) y se volvió a
+correr: **1215/2000 = 60.75% detectados — sin mejora real** (contra 57.2% antes del fix,
+dentro del ruido esperado de una corrida con distinto seed). La hipótesis mecánicamente tenía
+sentido pero los números no la sostienen — a esta profundidad/flujo, el término de zeropoint
+no es dominante.
+
+**Auditoría de la cadena cielo/PSF/zeropoint — sin bug encontrado.** Se leyó
+`OpSim._derive_noise_columns()` completo:
+- `zp` sí aplica corrección por airmass real (`flux_electron_zeropoint(ext_coeff, zp_per_sec,
+  filter, airmass, exptime)` — no usa el zeropoint de cenit sin corregir).
+- `psf_footprint = GAUSS_EFF_AREA2FWHM_SQ · (seeing/pixel_scale)²`, con
+  `GAUSS_EFF_AREA2FWHM_SQ = π/(2·ln2) ≈ 2.266` — es la formula estandar de area efectiva de
+  un PSF Gaussiano en funcion de FWHM, no una aproximacion custom.
+- `pixel_scale=0.2 arcsec/pixel` — correcto para LSSTCam.
+- Se verificó la distribución real de `seeingFwhmEff` en `baseline_v5.3.1_10yrs.db` (DDF):
+  mediana 0.977 arcsec — consistente con el diseño de LSST, no hay un problema de datos de
+  entrada.
+
+Ningún componente individual de la formula parece incorrecto en aislamiento. La brecha sigue
+sin explicación puntual — puede ser una combinación de terminos menores (`dark_current` no
+comparado directamente contra SNANA, sin columna equivalente clara en el FITS), una
+diferencia de convención en como SNANA computa `SKY_SIG`/`PSF_SIG` en su SIMLIB que no se
+pudo verificar sin documentacion mas profunda de ese formato, o algo fuera de esta cadena de
+formulas. **Se detiene la investigación aquí** (dos rondas de hipótesis concretas
+descartadas, no un abandono prematuro) — la brecha queda documentada como abierta para quien
+retome Fase 2, con las dos rutas ya descartadas explícitas para no repetir el trabajo.
+
 ## 8. Rendimiento — sigue siendo dramáticamente más rápido
 
 `NGENTOT_LC=2000` (SNIa_DDF real, `pipeline/models.yaml::ngen_ddf`) completo — ingesta OpSim
@@ -289,16 +331,45 @@ queda abierta.
 dentro de un job SLURM liviano (16GB, 4 cores), confirmando de nuevo el orden de magnitud de
 ventaja de velocidad medido en Fase 0 (~150x vs SNANA en throughput crudo).
 
+## 8b. Orquestación para Fase 2: dask `LocalCluster` — validado
+
+Fase 0 (punto 5) dejó abierta la pregunta de si Fase 2 necesita `dask`/`ray` para escalar a
+más clases, dado lo económico que resultó el cómputo. Se revisó qué está realmente instalado
+en el venv: `dask`/`distributed` sí; `dask_jobqueue` (lanza un job SLURM separado por worker)
+y `ray` no. Para esta escala no hace falta `dask_jobqueue` — un `LocalCluster` levantado
+**dentro** de una sola asignación SLURM (nunca el login node, misma regla del resto del
+pipeline) alcanza: todo el ciclo de vida del cluster (scheduler + workers) vive dentro de esa
+única asignación.
+
+`run_dask_poc.py` (nuevo) valida el patrón con carga real, no una tarea de prueba: 4 chunks
+independientes de `NGEN=500` (2000 total, igual que el PoC de Fase 1), cada uno con su propio
+grafo de samplers, corridos (a) secuencial en un proceso y (b) en paralelo vía
+`dask.distributed.LocalCluster(n_workers=4)` — mismo job SLURM, mismo nodo.
+
+| | tiempo total | 
+|---|---|
+| Secuencial (1 proceso) | 224.1s |
+| Paralelo (`LocalCluster`, 4 workers confirmados por el scheduler) | 70.9s |
+
+**Speedup: 3.16x sobre 4 workers (79% de eficiencia respecto al ideal 4.0x)** — la brecha
+frente al ideal es la carga independiente de OpSim/SALT2/passbands en cada worker (no hay
+estado compartido entre procesos), no un problema del patrón en sí. Corrida limpia, sin
+errores, sin tocar el login node en ningún momento (confirmado por el log — todo el trabajo
+ocurre dentro del job `sbatch`). Patrón listo para usar cuando se planifique el alcance real
+de Fase 2 (cobertura de clases) — no se construyó la orquestación completa de Fase 2 aquí,
+solo se validó que el mecanismo funciona.
+
 ## 9. Recomendación: GO condicional a Fase 2
 
 Lo que **sí** quedó confirmado y funcionando de punta a punta: parámetros reales de SNANA
 (DNDZ, bifurcadas, rango de redshift), el modelo SALT2 H17 real (no una aproximación),
 posiciones reales del footprint DDF, extinción MW real por campo, eficiencia de detección
 real (SEARCHEFF real, no el escalón nativo), reuso directo de la infraestructura de QC ya
-arreglada esta sesión (mismos 4 gráficos, mismos criterios de detección), y la ventaja de
-velocidad de Fase 0 se sostiene. Se encontraron y corrigieron 3 problemas reales en el camino
-(bug de broadcast en `FunctionNode`, mirror de SALT2 caído, formato de color law) — ninguno
-bloqueante, todos con fix concreto documentado arriba.
+arreglada esta sesión (mismos 4 gráficos, mismos criterios de detección), la ventaja de
+velocidad de Fase 0 se sostiene, y el patrón de orquestación con `dask` para Fase 2 quedó
+validado (3.16x de speedup real, sin tocar el login node). Se encontraron y corrigieron 3
+problemas reales en el camino (bug de broadcast en `FunctionNode`, mirror de SALT2 caído,
+formato de color law) — ninguno bloqueante, todos con fix concreto documentado arriba.
 
 Lo que **no** quedó confirmado: equivalencia cuantitativa de detección (~2x de brecha,
 diagnosticada pero no cerrada — ruido fotométrico, no población). Por eso la recomendación es
@@ -317,6 +388,10 @@ modelo de ruido contra SNANA real, no como una comparación científica cerrada 
 - `setup_salt2_local.py` — reproduce `salt2_h17_local/` (no versionado, se regenera desde los
   archivos de SNANA ya en NLHPC) desde cero.
 - `run_snia_ddf_poc.py` + `run_snia_ddf_poc.sbatch` — script principal, corre en NLHPC vía
-  SLURM (nunca login node).
-- `poc_output/summary.json` + `poc_output/qc/*.png` — resultado real de la última corrida
-  (con extinción, `n_detected=1144/2000`, eficiencia 57.2%).
+  SLURM (nunca login node). Incluye override `zp_err_mag=0.005` (calibración intentada, ver
+  punto 7b) y el diagnóstico de SNR permanente en cada corrida.
+- `poc_output/summary.json` + `poc_output/qc/*.png` — resultado real de la corrida con
+  `zp_err_mag` calibrado (`n_detected=1215/2000`, eficiencia 60.75% — sin mejora real sobre
+  la corrida anterior, ver punto 7b).
+- `run_dask_poc.py` + `run_dask_poc.sbatch` — validación del patrón `LocalCluster` para Fase 2
+  (punto 8b), 3.16x de speedup real medido.
