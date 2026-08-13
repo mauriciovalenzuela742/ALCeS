@@ -13,3 +13,4 @@ build/
 .claude/
 nlhpc.alias.disabled
 paper/
+exploration/lightcurvelynx/poc_output*/**/*.parquet

@@ -302,6 +302,14 @@ def main(seed_index: int = 0):
     # marcar detectados en head_df (subconjunto que paso SEARCHEFF)
     head_df_detected = head_df[head_df["SNID"].isin(detected_snids)].reset_index(drop=True)
 
+    # Fase 5: persistir head_df/phot_df reales (ver run_simsed_poc.py) -- no
+    # se versiona en git, solo vive en el output dir de NLHPC/local.
+    head_df["DETECTED"] = head_df["SNID"].isin(detected_snids)
+    head_df.to_parquet(out_dir / "head_df.parquet", index=False)
+    phot_df.to_parquet(out_dir / "phot_df.parquet", index=False)
+    print(f"[{time.time()-t_start:.1f}s] tablas persistidas: head_df.parquet "
+          f"({len(head_df)} filas), phot_df.parquet ({len(phot_df)} filas)")
+
     (out_dir / "summary.json").write_text(json.dumps({
         "seed_index": seed_index,
         "ngentot_lc": NGENTOT_LC,

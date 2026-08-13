@@ -1589,3 +1589,28 @@ en el dashboard/NOTES.md); `seed_index=1..4` escriben en directorios nuevos
 clases × 5 semillas (70 corridas) vía `sbatch run_simsed_poc.sbatch <clase> <seed_index>` /
 `sbatch run_snia_ddf_poc.sbatch <seed_index>`, con `--mem=64G` para
 `PISN-STELLA-HYDROGENIC` (única clase que satura los 16G por defecto, ver Fase 4).
+
+## Persistencia de la tabla real (`head_df`/`phot_df`)
+
+Hasta esta ronda el pipeline nunca escribía a disco los datos crudos de la simulación —
+LightCurveLynx no tiene un writer nativo a formato SNANA (FITS/DUMP) ni a ningún otro formato
+de tabla (confirmado revisando la documentación oficial, notebooks `snana_example` y
+`lclib_example`: ambos solo muestran carga y simulación en memoria, ninguno exporta a disco).
+Cada corrida solo generaba las imágenes QC y `summary.json` (métricas agregadas); `head_df`
+(un registro por objeto) y `phot_df` (un registro por observación, con `FLUXCAL`/`FLUXCALERR`/
+`MAG`/`PHOTFLAG`) vivían solo en memoria durante la corrida y se descartaban al terminar.
+
+Se agregó persistencia real a ambos scripts: `head_df.parquet` y `phot_df.parquet` en cada
+`poc_output_<clase>*/`, vía `pyarrow` (ya disponible en el venv de NLHPC). Parquet en vez de
+CSV por tamaño — `phot_df` puede tener millones de filas para `NGENTOT` completo. **No se
+versiona en git** (agregado a `.gitignore`): con 70 corridas de tamaño completo el volumen
+total sería de GBs, impráctico para el repo — las tablas quedan solo en NLHPC (y localmente si
+se copian vía `scp` para inspección puntual).
+
+Este cambio se sincronizó a NLHPC **a mitad del barrido de 70 corridas de esta Fase** (después
+de que ~16 ya habían terminado) — las corridas que ya estaban corriendo en el momento del sync
+usaron la versión anterior del script (sin persistencia); solo las que empezaron a ejecutar
+después del sync tienen `head_df.parquet`/`phot_df.parquet`. Esto no afecta los números de
+eficiencia de detección de Fase 5 (la persistencia es puramente aditiva), pero significa que no
+todas las 70 carpetas de salida de esta ronda van a tener las tablas — las corridas futuras sí
+las tendrán todas.

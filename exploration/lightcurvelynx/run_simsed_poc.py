@@ -500,6 +500,20 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     dump_df = pd.DataFrame({"CID": all_ids, "ZHELIO": lc["z"].to_numpy(), "ZCMB": lc["z"].to_numpy()})
     head_df_detected = head_df[head_df["SNID"].isin(detected_snids)].reset_index(drop=True)
 
+    # Fase 5: persistir la tabla real (head_df/phot_df), no solo el resumen
+    # agregado -- hasta ahora el pipeline nunca escribia a disco los datos
+    # crudos de la simulacion (ni FITS/DUMP estilo SNANA, LightCurveLynx no
+    # tiene un writer nativo para eso, confirmado revisando la documentacion
+    # oficial -- ni ninguna otra tabla), solo las imagenes QC y el JSON de
+    # metricas agregadas. Parquet (via pyarrow) por tamano -- phot_df puede
+    # tener millones de filas para NGENTOT completo. No se versiona en git
+    # (ver .gitignore), solo vive en el output dir de NLHPC/local.
+    head_df["DETECTED"] = head_df["SNID"].isin(detected_snids)
+    head_df.to_parquet(out_dir / "head_df.parquet", index=False)
+    phot_df.to_parquet(out_dir / "phot_df.parquet", index=False)
+    print(f"[{time.time()-t_start:.1f}s] tablas persistidas: head_df.parquet "
+          f"({len(head_df)} filas), phot_df.parquet ({len(phot_df)} filas)")
+
     (out_dir / "summary.json").write_text(json.dumps({
         "class_key": class_key,
         "seed_index": seed_index,
