@@ -707,6 +707,76 @@
   td.host-av { font-size: 0.78rem; color: var(--ink-dim); max-width: 220px; white-space: normal; }
   td.model { white-space: normal; }
 
+  .callout.accent { border-left-color: var(--accent); }
+
+  .verdict-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+  }
+
+  .verdict-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .callout p { margin: 0 0 10px; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .causes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+  }
+
+  .cause-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+
+  .cause-card .cause-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+
+  .cause-card.confirmed .cause-label { color: var(--accent); }
+  .cause-card.refuted .cause-label { color: var(--warn); }
+
+  .cause-card h3 { margin: 0 0 8px; font-size: 0.92rem; }
+  .cause-card p { margin: 0; font-size: 0.84rem; color: var(--ink-dim); }
+
+  .lcl-cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+  }
+
+  .lcl-cols h3 { font-size: 0.95rem; margin: 0 0 10px; }
+
+  ul.plain-list { margin: 0; padding: 0; list-style: none; }
+
+  ul.plain-list li {
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.84rem;
+    color: var(--ink-dim);
+  }
+
+  ul.plain-list li:last-child { border-bottom: none; }
+  ul.plain-list strong { color: var(--ink); }
+
   /* ---------------------------------------------------------- recipe */
   .recipe {
     display: flex;
@@ -935,11 +1005,56 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
   </section>
 
   <section id="lcl">
-    <div class="section-head"><span class="section-num">06</span><h2>Evaluación LightCurveLynx (spike exploratorio)</h2></div>
+    <div class="section-head"><span class="section-num">06</span><h2>Evaluación LightCurveLynx — ¿puede reemplazar a SNANA?</h2></div>
     <p class="section-sub">¿Puede <a href="https://github.com/lincc-frameworks/lightcurvelynx" target="_blank" rel="noopener">LightCurveLynx</a> (LINCC Frameworks) reemplazar a SNANA como motor de simulación? Evaluación clase por clase con parámetros reales de cada
     <code>SIMGEN_INCLUDE_*.INPUT</code>, comparada contra los baselines DDF reales de <code>full_v5.3_10yrs</code> —
     no forma parte del pipeline de producción. Detalle completo, con hallazgos honestos en ambas direcciones
     (confirmados y refutados), en <code>exploration/lightcurvelynx/NOTES.md</code>.</p>
+
+    <div class="callout accent">
+      <span class="verdict-badge">GO condicional</span>
+      <p><strong>La mecánica funciona en las 14 clases del catálogo</strong> — parámetros reales, extinción MW,
+      eficiencia de detección real, ~150x más rápido que SNANA en throughput crudo — pero ninguna corrida
+      coincide todavía cuantitativamente con SNANA: razones LightCurveLynx/SNANA entre 1.37x y 8.56x según la
+      clase (promedio 2.58x).</p>
+      <p>No es un fallo binario ni una confirmación limpia: es una herramienta viable con una calibración
+      cuantitativa pendiente. La Fase 3 cerró una de las dos causas candidatas (extinción de host) sin mover el
+      promedio del catálogo — la causa raíz real sigue siendo el residuo sistémico de la Fase 2A.</p>
+    </div>
+
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Cinco fases, cada una con una decisión real</h3>
+    <ol class="recipe">
+      <li>
+        <span class="step-n">0</span>
+        <div class="step-body">
+          <p><strong>Spike técnico</strong> — 5 preguntas abiertas (¿ingiere OpSim sin transformar? ¿extinción MW? ¿lee SIMSED? ¿SEARCHEFF real? ¿qué tan rápido es?), todas respondidas con código corrido. Sin bloqueador duro → GO a Fase 1.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">1</span>
+        <div class="step-body">
+          <p><strong>PoC SNIa</strong> — SALT2 real, DNDZ real, footprint DDF real. La mecánica cerró de punta a punta, pero la eficiencia salió ~2x más alta que SNANA — brecha diagnosticada (ruido fotométrico) pero no cerrada.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">2A</span>
+        <div class="step-body">
+          <p><strong>Cerrar la brecha de ruido</strong> — comparación término a término contra la fórmula real de SNANA. Dos causas encontradas y corregidas (cosmología <code>H0</code>, columnas de ruido) — la brecha bajó de ~2x a ~1.4–1.8x, sin cerrarse del todo.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">2B</span>
+        <div class="step-body">
+          <p><strong>Cobertura SIMSED completa</strong> — 4 rondas, de 1 clase a las 14 del catálogo. Cada ronda encontró y corrigió bugs reales (broadcast, typos de referencia, ZIP mal etiquetado, límites de memoria) e investigó una anomalía a fondo (<code>SNIax</code>) hasta una conclusión honesta.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">3</span>
+        <div class="step-body">
+          <p><strong>Implementar <code>WV07</code> real</strong> — fórmula real encontrada y verificada (ESSENCE-WV07, Wood-Vasey+2007) para las 9 clases que la declaran. El efecto resultó pequeño y no sistemático — refutando que la extinción omitida explicara las brechas más grandes.</p>
+        </div>
+      </li>
+    </ol>
 
     <div class="lcl-stats" id="lcl-stats"></div>
 
@@ -959,10 +1074,66 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <tbody id="lcl-table-body"></tbody>
       </table>
     </div>
-    <p class="table-note">Razón = detectados<sub>LCL</sub> / detectados<sub>SNANA</sub> sobre <code>NGENTOT_LC=2000</code> (DDF). Verde ≤2x
-    (banda residual sistémica ya diagnosticada, ver Fase 2 parte A), ámbar 2–4x, rojo &gt;4x (clases muy tenues con extinción de host omitida).</p>
+    <p class="table-note">Razón = detectados<sub>LCL</sub> / detectados<sub>SNANA</sub> sobre el <code>NGENTOT_LC</code> real de cada
+    clase (2000, salvo <code>PISN-STELLA-HYDROGENIC</code> a 20000). Verde ≤2x (banda residual sistémica ya diagnosticada,
+    ver Fase 2 parte A), ámbar 2–4x, rojo &gt;4x. Extinción de host <code>WV07</code> implementada en Fase 3 para las 9 clases
+    que la declaran.</p>
 
-    <p class="section-sub" style="margin-top:22px;">Mismos 4 gráficos de control que la sección 03, generados por el PoC de cada clase.</p>
+    <h3 style="margin:30px 0 12px; font-size:1rem;">Diagnóstico: una causa universal, una hipótesis descartada</h3>
+    <div class="causes">
+      <div class="cause-card confirmed">
+        <p class="cause-label">Causa confirmada — las 14 clases</p>
+        <h3>Residuo sistémico de ruido/población (~1.4–1.8x)</h3>
+        <p>Presente incluso en clases sin extinción de host que declarar (<code>SNIa-91bg</code>, <code>SNII-NMF</code>)
+        y en las que sí la implementan correctamente (<code>TDE-MOSFIT</code>). Dos causas ya corregidas (cosmología,
+        columnas de ruido) — la sospecha no confirmada es la evaluación de la superficie SALT2/SIMSED, o la dispersión
+        intrínseca simplificada. Después de Fase 3, es la explicación más probable de la brecha que queda.</p>
+      </div>
+      <div class="cause-card refuted">
+        <p class="cause-label">Hipótesis descartada (Fase 3) — 9 de 14 clases</p>
+        <h3>Extinción de host <code>WV07</code></h3>
+        <p>Se pensaba que su omisión explicaba las brechas más grandes. Implementada con la fórmula real esta fase:
+        efecto real pero pequeño (AV mediano ~0.15 mag) y no sistemático — 5 clases mejoraron, 2 empeoraron, 2 quedaron
+        igual. <code>CaRT</code>, el caso más extremo (8.50x), casi no se movió (8.56x) — la extinción omitida no era
+        la explicación.</p>
+      </div>
+    </div>
+
+    <div class="lcl-cols" style="margin-top:30px;">
+      <div>
+        <h3>Lo que funciona sin reservas</h3>
+        <ul class="plain-list">
+          <li><strong>Ingesta de OpSim</strong> — exacta, mismo schema que el simulador oficial de Rubin.</li>
+          <li><strong>Extinción MW</strong> — completa, más flexible que SNANA hoy.</li>
+          <li><strong>SIMSED nativo</strong> — 14 clases, 5 modelos DNDZ reales, 2 esquemas de peso.</li>
+          <li><strong>SEARCHEFF real</strong> — mismo criterio de detección en ambos lados de la comparación.</li>
+          <li><strong>Rendimiento</strong> — ~150x más rápido en throughput crudo, confirmado en cada corrida.</li>
+          <li><strong>Orquestación</strong> — <code>dask.LocalCluster</code>, 3.16x de speedup, sin tocar el login node.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Lo que nunca se probó</h3>
+        <ul class="plain-list">
+          <li><strong>Escala WFD real</strong> — todo corrió a escala DDF (2000), no a los 200.000 de WFD.</li>
+          <li><strong>Múltiples semillas</strong> — cada corrida es una sola realización; para clases de bajo conteo
+          (<code>CaRT</code> n=16, <code>SNIIn-MOSFIT</code> n=37) el ruido estadístico puede ser comparable al efecto medido.</li>
+          <li><strong>Más de un baseline</strong> — todo contra la única campaña real disponible (v8).</li>
+          <li><strong>Integración de pipeline</strong> — nada toca Capa 3 ni ningún archivo de producción.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout accent" style="margin-top:30px;">
+      <p><strong>No reemplazar SNANA todavía.</strong> La brecha cuantitativa (1.37x–8.56x) es demasiado grande y
+      variable por clase para usar LightCurveLynx como fuente de verdad científica en su estado actual.</p>
+      <p><strong>Sí vale la pena seguir invirtiendo — pero la causa raíz ahora está más clara.</strong> Implementar
+      el modelo real de extinción de host (Fase 3) fue lo correcto científicamente y cerró la brecha en 5 de 9
+      clases, pero el promedio del catálogo completo apenas se movió (2.57x→2.58x): el residuo sistémico de
+      ruido/población de Fase 2A, no la extinción, domina la brecha en casi todos los casos. La ventaja de
+      velocidad (~150x) sigue siendo lo bastante grande como para que cerrar esa calibración tenga retorno real.</p>
+    </div>
+
+    <p class="section-sub" style="margin-top:30px;">Mismos 4 gráficos de control que la sección 03, generados por el PoC de cada clase.</p>
     <div class="qc-selector" id="lcl-selector"></div>
     <div class="qc-panels" id="lcl-panels"></div>
   </section>
