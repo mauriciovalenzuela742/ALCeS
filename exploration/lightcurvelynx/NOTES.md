@@ -1614,3 +1614,69 @@ después del sync tienen `head_df.parquet`/`phot_df.parquet`. Esto no afecta los
 eficiencia de detección de Fase 5 (la persistencia es puramente aditiva), pero significa que no
 todas las 70 carpetas de salida de esta ronda van a tener las tablas — las corridas futuras sí
 las tendrán todas.
+
+## Resultados: 70/70 corridas completadas sin fallos
+
+Las 70 corridas (14 clases × 5 semillas) terminaron sin errores (`sacct` exit code `0:0` en
+las 70). Tiempos de pared por clase: la mayoría 5-20 min, `SLSN-I`/`PISN-MOSFIT`/
+`PISN-STELLA-HECORE` 1h40min-2h (960 templates SIMSED), `PISN-STELLA-HYDROGENIC` ~1h10min por
+semilla (NGENTOT=20000, `--mem=64G`).
+
+| Clase | SNANA % | Razón media (5 semillas) | ±std | min-max | std relativo |
+|---|---:|---:|---:|---:|---:|
+| `SNIa-91bg` | 36.15% | 1.420x | 0.037 | 1.367-1.474 | 2.6% |
+| `PISN-STELLA-HYDROGENIC` | 21.34% | 1.438x | 0.013 | 1.418-1.450 | 0.9% |
+| `SNII-NMF` | 17.80% | 1.538x | 0.024 | 1.511-1.567 | 1.5% |
+| `PISN-STELLA-HECORE` | 19.20% | 1.569x | 0.048 | 1.510-1.630 | 3.1% |
+| `SLSN-I` | 41.20% | 1.604x | 0.036 | 1.542-1.648 | 2.3% |
+| `TDE-MOSFIT` | 40.60% | 1.677x | 0.013 | 1.661-1.701 | 0.8% |
+| `PISN-MOSFIT` | 20.55% | 1.825x | 0.059 | 1.762-1.925 | 3.2% |
+| `SNIa` | 29.85% | 1.926x | 0.048 | 1.863-2.003 | 2.5% |
+| `ILOT-MOSFIT` | 3.65% | 2.277x | 0.132 | 2.068-2.466 | 5.8% |
+| `KN-BULLA19` | 5.15% | 2.509x | 0.150 | 2.262-2.699 | 6.0% |
+| `KN-K17` | 4.10% | 2.639x | 0.223 | 2.366-2.890 | 8.5% |
+| `SNIax` | 8.75% | 2.816x | 0.144 | 2.606-3.011 | 5.1% |
+| `SNIIn-MOSFIT` | 1.85% | 5.605x | 0.181 | 5.378-5.892 | 3.2% |
+| `CaRT` | 0.80% | 10.825x | 0.691 | 9.875-11.687 | 6.4% |
+
+**Promedio del catálogo (media de las 14 razones, cada una ya promediada sobre 5 semillas):
+2.833x** — sube desde el 2.561x reportado al final de Fase 4. Esto **no es simplemente ruido de
+muestreo**: **las 14 clases sin excepción subieron** respecto a su valor de Fase 4 (single-run,
+código con los bugs A-C sin corregir) — un movimiento sistemático y unidireccional, no disperso
+en ambas direcciones como esperaríamos de ruido puro. La lectura más honesta: la corrida única
+de Fase 4 no solo era no reproducible, sino que corrió con el bug A (jitter de posición sub-FOV)
+activo, que probablemente sesgaba hacia abajo el conteo de observaciones reales emparejadas de
+forma sistemática (no solo aleatoria) para algún subconjunto de campos/pointings — al usar
+`radius=0.0` (centro exacto del pointing) esto se corrigió, y el efecto neto fue *más*
+observaciones reales emparejadas en promedio, no menos. No se investigó a fondo la dirección
+exacta de este sesgo (excede el alcance de Fase 5, cuyo objetivo era solo cerrar la
+reproducibilidad) — se documenta como un hallazgo honesto, no una hipótesis cerrada.
+
+**El "std relativo" (ruido de semilla puro) es real pero modesto para la mayoría de clases**
+(<6% para 10/14 clases) — confirma que las comparaciones de una sola corrida en Fases 1-4 no
+estaban mayormente dominadas por ruido de semilla para la mayoría de clases, aunque sí lo
+estaban las de **conteo bajo** (`KN-K17` 8.5%, `CaRT` 6.4%, con solo 16-103 objetos SNANA de
+referencia — Poisson puro).
+
+**`CaRT`, la pregunta que motivó Fase 5**: la aparente "regresión" de Fase 4 (8.56x → 9.56x) no
+era ruido en la dirección optimista — la razón real, con 5 semillas y código reproducible, es
+**10.825x ± 0.691x (rango 9.875x-11.687x)**, sistemáticamente *peor* que el 9.56x ya preocupante
+de Fase 4. `CaRT` sigue siendo, con margen, la clase con peor comportamiento relativo del
+catálogo — esto ahora está confirmado con incertidumbre real, no es un artefacto de una sola
+corrida con semilla no reproducible.
+
+## Recomendación final (Fase 5)
+
+**Sigue GO condicional.** Fase 5 no cambia la conclusión cualitativa (LightCurveLynx funciona
+mecánicamente, persiste un residuo sistémico multiplicativo cuya causa raíz exacta sigue sin
+identificarse), pero sí cambia lo que se puede decir con confianza: por primera vez en toda la
+sesión, cada razón LCL/SNANA reportada tiene una banda de incertidumbre real derivada de
+semillas independientes, no de una única corrida no reproducible. El promedio del catálogo se
+revisa de 2.561x a **2.833x** — un movimiento real (no ruido), atribuible a que la corrida de
+Fase 4 heredó un bug de emparejamiento de posición (bug A, jitter sub-FOV) que sesgaba el
+resultado, además de no ser reproducible. `CaRT` sigue siendo la clase más alejada del
+comportamiento de SNANA (~10.8x), ahora con evidencia sólida de que no es un artefacto de
+semilla. La causa raíz del residuo sistémico multiplicativo (ni la extinción de host de Fase 3
+ni el trigger de época de Fase 4 la explican) sigue abierta como el ítem de mayor prioridad
+para cualquier trabajo futuro — ahora con una base de comparación honesta y reproducible sobre
+la cual construir esa investigación.

@@ -1015,15 +1015,18 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <span class="verdict-badge">GO condicional</span>
       <p><strong>La mecánica funciona en las 14 clases del catálogo</strong> — parámetros reales, extinción MW,
       eficiencia de detección real, ~150x más rápido que SNANA en throughput crudo — pero ninguna corrida
-      coincide todavía cuantitativamente con SNANA: razones LightCurveLynx/SNANA entre 1.35x y 9.56x según la
-      clase (promedio 2.56x).</p>
+      coincide todavía cuantitativamente con SNANA: razones LightCurveLynx/SNANA entre 1.42x y 10.83x según la
+      clase (promedio 2.83x, ya con incertidumbre real de 5 semillas independientes por clase, no una sola
+      corrida).</p>
       <p>No es un fallo binario ni una confirmación limpia: es una herramienta viable con una calibración
       cuantitativa pendiente. Dos causas candidatas reales (extinción de host en Fase 3, sobre-conteo de épocas
       de detección en Fase 4) se investigaron y corrigieron con rigor — ninguna de las dos explica la brecha
-      dominante. La causa raíz real sigue sin identificarse.</p>
+      dominante. Fase 5 además encontró y corrigió 3 bugs de reproducibilidad en la propia librería
+      (selección de posición/pointing y ruido fotométrico nunca sembrados) — la causa raíz del residuo
+      sistémico real sigue sin identificarse.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Seis fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Siete fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1058,7 +1061,13 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <li>
         <span class="step-n">4</span>
         <div class="step-body">
-          <p><strong>Investigar el residuo sistémico</strong> — 3 candidatos descartados con evidencia real (throughputs idénticos, ruido de dark/read insuficiente, spec-eff no exigida), y un bug real encontrado: el trigger de detección contaba observaciones individuales en vez de épocas reales agrupadas (<code>NEWMJD_DIF</code>). Corregido y verificado formalmente — pero el promedio del catálogo apenas se movió.</p>
+          <p><strong>Investigar el residuo sistémico</strong> — 3 candidatos descartados con evidencia real (throughputs idénticos, ruido de dark/read insuficiente, spec-eff no exigida), y un bug real encontrado: el trigger de detección contaba observaciones individuales en vez de épocas reales agrupadas (<code>NEWMJD_DIF</code>). Corregido y verificado formalmente — pero el promedio del catálogo apenas se movió. Reveló además que la selección de template SIMSED nunca tenía semilla fija.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">5</span>
+        <div class="step-body">
+          <p><strong>Cerrar la reproducibilidad, 5 semillas por clase</strong> — un smoke test cruzado entre procesos reveló que el fix de Fase 4 no bastaba: 3 bugs reales más en la librería (jitter de posición sub-FOV, selección de fila/pointing y ruido fotométrico, los tres sin semilla propagada) hacían que ni siquiera la misma semilla reprodujera resultados. Corregidos y verificados (misma semilla → resultado idéntico), se corrieron 70 simulaciones (14 clases × 5 semillas, sin fallos) — el promedio del catálogo subió de 2.56x a 2.83x, un movimiento real (no ruido: las 14 clases subieron), y <code>CaRT</code> quedó confirmado como el peor caso real (10.83x ± 0.69), no un artefacto de una corrida sin semilla.</p>
         </div>
       </li>
     </ol>
@@ -1081,10 +1090,11 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <tbody id="lcl-table-body"></tbody>
       </table>
     </div>
-    <p class="table-note">Razón = detectados<sub>LCL</sub> / detectados<sub>SNANA</sub> sobre el <code>NGENTOT_LC</code> real de cada
-    clase (2000, salvo <code>PISN-STELLA-HYDROGENIC</code> a 20000). Verde ≤2x (banda residual sistémica ya diagnosticada,
-    ver Fase 2 parte A), ámbar 2–4x, rojo &gt;4x. Extinción de host <code>WV07</code> implementada en Fase 3; trigger de
-    detección corregido a épocas reales (no observaciones individuales) en Fase 4 — ambos aplicados a las 14 clases.</p>
+    <p class="table-note">Razón = media de 5 semillas independientes de detectados<sub>LCL</sub> / detectados<sub>SNANA</sub> sobre el
+    <code>NGENTOT_LC</code> real de cada clase (2000, salvo <code>PISN-STELLA-HYDROGENIC</code> a 20000); columna LCL muestra la
+    semilla 0. Verde ≤2x (banda residual sistémica ya diagnosticada, ver Fase 2 parte A), ámbar 2–4x, rojo &gt;4x. Extinción de host
+    <code>WV07</code> implementada en Fase 3; trigger de detección corregido a épocas reales en Fase 4; 3 bugs de reproducibilidad
+    (posición/pointing y ruido fotométrico sin semilla) corregidos en Fase 5 — los cuatro aplicados a las 14 clases.</p>
 
     <h3 style="margin:30px 0 12px; font-size:1rem;">Diagnóstico: dos hipótesis reales, ninguna explica la brecha dominante</h3>
     <div class="causes">
@@ -1106,6 +1116,17 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         promedio del catálogo apenas cambió (2.577x→2.561x): más exposiciones por época real compensan
         parcialmente la reducción en conteo de épocas.</p>
       </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Bug real encontrado (Fase 5) — reproducibilidad, no la brecha en sí</p>
+        <h3>3 generadores aleatorios sin semilla en la librería</h3>
+        <p>El jitter de posición dentro del FOV, la selección de fila/pointing de OpSim y el ruido fotométrico de
+        <code>simulate_lightcurves()</code> caían en <code>np.random.default_rng()</code> sin semilla pese a que
+        el código sí pasaba <code>seed=</code> — mismo patrón que el bug de <code>SIMSEDModel</code> ya
+        encontrado en Fase 4. Corregidos y verificados (misma semilla → resultado byte-idéntico entre procesos
+        separados). El promedio del catálogo subió de 2.56x a 2.83x tras el fix — un movimiento real y
+        unidireccional (las 14 clases subieron), no ruido: la corrida única de Fase 4 heredaba el sesgo del
+        jitter sin corregir.</p>
+      </div>
     </div>
 
     <div class="lcl-cols" style="margin-top:30px;">
@@ -1124,9 +1145,10 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <h3>Lo que nunca se probó (o quedó pendiente)</h3>
         <ul class="plain-list">
           <li><strong>Escala WFD real</strong> — todo corrió a escala DDF (2000), no a los 200.000 de WFD.</li>
-          <li><strong>Semillas fijas en selección de templates</strong> — hallazgo de Fase 4: <code>SIMSEDModel</code>
-          nunca fijaba semilla para elegir template, afectando la reproducibilidad de comparaciones previas en
-          clases de peso uniforme. Corregido para corridas futuras, no re-corrido retroactivamente.</li>
+          <li><strong>Reproducibilidad de corridas anteriores a Fase 5</strong> — 4 bugs de semilla sin propagar
+          (template SIMSED en Fase 4, posición/pointing y ruido fotométrico en Fase 5) afectaban toda
+          comparación de una sola corrida hecha en Fases 1-4. Corregidos para corridas futuras; no se
+          re-corrió retroactivamente el catálogo completo con el código viejo.</li>
           <li><strong>Más de un baseline</strong> — todo contra la única campaña real disponible (v8).</li>
           <li><strong>Integración de pipeline</strong> — nada toca Capa 3 ni ningún archivo de producción.</li>
         </ul>
@@ -1134,16 +1156,20 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:30px;">
-      <p><strong>No reemplazar SNANA todavía.</strong> La brecha cuantitativa (1.35x–9.56x) es demasiado grande y
-      variable por clase para usar LightCurveLynx como fuente de verdad científica en su estado actual.</p>
+      <p><strong>No reemplazar SNANA todavía.</strong> La brecha cuantitativa (1.42x–10.83x, ahora con
+      incertidumbre real de 5 semillas por clase) es demasiado grande y variable por clase para usar
+      LightCurveLynx como fuente de verdad científica en su estado actual.</p>
       <p><strong>Sí vale la pena seguir invirtiendo — pero la causa raíz sigue sin identificarse.</strong> Dos
       hipótesis concretas y bien fundamentadas (extinción omitida en Fase 3, sobre-conteo de épocas en Fase 4) se
       investigaron con rigor real — fórmulas y algoritmos verificados línea por línea contra el código fuente,
-      correcciones formalmente verificadas — y ninguna explica la brecha dominante (promedio del catálogo:
-      2.577x→2.561x, prácticamente sin cambio). Descartar causas reales con evidencia real es progreso científico
-      genuino, aunque no cierre la brecha. Antes de seguir cazando la causa raíz, la prioridad debería ser cerrar
-      el agujero de reproducibilidad descubierto en Fase 4 (semillas fijas + múltiples corridas por clase) para
-      poder confiar en cualquier comparación futura.</p>
+      correcciones formalmente verificadas — y ninguna explica la brecha dominante. Fase 5 cerró el agujero de
+      reproducibilidad (4 bugs de semilla en la librería, corregidos y verificados) y reveló que el promedio real
+      del catálogo es más alto de lo reportado (2.83x, no 2.56x) — un ajuste honesto, no una regresión: la
+      corrida única de Fase 4 heredaba un sesgo de emparejamiento de posición ya corregido. <code>CaRT</code>
+      queda confirmado como el peor caso real (10.83x ± 0.69), no un artefacto de semilla. Descartar causas
+      reales con evidencia real, y ahora con bandas de incertidumbre reales en vez de corridas únicas, es
+      progreso científico genuino — la causa raíz del residuo sistémico multiplicativo sigue siendo la prioridad
+      para cualquier trabajo futuro.</p>
     </div>
 
     <p class="section-sub" style="margin-top:30px;">Mismos 4 gráficos de control que la sección 03, generados por el PoC de cada clase.</p>
@@ -1430,15 +1456,15 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
 
   function renderLclStats(records) {
     const n = records.length;
-    const avg = records.reduce((s, r) => s + r.ratio, 0) / n;
+    const avg = records.reduce((s, r) => s + r.ratio_mean_5seeds, 0) / n;
     const best = records[0];
     const worst = records[records.length - 1];
     const statsEl = document.getElementById("lcl-stats");
     statsEl.innerHTML = [
       [`${n}`, "clases SIMSED/SALT2 evaluadas (catálogo completo)"],
-      [`${avg.toFixed(2)}x`, "razón promedio LCL/SNANA"],
-      [`${best.ratio.toFixed(2)}x`, `mejor caso (${best.class})`],
-      [`${worst.ratio.toFixed(2)}x`, `peor caso (${worst.class})`],
+      [`${avg.toFixed(2)}x`, "razón promedio LCL/SNANA (media de 5 semillas)"],
+      [`${best.ratio_mean_5seeds.toFixed(2)}x`, `mejor caso (${best.class})`],
+      [`${worst.ratio_mean_5seeds.toFixed(2)}x ± ${worst.ratio_std_5seeds.toFixed(2)}`, `peor caso (${worst.class})`],
     ].map(([n_, label]) => `
       <div class="lcl-stat"><div class="lcl-stat-n">${n_}</div><div class="lcl-stat-label">${label}</div></div>
     `).join("");
@@ -1451,8 +1477,8 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <td>${r.source_model}<br><span class="strategy-chip">${r.dndz}</span></td>
         <td class="host-av">${r.host_av}</td>
         <td class="ngen">${r.snana_detected}/${r.ngentot} (${r.snana_pct}%)</td>
-        <td class="ngen">${r.lcl_detected}/${r.ngentot} (${r.lcl_pct}%)</td>
-        <td><span class="ratio-chip ${ratioBand(r.ratio)}">${r.ratio.toFixed(2)}x</span></td>
+        <td class="ngen">${r.lcl_detected}/${r.ngentot} (${r.lcl_pct}%) <span class="strategy-chip">semilla 0</span></td>
+        <td><span class="ratio-chip ${ratioBand(r.ratio_mean_5seeds)}">${r.ratio_mean_5seeds.toFixed(2)}x ± ${r.ratio_std_5seeds.toFixed(2)}</span></td>
         <td class="lcl-note">${r.note || "—"}</td>
       </tr>`).join("");
   }
