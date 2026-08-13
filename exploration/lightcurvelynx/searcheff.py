@@ -108,12 +108,58 @@ def apply_pipeline_trigger(
     return out
 
 
+NEWMJD_DIF = 0.007  # dias (~10 min) -- default real de SNANA (snlc_sim.c linea 849,
+# "same 'epoch' for obs within 10'"), confirmado no configurable en nuestra campaign
+# (no aparece NEWMJD_DIF en pipeline/campaigns, se usa el default real de SNANA).
+
+
+def group_into_epochs(mjd: np.ndarray) -> np.ndarray:
+    """Fase 4: agrupa observaciones (de un mismo objeto, TODAS las bandas
+    mezcladas) en 'epocas' reales de SNANA -- replica el algoritmo
+    secuencial exacto de snlc_sim.c (~linea 20566):
+
+        MJD_DIF = MJD - MJD_LAST_KEEP
+        if abs(MJD_DIF) > NEWMJD_DIF: nueva epoca
+        (MJD_LAST_KEEP se actualiza en CADA observacion, no solo las
+        detectadas -- el agrupamiento es independiente del resultado de
+        SEARCHEFF)
+
+    Hallazgo real (Fase 4): en el OpSim DDF real, esto colapsa 145,345
+    observaciones en solo 14,293 epocas reales (~10.2 obs/epoca) -- las
+    campanas DDF hacen secuencias de varias visitas seguidas en la misma
+    noche/banda para apilar imagenes profundas, y el trigger de deteccion
+    de SNANA las cuenta como UNA sola epoca, no una por observacion. La
+    ronda anterior (Fase 0-3) nunca agrupaba -- contaba cada observacion
+    individual como epoca candidata para el trigger ">=2 epocas", lo que
+    infla artificialmente el numero de "epocas detectadas" por objeto muy
+    por encima de lo que el trigger real de SNANA permite.
+
+    Devuelve un array de enteros (mismo largo que `mjd`, no necesita venir
+    ordenado) con el indice de epoca de cada observacion."""
+    order = np.argsort(mjd)
+    mjd_sorted = mjd[order]
+    new_epoch = np.empty(len(mjd_sorted), dtype=bool)
+    new_epoch[0] = True
+    new_epoch[1:] = np.abs(np.diff(mjd_sorted)) > NEWMJD_DIF
+    epoch_id_sorted = np.cumsum(new_epoch) - 1
+    epoch_id = np.empty(len(mjd), dtype=int)
+    epoch_id[order] = epoch_id_sorted
+    return epoch_id
+
+
 def object_level_detected(phot_df_with_flag: pd.DataFrame, *, snid_col: str = "SNID",
-                           min_epochs: int = 2) -> set:
-    """SNID de los objetos que superan el trigger (>= min_epochs con
-    PHOTFLAG_DETECT, en cualquier combinacion de filtros)."""
-    counts = phot_df_with_flag[phot_df_with_flag["PHOTFLAG"] == PHOTFLAG_DETECT].groupby(snid_col).size()
-    return set(counts[counts >= min_epochs].index)
+                           mjd_col: str = "MJD", min_epochs: int = 2) -> set:
+    """SNID de los objetos que superan el trigger real de SNANA: >= min_epochs
+    EPOCAS reales (no observaciones individuales) con al menos una
+    observacion con PHOTFLAG_DETECT, agrupando primero con
+    `group_into_epochs()` (Fase 4 -- ver docstring ahi)."""
+    detected_snids = set()
+    for snid, g in phot_df_with_flag.groupby(snid_col):
+        epoch_id = group_into_epochs(g[mjd_col].to_numpy())
+        detected_epoch_ids = set(epoch_id[g["PHOTFLAG"].to_numpy() == PHOTFLAG_DETECT])
+        if len(detected_epoch_ids) >= min_epochs:
+            detected_snids.add(snid)
+    return detected_snids
 
 
 if __name__ == "__main__":

@@ -79,7 +79,9 @@ from snana_params import (
     build_dndz_powerlaw2_cdf, make_dndz_sampler, make_bifurcated_normal_sampler,
     SizeAwareFunctionNode,
 )
-from searcheff import parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency
+from searcheff import (
+    parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency, object_level_detected,
+)
 
 HERE = Path(__file__).resolve().parent
 SNANA_HOME = Path("/home/mvalenzuela")
@@ -267,10 +269,12 @@ def main():
         phot_df, band_curves, seed=SEED_BASE + 7,
     )
     phot_df["PHOTFLAG"] = np.where(detected_mask, 4096, 0)
-    counts = phot_df[phot_df["PHOTFLAG"] == 4096].groupby("SNID").size()
-    detected_snids = set(counts[counts >= min_epochs].index)
+    # Fase 4: agrupar en epocas reales (NEWMJD_DIF=0.007d) antes del trigger
+    # ">=2 epocas" -- contar observaciones individuales infla el trigger,
+    # ver searcheff.group_into_epochs() y NOTES.md.
+    detected_snids = object_level_detected(phot_df, min_epochs=min_epochs)
     print(f"[{time.time()-t_start:.1f}s] SEARCHEFF aplicado: {len(detected_snids)}/{len(head_df)} "
-          f"objetos detectados (>= {min_epochs} epocas)")
+          f"objetos detectados (>= {min_epochs} epocas reales, agrupadas)")
 
     # dump_df-equivalente: TODOS los NGENTOT_LC generados (no solo los con obs)
     all_ids = lc["id"].astype(int).astype(str)

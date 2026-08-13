@@ -1,0 +1,11 @@
+{
+  "class_key": "SNIa-91bg",
+  "ngentot_lc": 2000,
+  "n_with_obs": 1986,
+  "n_detected": 979,
+  "n_total_dump": 2000,
+  "sim_wall_time_s": 57.62304902076721,
+  "detection_efficiency_pct": 48.95,
+  "snr_median": 0.8723990302605269,
+  "snr_p90": 2.9145924672429393
+}

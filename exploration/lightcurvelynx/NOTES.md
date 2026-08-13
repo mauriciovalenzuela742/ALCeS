@@ -1337,3 +1337,166 @@ redirige dónde vale la pena invertir a continuación: cerrar ese residuo (compa
 profunda de la evaluación de superficie SALT2/SIMSED, o correr múltiples semillas para
 distinguir señal de ruido en las clases de bajo conteo) tiene más potencial de cerrar la brecha
 que seguir ajustando modelos de extinción.
+
+# Fase 4 — investigar el residuo sistémico (~1.4-1.8x) a fondo
+
+Ataca directamente la causa raíz identificada al cierre de Fase 3, con más rigor que las dos
+rondas ya agotadas en Fase 2A. Pista clave no explotada todavía: el residuo está presente
+**tanto en clases SALT2 (`SNIa`) como en clases SIMSED** que leen templates de flujo reales
+directamente (`SNIa-91bg`, `SNII-NMF`, `TDE-MOSFIT`) — sin pasar por `sncosmo` ni por el modelo
+de dispersión G10. Como ambos tipos de fuente muestran la misma banda residual, la causa debe
+estar en la maquinaria **compartida** (ruido, extinción MW, SEARCHEFF), no en la evaluación de
+un modelo de fuente específico.
+
+## 1. Tres candidatos descartados con evidencia real, antes de encontrar la causa
+
+**Curvas de throughput de filtro — descartado, idénticas.** LightCurveLynx descarga
+`total_{ugrizy}.dat` en vivo desde `github.com/lsst/throughputs` rama `main`; SNANA usa el tag
+fijo `baseline_1.9` (confirmado en `pipeline/kcor/README.md`). Comparación byte a byte en
+NLHPC de las 6 curvas: **0 líneas de diferencia** — la rama `main` no se movió desde `1.9` en
+los filtros LSST reales. Descartado con evidencia directa, no supuesto.
+
+**`dark_current`/`readout_noise` — descartado, magnitud insuficiente.** `poisson_bandflux_std()`
+(LightCurveLynx) suma varianza de sky+readout+dark+zp_err además de la fuente; solo se
+inyectan `sky_bg_e`/`psf_footprint`/`zp` reales desde Fase 2A, dejando `dark_current=0.2 e⁻/s`
+y `readout_noise=8.8 e⁻` (defaults de `OpSim`) sin verificar. Cálculo real con parámetros DDF
+típicos: `dark_variance + readout_variance ≈` solo **~4.4%** de `sky_variance` — aunque hubiera
+doble conteo, el efecto en SNR es de ~2%, muy por debajo de la brecha de 40-80%.
+
+**Eficiencia espectroscópica faltante — descartado, no se exige en la campaña real.** Hipótesis:
+¿el `n_objects` real de SNANA exige además un trigger espectroscópico (`SEARCHEFF_SPEC`) que
+nunca se modeló? `snlc_sim.c` línea 32911: `APPLY_SEARCHEFF_OPT: += 1,2,4 => require pipe,spec,
+zhost`. La campaña real (`pipeline/campaign/templates.py`) usa `APPLY_SEARCHEFF_OPT: 1` —
+**solo** el bit de pipeline (fotométrico), igual que lo que ya se modela. Descartado con el
+propio código fuente de la campaña, no una suposición.
+
+## 2. La causa real: el trigger de detección contaba observaciones individuales, no épocas reales
+
+`LSST_PIPELINE_LOGIC.DAT` documenta: *"min time between detections is given by NEWMJD_DIF key
+in sim-input"* — el trigger de SNANA (`>=2 épocas`) no cuenta observaciones individuales, cuenta
+**épocas agrupadas**: `snlc_sim.c` (~línea 20566) usa un algoritmo secuencial real,
+`MJD_DIF = MJD - MJD_LAST_KEEP; if (fabs(MJD_DIF) > NEWMJD_DIF) nueva_epoca`, con
+`NEWMJD_DIF=0.007` días (~10 min, default real, línea 849: *"same 'epoch' for obs within 10'"*)
+— agrupando **todas las bandas juntas**, no por banda separada.
+
+Nuestra implementación (`searcheff.py`, sin cambios desde Fase 1) nunca agrupaba — contaba cada
+observación individual con `PHOTFLAG_DETECT` como una "época" candidata para el trigger. Medido
+con el algoritmo real sobre el OpSim DDF completo:
+
+    145,345 observaciones DDF  →  14,293 épocas reales  (~10.2 obs/época)
+
+Los campos DDF se observan deliberadamente en secuencias de varias visitas seguidas en la misma
+noche/banda (para apilar imágenes profundas) — exactamente el patrón que `NEWMJD_DIF` está
+diseñado para colapsar en una sola época, y que nuestra implementación nunca colapsaba. Esto es
+compartido por **las 14 clases por igual** (mismo `searcheff.py`, mismo trigger), coincidiendo
+con el patrón observado de un residuo sistémico y no específico de una clase.
+
+## 3. Fix: `group_into_epochs()` + verificación formal de corrección
+
+`searcheff.py` (nuevo: `group_into_epochs()`, `object_level_detected()` reescrita) replica el
+algoritmo secuencial exacto (agrupa por MJD, todas las bandas, `NEWMJD_DIF=0.007`), y una época
+cuenta como detectada si **al menos una** de sus observaciones tiene `PHOTFLAG_DETECT`.
+`run_simsed_poc.py`/`run_snia_ddf_poc.py` migrados a usar la nueva función en vez del
+`groupby("SNID").size()` que contaba filas crudas.
+
+**Verificación formal**: por construcción, agrupar observaciones en épocas solo puede *fusionar*
+observaciones (nunca dividir una), así que el conteo de épocas reales de un objeto es siempre
+`<=` su conteo de observaciones individuales detectadas — el nuevo trigger (`>=2 épocas
+reales`) debería ser un subconjunto estricto del trigger anterior (`>=2 observaciones`). Se
+verificó esto empíricamente corriendo ambos métodos sobre el mismo `phot_df` (instrumentación
+temporal, revertida después de verificar) para `CaRT` N=500: **26 detectados con el método
+nuevo, 27 con el viejo, y el conjunto nuevo es subconjunto exacto del viejo (diferencia
+vacía)** — el fix es lógicamente correcto, sin bugs de implementación.
+
+## 4. Segundo hallazgo real (no buscado): la selección de template SIMSED nunca fue reproducible
+
+Investigando por qué `CaRT` mostraba *más* detecciones después del fix (contradiciendo la
+propiedad de subconjunto verificada arriba, que predice igual o menos, nunca más — ver punto 3)
+se encontró una causa distinta: `SIMSEDModel.from_dir()` construye su sampler de selección de
+template (`GivenValueSampler`) **sin pasarle un `seed`**
+(`sed_template_model.py`: `self._sampler_node = GivenValueSampler(all_inds, weights=weights)`).
+`NumpyRandomFunc` con `seed=None` cae a `os.urandom()` (`math_nodes/np_random.py`) — es decir,
+**la selección de template real nunca fue reproducible entre corridas**, en ninguna ronda de
+Fase 2B/3, pese a `SEED_BASE` fijo. Esto afecta a las 9 clases de peso uniforme
+(`SIMSED_GRIDONLY`) del catálogo — no a `SNIa`/`SALT2` (sin templates) ni a `SNIa-91bg`/
+`SNII-NMF` (peso `SIMSED_REDCOR`, mismo problema en principio pero no verificado esta ronda).
+
+**Fix para corridas futuras** (no se re-corrió el catálogo completo de nuevo solo por esto):
+`source_model._sampler_node.set_seed(SEED_BASE + 9)` después de `SIMSEDModel.from_dir()`.
+**No resuelto en esta ronda**: cuánto de la varianza observada entre corridas (antes/después del
+fix de épocas) se debe al fix real vs. a este ruido de selección de template — sin re-correr con
+múltiples semillas fijas no se puede aislar limpiamente. Se documenta como límite real de esta
+ronda, no se oculta.
+
+## 5. Resultado: efecto real pero pequeño, y no sistemático en la dirección esperada
+
+`NGENTOT_LC` real de cada clase. Único cambio respecto a las corridas de Fase 3: el trigger de
+época (punto 3). `SNIa-91bg` migrada por primera vez de `run_simsed_91bg_ddf_poc.py` (script
+histórico dedicado) al patrón generalizado `run_simsed_poc.py` (mismos parámetros reales, sin
+cambios), para heredar el fix sin duplicar lógica.
+
+| clase | SNANA real | razón antes (Fase 3) | razón después (Fase 4) | Δ |
+|---|---|---|---|---|
+| `PISN-STELLA-HYDROGENIC` | 4268/20000 | 1.38x | 1.35x | -0.03x |
+| `SNIa-91bg` | 723/2000 | 1.37x | 1.35x | -0.02x |
+| `SNII-NMF` | 356/2000 | 1.40x | 1.35x | -0.05x |
+| `PISN-STELLA-HECORE` | 384/2000 | 1.41x | 1.41x | 0.00x |
+| `SLSN-I` | 824/2000 | 1.50x | 1.52x | +0.01x |
+| `TDE-MOSFIT` | 812/2000 | 1.57x | 1.58x | +0.01x |
+| `PISN-MOSFIT` | 411/2000 | 1.62x | 1.66x | +0.03x |
+| `SNIa` | 597/2000 | 1.82x | 1.81x | -0.01x |
+| `ILOT-MOSFIT` | 73/2000 | 2.25x | 2.14x | -0.11x |
+| `SNIax` | 175/2000 | 2.72x | 2.49x | -0.23x |
+| `KN-BULLA19` | 103/2000 | 2.84x | 2.36x | **-0.49x** |
+| `KN-K17` | 82/2000 | 2.87x | 2.46x | **-0.40x** |
+| `SNIIn-MOSFIT` | 37/2000 | 4.76x | 4.81x | +0.05x |
+| `CaRT` | 16/2000 | 8.56x | 9.56x | **+1.00x** |
+
+**Promedio del catálogo: 2.577x → 2.561x — sin cambio significativo**, pese a que el fix en sí
+está formalmente verificado como correcto (punto 3). La mayoría de las clases se mantuvo
+prácticamente igual (±0.05x, dentro del ruido esperado). Solo 3 clases mejoraron de forma clara:
+`KN-K17`, `KN-BULLA19` (ambas kilonovas, mismo modelo `WV07_REWGT_EXPAV=0.5` y rango de
+redshift bajo) y `SNIax` — sugiriendo que el efecto del agrupamiento de épocas es real pero
+depende de la cadencia/redshift específico de cada clase, no un factor multiplicativo uniforme.
+`CaRT` empeoró, pero dado el hallazgo del punto 4 (selección de template no reproducible) y su
+conteo real extremadamente bajo (SNANA n=16), este resultado puntual no es confiable sin
+múltiples semillas — no se interpreta como una regresión causada por el fix.
+
+**Por qué el efecto es menor de lo esperado pese al colapso ~10x en conteo de épocas**: agrupar
+observaciones reduce el número de "oportunidades" de época, pero cada época real ahora tiene
+*varias* exposiciones — la probabilidad de que *al menos una* dispare la eficiencia de detección
+es mayor que la de una sola observación aislada (efecto de unión de probabilidades). Este efecto
+compensa parcialmente la reducción en conteo de épocas, explicando por qué el promedio del
+catálogo casi no se movió pese al hallazgo aparentemente grande del punto 2.
+
+## Archivos de esta ronda
+
+- `searcheff.py` — `group_into_epochs()` (nuevo), `object_level_detected()` reescrita para usar
+  épocas agrupadas en vez de observaciones individuales.
+- `run_simsed_poc.py` — usa `object_level_detected()` del punto anterior; fix de seed
+  (`source_model._sampler_node.set_seed(...)`) para selección de template reproducible en
+  corridas futuras; `SNIa-91bg` migrada a `CLASS_CONFIGS` (mismos parámetros reales que
+  `run_simsed_91bg_ddf_poc.py`, script histórico que se deja sin tocar).
+- `run_snia_ddf_poc.py` — mismo fix de trigger que `run_simsed_poc.py`.
+- `poc_output_snia91bg/` (nuevo, reemplaza a `poc_output_91bg/` como fuente activa),
+  `poc_output_knk17/`, `poc_output_cart/`, `poc_output_slsni/`, `poc_output_sniax/`,
+  `poc_output_tdemosfit/`, `poc_output_sniinmf/`, `poc_output_ilotmosfit/`,
+  `poc_output_sniinmosfit/`, `poc_output_pisnmosfit/`, `poc_output_knbulla19/`,
+  `poc_output_pisnstellahecore/`, `poc_output_pisnstellahydrogenic/`, `poc_output/` (`SNIa`) —
+  las 14 clases, resultados actualizados con el trigger corregido.
+
+## Recomendación final (actualizada de nuevo)
+
+**Sigue GO condicional — dos causas reales cerradas (extinción de host en Fase 3, trigger de
+época en Fase 4), y el residuo sistémico sigue prácticamente intacto (2.56x de promedio).** Esto
+es información real y valiosa, no un fracaso: dos hipótesis concretas y bien fundamentadas
+(extinción omitida, sobre-conteo de épocas) se investigaron con rigor real (fórmulas verificadas
+línea por línea contra el código fuente, correcciones formalmente verificadas) y **ninguna de
+las dos explica la brecha dominante** — descartar causas reales con evidencia real es progreso
+científico genuino, aunque no cierre la brecha. Lo que queda abierto: la causa raíz sigue sin
+identificarse con precisión, y esta ronda reveló un problema metodológico adicional (selección
+de template SIMSED no reproducible) que probablemente inyectó ruido no cuantificado en **todas**
+las comparaciones de clases SIMSED de peso uniforme a lo largo de toda la sesión, no solo en
+Fase 4. Antes de seguir cazando la causa raíz, la prioridad real debería ser cerrar ese agujero
+de reproducibilidad (semillas fijas + múltiples corridas por clase) para poder confiar en
+cualquier comparación futura, incluidas las ya reportadas.

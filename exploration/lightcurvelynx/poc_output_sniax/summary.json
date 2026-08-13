@@ -1,11 +1,11 @@
 {
   "class_key": "SNIax",
   "ngentot_lc": 2000,
-  "n_with_obs": 1987,
-  "n_detected": 476,
+  "n_with_obs": 1985,
+  "n_detected": 436,
   "n_total_dump": 2000,
-  "sim_wall_time_s": 71.52627158164978,
-  "detection_efficiency_pct": 23.8,
-  "snr_median": 0.7547253406864862,
-  "snr_p90": 2.0259975420395824
+  "sim_wall_time_s": 71.72191214561462,
+  "detection_efficiency_pct": 21.8,
+  "snr_median": 0.7619676682537474,
+  "snr_p90": 2.0726655456154135
 }

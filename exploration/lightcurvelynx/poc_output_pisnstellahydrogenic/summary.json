@@ -1,11 +1,11 @@
 {
   "class_key": "PISN-STELLA-HYDROGENIC",
   "ngentot_lc": 20000,
-  "n_with_obs": 19944,
-  "n_detected": 5886,
+  "n_with_obs": 19953,
+  "n_detected": 5766,
   "n_total_dump": 20000,
-  "sim_wall_time_s": 913.7154145240784,
-  "detection_efficiency_pct": 29.43,
-  "snr_median": 0.752773262417502,
-  "snr_p90": 2.018920259758805
+  "sim_wall_time_s": 915.3340246677399,
+  "detection_efficiency_pct": 28.83,
+  "snr_median": 0.7520938748757651,
+  "snr_p90": 2.0170951632039533
 }

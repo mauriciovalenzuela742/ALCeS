@@ -1,8 +1,8 @@
 {
   "ngentot_lc": 2000,
-  "n_with_obs": 1995,
-  "n_detected": 1086,
+  "n_with_obs": 1988,
+  "n_detected": 1081,
   "n_total_dump": 2000,
-  "sim_wall_time_s": 73.84123873710632,
-  "detection_efficiency_pct": 54.3
+  "sim_wall_time_s": 73.93531322479248,
+  "detection_efficiency_pct": 54.05
 }

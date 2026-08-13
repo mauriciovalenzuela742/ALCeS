@@ -66,7 +66,9 @@ from snana_params import (
     build_dndz_pisn_cdf, make_dndz_sampler, make_exp_av_sampler, make_exp_halfgauss_av_sampler,
     make_wv07_av_sampler, make_correlated_normal_weights, SizeAwareFunctionNode, ClippedExtinctionEffect,
 )
-from searcheff import parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency
+from searcheff import (
+    parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency, object_level_detected,
+)
 
 sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
 from pipeline.simlib.formatobs import format_obs  # noqa: E402
@@ -95,6 +97,21 @@ CLASS_CONFIGS = {
     # clases que lo declaran; KN-K17/KN-BULLA19 son las 2 unicas con
     # WV07_REWGT_EXPAV=0.5 (confirmado en su .INPUT real), las demas 7 no
     # lo declaran (rewgt_expav=None -> AEXP sin modificar).
+    # Fase 4: SNIa-91bg migrada aqui desde run_simsed_91bg_ddf_poc.py (Fase 2B
+    # ronda 1, script historico dedicado) para reusar el fix del trigger de
+    # SEARCHEFF (ver NOTES.md) sin duplicar logica -- mismos parametros reales
+    # de SIMGEN_INCLUDE_SNIa-91bg.INPUT, sin cambios.
+    "SNIa-91bg": dict(
+        simsed_dir=HERE / "simsed_91bg_local",
+        genrange_redshift=(0.011, 0.6),
+        dndz=("powerlaw", [(3.0e-6, 1.5, 0.011, 0.6)]),
+        sntype=13,
+        redcor_params=dict(
+            peaks=dict(stretch=0.975, color=0.557),
+            sigmas=dict(stretch=0.096, color=0.175),
+            redcor={("stretch", "color"): -0.656},
+        ),
+    ),
     "KN-K17": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.KN-K17",
         genrange_redshift=(0.011, 0.28),
@@ -346,6 +363,16 @@ def main(class_key: str, ngentot_override: int | None = None):
         ra=radec_sampler.ra, dec=radec_sampler.dec,
         redshift=redshift_func, distance=distance_func, t0=t0_func,
     )
+    # Fase 4: SIMSEDModel.from_dir() nunca pasa un seed a su
+    # GivenValueSampler interno (confirmado leyendo sed_template_model.py:
+    # `self._sampler_node = GivenValueSampler(all_inds, weights=weights)`,
+    # sin `seed=`) -- NumpyRandomFunc con seed=None cae a
+    # `os.urandom()` (math_nodes/np_random.py), es decir la seleccion de
+    # template real de SIMSED **nunca fue reproducible** entre corridas en
+    # ninguna ronda anterior de Fase 2B/3, pese a SEED_BASE. Fijar el seed
+    # aqui para que corridas futuras sean reproducibles -- no se re-corrio
+    # el catalogo completo de nuevo solo por esto (ver NOTES.md Fase 4).
+    source_model._sampler_node.set_seed(SEED_BASE + 9)
     source_model.add_effect(mw_extinction)
 
     if "host_av" in cfg:
@@ -430,10 +457,13 @@ def main(class_key: str, ngentot_override: int | None = None):
     min_epochs = parse_pipeline_logic(SEARCHEFF_LOGIC_FILE)
     detected_mask = apply_detection_efficiency(phot_df, band_curves, seed=SEED_BASE + 7)
     phot_df["PHOTFLAG"] = np.where(detected_mask, 4096, 0)
-    counts = phot_df[phot_df["PHOTFLAG"] == 4096].groupby("SNID").size()
-    detected_snids = set(counts[counts >= min_epochs].index)
+    # Fase 4: agrupar observaciones en epocas reales (NEWMJD_DIF=0.007d, ver
+    # searcheff.group_into_epochs) antes de aplicar el trigger ">=2 epocas" --
+    # contar observaciones individuales (como hacian las Fases 0-3) infla el
+    # trigger, ver NOTES.md.
+    detected_snids = object_level_detected(phot_df, min_epochs=min_epochs)
     print(f"[{time.time()-t_start:.1f}s] SEARCHEFF aplicado: {len(detected_snids)}/{len(head_df)} "
-          f"objetos detectados (>= {min_epochs} epocas)")
+          f"objetos detectados (>= {min_epochs} epocas reales, agrupadas)")
 
     all_ids = lc["id"].astype(int).astype(str)
     dump_df = pd.DataFrame({"CID": all_ids, "ZHELIO": lc["z"].to_numpy(), "ZCMB": lc["z"].to_numpy()})
