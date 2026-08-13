@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-13T11:20:00+00:00",
+  "generated_at": "2026-08-13T13:20:00+00:00",
   "campaign_ref": "full_v5.3_10yrs (baselines DDF reales)",
   "kinds": [
     "redshift",
@@ -23,6 +23,20 @@
       "note": "Primer PoC SIMSED -- brecha menor que SNIa pese a SNR similar."
     },
     {
+      "class": "PISN-STELLA-HYDROGENIC",
+      "source_model": "SIMSED (6 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
+      "host_av": "implementada (WV07 real)",
+      "snana_detected": 4268,
+      "lcl_detected": 5886,
+      "ngentot": 20000,
+      "snana_pct": 21.34,
+      "lcl_pct": 29.43,
+      "ratio": 1.38,
+      "note": "Unica clase con NGENTOT_LC=20000. Fase 3: WV07 real mejoro levemente la razon (1.43x->1.38x)."
+    },
+    {
       "class": "SNII-NMF",
       "source_model": "SIMSED (384 templates, PCA)",
       "weight_method": "SIMSED_REDCOR (pc1,pc2,pc3)",
@@ -37,46 +51,32 @@
       "note": "Control limpio (sin extincion) -- cae en la misma banda residual que SNIa-91bg/TDE-MOSFIT."
     },
     {
-      "class": "PISN-STELLA-HYDROGENIC",
-      "source_model": "SIMSED (6 templates)",
-      "weight_method": "uniforme (SIMSED_GRIDONLY)",
-      "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
-      "host_av": "omitida (GENAV_WV07 real)",
-      "snana_detected": 4268,
-      "lcl_detected": 6106,
-      "ngentot": 20000,
-      "snana_pct": 21.34,
-      "lcl_pct": 30.53,
-      "ratio": 1.43,
-      "note": "Unica clase del catalogo con NGENTOT_LC=20000 (no 2000). Primer intento con 16G de memoria fallo (OOM); resuelto con 64G."
-    },
-    {
       "class": "PISN-STELLA-HECORE",
       "source_model": "SIMSED (14 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
       "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
-      "host_av": "omitida (GENAV_WV07 real)",
+      "host_av": "implementada (WV07 real)",
       "snana_detected": 384,
-      "lcl_detected": 577,
+      "lcl_detected": 543,
       "ngentot": 2000,
       "snana_pct": 19.2,
-      "lcl_pct": 28.85,
-      "ratio": 1.5,
-      "note": "Variante PISN mas alla de las 11 originales (Heger & Woosley 2002). Reuso directo de PISN_PLK12."
+      "lcl_pct": 27.15,
+      "ratio": 1.41,
+      "note": "Variante PISN mas alla de las 11 originales (Heger & Woosley 2002). Fase 3: WV07 real mejoro la razon (1.50x->1.41x)."
     },
     {
       "class": "SLSN-I",
       "source_model": "SIMSED (960 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
       "dndz": "MD14",
-      "host_av": "omitida (GENAV_WV07 real)",
+      "host_av": "implementada (WV07 real)",
       "snana_detected": 824,
-      "lcl_detected": 1266,
+      "lcl_detected": 1240,
       "ngentot": 2000,
       "snana_pct": 41.2,
-      "lcl_pct": 63.3,
-      "ratio": 1.54,
-      "note": "Rango de redshift mas amplio probado (0.02-9.7) sin errores."
+      "lcl_pct": 62.0,
+      "ratio": 1.5,
+      "note": "Rango de redshift mas amplio probado (0.02-9.7) sin errores. Fase 3: WV07 real mejoro levemente la razon (1.54x->1.50x)."
     },
     {
       "class": "TDE-MOSFIT",
@@ -97,14 +97,14 @@
       "source_model": "SIMSED (1000 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
       "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
-      "host_av": "omitida (GENAV_WV07 real)",
+      "host_av": "implementada (WV07 real)",
       "snana_detected": 411,
-      "lcl_detected": 716,
+      "lcl_detected": 667,
       "ngentot": 2000,
       "snana_pct": 20.55,
-      "lcl_pct": 35.8,
-      "ratio": 1.74,
-      "note": "DNDZ que las rondas 1-2 habian descartado por 'nombre propio' -- formula real encontrada esta ronda."
+      "lcl_pct": 33.35,
+      "ratio": 1.62,
+      "note": "DNDZ encontrada en ronda 3. Fase 3: WV07 real mejoro la razon (1.74x->1.62x)."
     },
     {
       "class": "SNIa",
@@ -125,28 +125,14 @@
       "source_model": "SIMSED (385 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
       "dndz": "CC_S15",
-      "host_av": "omitida (GENAV_WV07 real)",
+      "host_av": "implementada (WV07 real)",
       "snana_detected": 73,
-      "lcl_detected": 143,
+      "lcl_detected": 164,
       "ngentot": 2000,
       "snana_pct": 3.65,
-      "lcl_pct": 7.15,
-      "ratio": 1.96,
-      "note": ""
-    },
-    {
-      "class": "KN-K17",
-      "source_model": "SIMSED (329 templates)",
-      "weight_method": "uniforme (SIMSED_GRIDONLY)",
-      "dndz": "POWERLAW",
-      "host_av": "omitida (GENAV_WV07 real, bug historico documentado)",
-      "snana_detected": 82,
-      "lcl_detected": 210,
-      "ngentot": 2000,
-      "snana_pct": 4.1,
-      "lcl_pct": 10.5,
-      "ratio": 2.56,
-      "note": "Carga de templates ~6s/template -- hallazgo de rendimiento."
+      "lcl_pct": 8.2,
+      "ratio": 2.25,
+      "note": "Fase 3: WV07 real implementado -- la razon empeoro (1.96x->2.25x)."
     },
     {
       "class": "SNIax",
@@ -167,42 +153,56 @@
       "source_model": "SIMSED (550 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
       "dndz": "POWERLAW (identico a KN-K17)",
-      "host_av": "omitida (WV07_REWGT_EXPAV -> mismo GENAV_WV07 real)",
+      "host_av": "implementada (WV07 real, REWGT_EXPAV=0.5)",
       "snana_detected": 103,
-      "lcl_detected": 294,
+      "lcl_detected": 293,
       "ngentot": 2000,
       "snana_pct": 5.15,
-      "lcl_pct": 14.7,
-      "ratio": 2.85,
-      "note": "Ultima de las 11 clases SIMSED originales. Templates reales eran ZIP mal etiquetados .gz (fix: setup_knbulla19_local.py)."
+      "lcl_pct": 14.65,
+      "ratio": 2.84,
+      "note": "Templates reales eran ZIP mal etiquetados .gz (fix: setup_knbulla19_local.py). Fase 3: WV07 real, razon practicamente sin cambio (2.85x->2.84x)."
+    },
+    {
+      "class": "KN-K17",
+      "source_model": "SIMSED (329 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "POWERLAW",
+      "host_av": "implementada (WV07 real, REWGT_EXPAV=0.5)",
+      "snana_detected": 82,
+      "lcl_detected": 235,
+      "ngentot": 2000,
+      "snana_pct": 4.1,
+      "lcl_pct": 11.75,
+      "ratio": 2.87,
+      "note": "Fase 3: WV07 real implementado -- la razon empeoro (2.56x->2.87x), no la mejoro."
     },
     {
       "class": "SNIIn-MOSFIT",
       "source_model": "SIMSED (839 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
       "dndz": "CC_S15",
-      "host_av": "omitida (GENAV_WV07 real)",
+      "host_av": "implementada (WV07 real)",
       "snana_detected": 37,
-      "lcl_detected": 187,
+      "lcl_detected": 176,
       "ngentot": 2000,
       "snana_pct": 1.85,
-      "lcl_pct": 9.35,
-      "ratio": 5.05,
-      "note": "Clase mas tenue evaluada (37/2000 real) -- brecha mas grande junto a CaRT."
+      "lcl_pct": 8.8,
+      "ratio": 4.76,
+      "note": "Clase mas tenue evaluada (37/2000 real). Fase 3: WV07 real mejoro levemente la razon (5.05x->4.76x)."
     },
     {
       "class": "CaRT",
       "source_model": "SIMSED (225 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
       "dndz": "MD14",
-      "host_av": "omitida (GENAV_WV07 real)",
+      "host_av": "implementada (WV07 real)",
       "snana_detected": 16,
-      "lcl_detected": 136,
+      "lcl_detected": 137,
       "ngentot": 2000,
       "snana_pct": 0.8,
-      "lcl_pct": 6.8,
-      "ratio": 8.5,
-      "note": "Brecha mas grande del catalogo -- clase intrinsecamente muy tenue (16/2000 real)."
+      "lcl_pct": 6.85,
+      "ratio": 8.56,
+      "note": "Fase 3: WV07 real implementado -- el caso mas extremo del catalogo practicamente no se movio (8.50x->8.56x), refutando que la extincion omitida explicara esta brecha."
     }
   ],
   "images": {
