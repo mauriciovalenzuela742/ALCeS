@@ -60,6 +60,7 @@ import numpy as np
 import pandas as pd
 import sncosmo
 
+from lightcurvelynx.astro_utils.mag_flux import mag2flux
 from lightcurvelynx.astro_utils.passbands import PassbandGroup
 from lightcurvelynx.astro_utils.snia_utils import DistModFromRedshift, X0FromDistMod
 from lightcurvelynx.effects.extinction import ExtinctionEffect
@@ -70,6 +71,9 @@ from lightcurvelynx.obstable.opsim import OpSim
 from lightcurvelynx.simulate import simulate_lightcurves
 from lightcurvelynx.survey_info import SurveyInfo
 from lightcurvelynx.utils.extrapolate import LinearDecay, ZeroPadding
+
+sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
+from pipeline.simlib.formatobs import format_obs  # noqa: E402
 
 from snana_params import (
     build_dndz_powerlaw2_cdf, make_dndz_sampler, make_bifurcated_normal_sampler,
@@ -107,6 +111,26 @@ DDF_FIELD_EBV = {
     "edfs_b": 0.0152, "elaiss1": 0.0080, "xmm_lss": 0.0251,
 }
 MW_RV = 3.1  # promedio Galaxia estandar, misma familia que OPT_MWCOLORLAW de SNANA
+PIXSIZE = 0.2  # arcsec/pixel, LSSTCam
+
+
+def snana_noise_columns(df_ddf: pd.DataFrame) -> pd.DataFrame:
+    """Deriva zp/psf_footprint/sky_bg_e con la formula REAL de SNANA
+    (pipeline.simlib.formatobs.format_obs(), ya en produccion, Capa 1) en
+    vez de dejar que LightCurveLynx las aproxime con sus propias constantes
+    (zp_per_sec/ext_coeff simplificados). Ver NOTES.md Fase 2 parte A:
+    psf_footprint ya coincidia exactamente entre ambos sistemas; sky_bg_e y
+    zp explicaban ~20% del gap de SNR mediana -- esto los fuerza a
+    coincidir por construccion en vez de aproximarlos."""
+    snana = format_obs(df_ddf, pixsize=PIXSIZE)
+    sig_psf_arcsec = df_ddf["seeingFwhmEff"].to_numpy() / (2 * np.sqrt(2 * np.log(2)))
+    noise_area_arcsec2 = 4 * np.pi * sig_psf_arcsec ** 2
+
+    out = df_ddf.copy()
+    out["sky_bg_e"] = snana["SKYSIG"].to_numpy() ** 2
+    out["psf_footprint"] = noise_area_arcsec2 / PIXSIZE ** 2
+    out["zp"] = mag2flux(snana["ZPT"].to_numpy())
+    return out
 
 
 def main():
@@ -126,6 +150,10 @@ def main():
     # con bandflux^2 (ver noise_models/noise_utils.py::poisson_bandflux_std),
     # asi que domina justo en las epocas de mayor SNR, que son las que mas
     # pesan en el trigger de deteccion. Ver NOTES.md Fase 1 punto 7.
+    # inyecta zp/psf_footprint/sky_bg_e derivados de la formula real de
+    # SNANA en vez de dejar que OpSim las derive con sus propias constantes
+    # simplificadas (ver snana_noise_columns() arriba, NOTES.md Fase 2 A).
+    df_ddf = snana_noise_columns(df_ddf)
     obs_table = OpSim(df_ddf, zp_err_mag=0.005)
     print(f"[{time.time()-t_start:.1f}s] OpSim DDF: {len(df_ddf):,} / {len(df):,} obs totales "
           f"(zp_err_mag=0.005, calibrado contra ZEROPT_ERR real de SNANA)")
@@ -149,7 +177,13 @@ def main():
     x1_func = SizeAwareFunctionNode(
         make_bifurcated_normal_sampler(**SALT2X1, seed=SEED_BASE + 3), node_label="x1"
     )
-    distmod_func = DistModFromRedshift(redshift_func, H0=73.0, Omega_m=0.3)
+    # H0=70 (no 73, el placeholder heredado de bench_snia.py/Fase 0) -- SNANA
+    # no fija cosmologia en ningun .INPUT de la campana (grep sin resultados
+    # en run_SNANA/*.INPUT ni en pipeline/), asi que corre con su default
+    # interno, H0=70/Omega_M=0.3 (mismo valor usado en PLAsTiCC/Kessler+2019,
+    # el linaje de este catalogo). H0=73 introduce un ~0.1 mag de brillo
+    # sistematico de mas -- ver NOTES.md Fase 2 parte A.
+    distmod_func = DistModFromRedshift(redshift_func, H0=70.0, Omega_m=0.3)
     m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=SIGMA_INT, seed=SEED_BASE + 4)
     x0_func = X0FromDistMod(
         distmod=distmod_func, x1=x1_func, c=c_func, alpha=ALPHA, beta=BETA, m_abs=m_abs_func,

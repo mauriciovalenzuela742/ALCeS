@@ -390,8 +390,97 @@ modelo de ruido contra SNANA real, no como una comparación científica cerrada 
 - `run_snia_ddf_poc.py` + `run_snia_ddf_poc.sbatch` — script principal, corre en NLHPC vía
   SLURM (nunca login node). Incluye override `zp_err_mag=0.005` (calibración intentada, ver
   punto 7b) y el diagnóstico de SNR permanente en cada corrida.
-- `poc_output/summary.json` + `poc_output/qc/*.png` — resultado real de la corrida con
-  `zp_err_mag` calibrado (`n_detected=1215/2000`, eficiencia 60.75% — sin mejora real sobre
-  la corrida anterior, ver punto 7b).
 - `run_dask_poc.py` + `run_dask_poc.sbatch` — validación del patrón `LocalCluster` para Fase 2
   (punto 8b), 3.16x de speedup real medido.
+- `compare_noise_formulas.py` (nuevo, Fase 2 parte A) — comparación numérica término a
+  término SNANA real vs LightCurveLynx.
+- `poc_output/summary.json` + `poc_output/qc/*.png` — resultado real de la corrida más
+  reciente (Fase 2 parte A: `H0=70` + ruido real de SNANA inyectado, `n_detected=1086/2000`,
+  eficiencia 54.3%).
+
+# Fase 2 — parte A: cerrar la brecha de ruido antes de ampliar cobertura
+
+Plan: `C:\Users\HOME\.claude\plans\delegated-tumbling-petal.md`. Antes de ampliar Fase 2 a más
+clases (el wrapper SIMSED necesario resultó afectar **11** clases del catálogo, no las 5-6 que
+estimaba Fase 0 — `CaRT`, `ILOT`, `KN-BULLA19`, `KN-K17`, `PISN-MOSFIT`, `SLSN-I-MOSFIT`,
+`SNIa-91bg`, `SNIax`, `SNII-NMF`, `SNIIn-MOSFIT`, `TDE-MOSFIT`, verificado con
+`grep -l 'GENMODEL:.*SIMSED' run_SNANA/model_config/*.INPUT`), el usuario decidió cerrar
+primero la brecha de eficiencia ~2x de Fase 1.
+
+## 1. Comparación numérica directa: SNANA real vs LightCurveLynx, término a término
+
+`pipeline/simlib/formatobs.py` (Capa 1, ya en producción — construye el SIMLIB real de la
+campaña v8) implementa la fórmula exacta de SNANA (`formatObs`, arxiv:1905.02887) para derivar
+`SKYSIG`/`PSF`/`ZPT` desde `fiveSigmaDepth`/`skyBrightness`/`seeingFwhmEff` — con el zeropoint
+derivado **directamente del `fiveSigmaDepth` oficial** de Rubin (ya calibrado con toda la
+física real de instrumento+atmósfera), a diferencia de LightCurveLynx, que deriva su
+zeropoint desde cero con constantes fijas simplificadas (`zp_per_sec` a cenit + corrección de
+airmass). Esta comparación directa no se había hecho en Fase 1 (las dos rondas previas solo
+auditaron la fórmula de LightCurveLynx en aislamiento).
+
+`compare_noise_formulas.py` (nuevo) calcula ambas derivaciones sobre las mismas 145,345
+visitas DDF reales y compara termino a término (conversión de unidades: `sky_bg_e=SKYSIG²`,
+`psf_footprint=noise_area/pixsize²`, `zp=mag2flux(ZPT)`):
+
+| término | SNANA real (mediana) | LightCurveLynx (mediana) | razón LCL/SNANA |
+|---|---|---|---|
+| `psf_footprint` (pix²) | 54.08 | 54.08 | **1.0000 — coinciden exactamente** |
+| `sky_bg_e` (e⁻/pix) | 1917 | 2320 | 1.18x (LCL con **más** ruido de cielo, no menos) |
+| `zp` (nJy/e⁻) | 0.8653 | 0.6907 | 0.85x (LCL más sensible por electrón) |
+
+Prueba directa con una fuente de referencia fija (100 nJy, mismo readout/dark en ambos):
+usando los inputs de LightCurveLynx el SNR mediano sale **1.2x** más alto que usando los
+inputs reales de SNANA — un efecto real pero modesto, muy por debajo del ~2.5x observado en
+la cola alta de Fase 1. **Esto refuta la hipótesis original de Fase 1** ("el modelo de ruido
+subestima el ruido real") como explicación *principal* — el término de PSF coincide
+exactamente, y sky/zp se cancelan parcialmente entre sí (más ruido de cielo, pero más
+sensible por electrón), dejando solo ~20% de efecto neto.
+
+## 2. Segunda pista: `H0=73` nunca se verificó contra SNANA real
+
+Ninguna cosmología está fijada explícitamente en la campaña (`grep` sin resultados en
+`run_SNANA/*.INPUT` ni en `pipeline/`) — SNANA corre con su default interno, que en el linaje
+PLAsTiCC/Kessler+2019 de este catálogo es `H0=70`. El PoC de Fase 1 heredó `H0=73` del
+placeholder original de `bench_snia.py` (Fase 0) sin verificarlo nunca contra la config real
+— un ~4.3% de error en H0 implica ~0.1 mag de brillo sistemático de más.
+
+## 3. Resultado combinado (H0=70 + columnas de ruido reales de SNANA inyectadas)
+
+En vez de seguir ajustando constantes de LightCurveLynx, se precalculan `zp`/`psf_footprint`/
+`sky_bg_e` con la fórmula real de SNANA (`snana_noise_columns()`, nuevo en
+`run_snia_ddf_poc.py`, reusa `pipeline.simlib.formatobs.format_obs()` sin duplicar lógica) y
+se inyectan como columnas del `DataFrame` **antes** de construir el `OpSim` —
+`_derive_noise_columns()` solo calcula estas columnas si no están presentes, así que
+LightCurveLynx usa el modelo de ruido de SNANA por construcción. Combinado con `H0=70`:
+
+| | mediana SNR | p90 SNR | eficiencia |
+|---|---|---|---|
+| SNANA real (`SNIa_DDF`) | 0.78 | 2.26 | 29.85% (597/2000) |
+| Fase 1 original (`H0=73`, ruido propio de LCL) | 1.008 (+29%) | 5.68 (+151%) | 60.75% |
+| + `H0=70` | 0.916 (+17%) | 3.580 (+58%) | 57.85% |
+| + `H0=70` **y** ruido real de SNANA inyectado | 0.889 (+14%) | 3.185 (+41%) | 54.3% (1086/2000) |
+
+**Progreso real y verificado**: ambas brechas de SNR se redujeron aproximadamente a la mitad
+(mediana 29%→14%, p90 151%→41%) con dos causas concretas, diagnosticadas y corregidas (no
+constantes ajustadas a ciegas). **No cerrado del todo**: la eficiencia sigue en ~1.8x la real
+(54.3% vs 29.85%), un residual notablemente menor que el ~2x original pero aún significativo
+— la eficiencia de detección responde de forma no lineal (vía la curva SEARCHEFF) a mejoras en
+el SNR cerca del umbral, así que una reducción de brecha de SNR no se traduce 1:1 en reducción
+de brecha de eficiencia.
+
+Se revisó una tercera pista (`M_abs=-19.3`, también heredado sin verificar de Fase 0) contra
+`SIMGEN_INCLUDE_SNIa-SALT2.INPUT` y `SALT2.INFO`: SNANA no fija un `M_abs`/`MAGOFF` explícito
+para esta clase — `-19.3` es el valor de calibración estándar de SALT2 en la literatura
+(Betoule et al. 2014), consistente con `H0=70`, no un placeholder obviamente incorrecto. No se
+encontró una cuarta pista concreta y barata de seguir en esta ronda.
+
+## 4. Estado y siguiente decisión
+
+Dos causas reales identificadas y corregidas (columnas de ruido + cosmología), reduciendo la
+brecha sustancialmente pero sin cerrarla del todo. El residuo (~1.8x) probablemente vive en la
+población/modelo de fuente (evaluación exacta de la superficie SALT2 vía `sncosmo` vs el
+código interno de SNANA, o la simplificación de `SIGMA_INT` coherente en vez de la covarianza
+completa de G10 — ambas ya señaladas como aproximaciones aceptadas desde Fase 1, no
+investigadas más a fondo aquí). Queda pendiente decidir con el usuario: seguir investigando el
+residuo, o proceder a Fase 2 parte B (SIMSED) con este ~1.8x como caveat explícito y
+cuantificado (mejor que el ~2x sin diagnosticar de Fase 1).
