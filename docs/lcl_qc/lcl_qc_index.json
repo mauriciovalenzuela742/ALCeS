@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-13T13:20:00+00:00",
+  "generated_at": "2026-08-13T15:00:00+00:00",
   "campaign_ref": "full_v5.3_10yrs (baselines DDF reales)",
   "kinds": [
     "redshift",
@@ -15,26 +15,12 @@
       "dndz": "POWERLAW",
       "host_av": "no declarada",
       "snana_detected": 723,
-      "lcl_detected": 993,
+      "lcl_detected": 979,
       "ngentot": 2000,
       "snana_pct": 36.15,
-      "lcl_pct": 49.65,
-      "ratio": 1.37,
-      "note": "Primer PoC SIMSED -- brecha menor que SNIa pese a SNR similar."
-    },
-    {
-      "class": "PISN-STELLA-HYDROGENIC",
-      "source_model": "SIMSED (6 templates)",
-      "weight_method": "uniforme (SIMSED_GRIDONLY)",
-      "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
-      "host_av": "implementada (WV07 real)",
-      "snana_detected": 4268,
-      "lcl_detected": 5886,
-      "ngentot": 20000,
-      "snana_pct": 21.34,
-      "lcl_pct": 29.43,
-      "ratio": 1.38,
-      "note": "Unica clase con NGENTOT_LC=20000. Fase 3: WV07 real mejoro levemente la razon (1.43x->1.38x)."
+      "lcl_pct": 48.95,
+      "ratio": 1.35,
+      "note": "Migrada a run_simsed_poc.py en Fase 4 (antes script dedicado). Trigger de epoca corregido, sin cambio (1.37x->1.35x)."
     },
     {
       "class": "SNII-NMF",
@@ -43,12 +29,26 @@
       "dndz": "CC_S15",
       "host_av": "no declarada",
       "snana_detected": 356,
-      "lcl_detected": 498,
+      "lcl_detected": 481,
       "ngentot": 2000,
       "snana_pct": 17.8,
-      "lcl_pct": 24.9,
-      "ratio": 1.4,
-      "note": "Control limpio (sin extincion) -- cae en la misma banda residual que SNIa-91bg/TDE-MOSFIT."
+      "lcl_pct": 24.05,
+      "ratio": 1.35,
+      "note": "Control limpio (sin extincion) -- cae en la misma banda residual que SNIa-91bg/TDE-MOSFIT. Fase 4: sin cambio (1.40x->1.35x)."
+    },
+    {
+      "class": "PISN-STELLA-HYDROGENIC",
+      "source_model": "SIMSED (6 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
+      "host_av": "implementada (WV07 real)",
+      "snana_detected": 4268,
+      "lcl_detected": 5766,
+      "ngentot": 20000,
+      "snana_pct": 21.34,
+      "lcl_pct": 28.83,
+      "ratio": 1.35,
+      "note": "Unica clase con NGENTOT_LC=20000. Fase 3+4: sin cambio significativo (1.43x->1.38x->1.35x)."
     },
     {
       "class": "PISN-STELLA-HECORE",
@@ -57,12 +57,12 @@
       "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
       "host_av": "implementada (WV07 real)",
       "snana_detected": 384,
-      "lcl_detected": 543,
+      "lcl_detected": 541,
       "ngentot": 2000,
       "snana_pct": 19.2,
-      "lcl_pct": 27.15,
+      "lcl_pct": 27.05,
       "ratio": 1.41,
-      "note": "Variante PISN mas alla de las 11 originales (Heger & Woosley 2002). Fase 3: WV07 real mejoro la razon (1.50x->1.41x)."
+      "note": "Variante PISN mas alla de las 11 originales (Heger & Woosley 2002). Fase 3+4: sin cambio (1.50x->1.41x->1.41x)."
     },
     {
       "class": "SLSN-I",
@@ -71,12 +71,12 @@
       "dndz": "MD14",
       "host_av": "implementada (WV07 real)",
       "snana_detected": 824,
-      "lcl_detected": 1240,
+      "lcl_detected": 1251,
       "ngentot": 2000,
       "snana_pct": 41.2,
-      "lcl_pct": 62.0,
-      "ratio": 1.5,
-      "note": "Rango de redshift mas amplio probado (0.02-9.7) sin errores. Fase 3: WV07 real mejoro levemente la razon (1.54x->1.50x)."
+      "lcl_pct": 62.55,
+      "ratio": 1.52,
+      "note": "Rango de redshift mas amplio probado (0.02-9.7) sin errores. Fase 3+4: sin cambio significativo (1.54x->1.50x->1.52x)."
     },
     {
       "class": "TDE-MOSFIT",
@@ -85,12 +85,12 @@
       "dndz": "TDE",
       "host_av": "implementada (exponencial pura, GENTAU_AV=0.4)",
       "snana_detected": 812,
-      "lcl_detected": 1277,
+      "lcl_detected": 1286,
       "ngentot": 2000,
       "snana_pct": 40.6,
-      "lcl_pct": 63.85,
-      "ratio": 1.57,
-      "note": "SED.INFO real con linea invalida (sanitizada via symlink) + fix de CCM89 fuera de rango UV a z=2.9."
+      "lcl_pct": 64.3,
+      "ratio": 1.58,
+      "note": "SED.INFO real con linea invalida (sanitizada via symlink) + fix de CCM89 fuera de rango UV a z=2.9. Fase 4: sin cambio (1.57x->1.58x)."
     },
     {
       "class": "PISN-MOSFIT",
@@ -99,12 +99,12 @@
       "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
       "host_av": "implementada (WV07 real)",
       "snana_detected": 411,
-      "lcl_detected": 667,
+      "lcl_detected": 681,
       "ngentot": 2000,
       "snana_pct": 20.55,
-      "lcl_pct": 33.35,
-      "ratio": 1.62,
-      "note": "DNDZ encontrada en ronda 3. Fase 3: WV07 real mejoro la razon (1.74x->1.62x)."
+      "lcl_pct": 34.05,
+      "ratio": 1.66,
+      "note": "DNDZ encontrada en ronda 3. Fase 3+4: sin cambio significativo (1.74x->1.62x->1.66x)."
     },
     {
       "class": "SNIa",
@@ -113,12 +113,12 @@
       "dndz": "POWERLAW2",
       "host_av": "no implementada (solo MW)",
       "snana_detected": 597,
-      "lcl_detected": 1086,
+      "lcl_detected": 1081,
       "ngentot": 2000,
       "snana_pct": 29.85,
-      "lcl_pct": 54.3,
-      "ratio": 1.82,
-      "note": "Fase 1/2A -- baseline SALT2, brecha residual sistemica original."
+      "lcl_pct": 54.05,
+      "ratio": 1.81,
+      "note": "Fase 1/2A -- baseline SALT2, brecha residual sistemica original. Fase 4: trigger de epoca corregido, sin cambio (1.82x->1.81x)."
     },
     {
       "class": "ILOT-MOSFIT",
@@ -127,26 +127,12 @@
       "dndz": "CC_S15",
       "host_av": "implementada (WV07 real)",
       "snana_detected": 73,
-      "lcl_detected": 164,
+      "lcl_detected": 156,
       "ngentot": 2000,
       "snana_pct": 3.65,
-      "lcl_pct": 8.2,
-      "ratio": 2.25,
-      "note": "Fase 3: WV07 real implementado -- la razon empeoro (1.96x->2.25x)."
-    },
-    {
-      "class": "SNIax",
-      "source_model": "SIMSED (1001 templates)",
-      "weight_method": "uniforme (SIMSED_GRIDONLY)",
-      "dndz": "MD14",
-      "host_av": "implementada (mezcla exp+semi-Gauss real, GENTAU_AV/GENSIG_AV/GENRATIO_AV0)",
-      "snana_detected": 175,
-      "lcl_detected": 476,
-      "ngentot": 2000,
-      "snana_pct": 8.75,
-      "lcl_pct": 23.8,
-      "ratio": 2.72,
-      "note": "Investigada a fondo (ronda 3): corregir la extincion NO cerro la brecha (2.65x->2.72x) -- causa real sigue abierta."
+      "lcl_pct": 7.8,
+      "ratio": 2.14,
+      "note": "Fase 3: WV07 real empeoro la razon. Fase 4: trigger de epoca corregido, mejoro levemente (2.25x->2.14x)."
     },
     {
       "class": "KN-BULLA19",
@@ -155,12 +141,12 @@
       "dndz": "POWERLAW (identico a KN-K17)",
       "host_av": "implementada (WV07 real, REWGT_EXPAV=0.5)",
       "snana_detected": 103,
-      "lcl_detected": 293,
+      "lcl_detected": 243,
       "ngentot": 2000,
       "snana_pct": 5.15,
-      "lcl_pct": 14.65,
-      "ratio": 2.84,
-      "note": "Templates reales eran ZIP mal etiquetados .gz (fix: setup_knbulla19_local.py). Fase 3: WV07 real, razon practicamente sin cambio (2.85x->2.84x)."
+      "lcl_pct": 12.15,
+      "ratio": 2.36,
+      "note": "Templates reales eran ZIP mal etiquetados .gz (fix: setup_knbulla19_local.py). Fase 4: trigger de epoca corregido, mejoro (2.84x->2.36x) -- misma familia kilonova que KN-K17."
     },
     {
       "class": "KN-K17",
@@ -169,12 +155,26 @@
       "dndz": "POWERLAW",
       "host_av": "implementada (WV07 real, REWGT_EXPAV=0.5)",
       "snana_detected": 82,
-      "lcl_detected": 235,
+      "lcl_detected": 202,
       "ngentot": 2000,
       "snana_pct": 4.1,
-      "lcl_pct": 11.75,
-      "ratio": 2.87,
-      "note": "Fase 3: WV07 real implementado -- la razon empeoro (2.56x->2.87x), no la mejoro."
+      "lcl_pct": 10.1,
+      "ratio": 2.46,
+      "note": "Fase 3: WV07 real empeoro la razon (2.56x->2.87x). Fase 4: trigger de epoca corregido, mejoro (2.87x->2.46x)."
+    },
+    {
+      "class": "SNIax",
+      "source_model": "SIMSED (1001 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "MD14",
+      "host_av": "implementada (mezcla exp+semi-Gauss real, GENTAU_AV/GENSIG_AV/GENRATIO_AV0)",
+      "snana_detected": 175,
+      "lcl_detected": 436,
+      "ngentot": 2000,
+      "snana_pct": 8.75,
+      "lcl_pct": 21.8,
+      "ratio": 2.49,
+      "note": "Investigada a fondo (ronda 3): corregir la extincion NO cerro la brecha. Fase 4: trigger de epoca corregido, mejoro (2.72x->2.49x)."
     },
     {
       "class": "SNIIn-MOSFIT",
@@ -183,12 +183,12 @@
       "dndz": "CC_S15",
       "host_av": "implementada (WV07 real)",
       "snana_detected": 37,
-      "lcl_detected": 176,
+      "lcl_detected": 178,
       "ngentot": 2000,
       "snana_pct": 1.85,
-      "lcl_pct": 8.8,
-      "ratio": 4.76,
-      "note": "Clase mas tenue evaluada (37/2000 real). Fase 3: WV07 real mejoro levemente la razon (5.05x->4.76x)."
+      "lcl_pct": 8.9,
+      "ratio": 4.81,
+      "note": "Clase mas tenue evaluada (37/2000 real). Fase 3+4: sin cambio significativo (5.05x->4.76x->4.81x)."
     },
     {
       "class": "CaRT",
@@ -197,12 +197,12 @@
       "dndz": "MD14",
       "host_av": "implementada (WV07 real)",
       "snana_detected": 16,
-      "lcl_detected": 137,
+      "lcl_detected": 153,
       "ngentot": 2000,
       "snana_pct": 0.8,
-      "lcl_pct": 6.85,
-      "ratio": 8.56,
-      "note": "Fase 3: WV07 real implementado -- el caso mas extremo del catalogo practicamente no se movio (8.50x->8.56x), refutando que la extincion omitida explicara esta brecha."
+      "lcl_pct": 7.65,
+      "ratio": 9.56,
+      "note": "Fase 3: WV07 real no cerro la brecha mas extrema del catalogo. Fase 4: empeoro (8.56x->9.56x), pero coincide con el hallazgo de que SIMSEDModel nunca fijo semilla para elegir template -- no atribuible con confianza al fix."
     }
   ],
   "images": {

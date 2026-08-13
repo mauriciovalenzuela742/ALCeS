@@ -1015,14 +1015,15 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <span class="verdict-badge">GO condicional</span>
       <p><strong>La mecánica funciona en las 14 clases del catálogo</strong> — parámetros reales, extinción MW,
       eficiencia de detección real, ~150x más rápido que SNANA en throughput crudo — pero ninguna corrida
-      coincide todavía cuantitativamente con SNANA: razones LightCurveLynx/SNANA entre 1.37x y 8.56x según la
-      clase (promedio 2.58x).</p>
+      coincide todavía cuantitativamente con SNANA: razones LightCurveLynx/SNANA entre 1.35x y 9.56x según la
+      clase (promedio 2.56x).</p>
       <p>No es un fallo binario ni una confirmación limpia: es una herramienta viable con una calibración
-      cuantitativa pendiente. La Fase 3 cerró una de las dos causas candidatas (extinción de host) sin mover el
-      promedio del catálogo — la causa raíz real sigue siendo el residuo sistémico de la Fase 2A.</p>
+      cuantitativa pendiente. Dos causas candidatas reales (extinción de host en Fase 3, sobre-conteo de épocas
+      de detección en Fase 4) se investigaron y corrigieron con rigor — ninguna de las dos explica la brecha
+      dominante. La causa raíz real sigue sin identificarse.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Cinco fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Seis fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1054,6 +1055,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
           <p><strong>Implementar <code>WV07</code> real</strong> — fórmula real encontrada y verificada (ESSENCE-WV07, Wood-Vasey+2007) para las 9 clases que la declaran. El efecto resultó pequeño y no sistemático — refutando que la extinción omitida explicara las brechas más grandes.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">4</span>
+        <div class="step-body">
+          <p><strong>Investigar el residuo sistémico</strong> — 3 candidatos descartados con evidencia real (throughputs idénticos, ruido de dark/read insuficiente, spec-eff no exigida), y un bug real encontrado: el trigger de detección contaba observaciones individuales en vez de épocas reales agrupadas (<code>NEWMJD_DIF</code>). Corregido y verificado formalmente — pero el promedio del catálogo apenas se movió.</p>
+        </div>
+      </li>
     </ol>
 
     <div class="lcl-stats" id="lcl-stats"></div>
@@ -1076,10 +1083,10 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
     <p class="table-note">Razón = detectados<sub>LCL</sub> / detectados<sub>SNANA</sub> sobre el <code>NGENTOT_LC</code> real de cada
     clase (2000, salvo <code>PISN-STELLA-HYDROGENIC</code> a 20000). Verde ≤2x (banda residual sistémica ya diagnosticada,
-    ver Fase 2 parte A), ámbar 2–4x, rojo &gt;4x. Extinción de host <code>WV07</code> implementada en Fase 3 para las 9 clases
-    que la declaran.</p>
+    ver Fase 2 parte A), ámbar 2–4x, rojo &gt;4x. Extinción de host <code>WV07</code> implementada en Fase 3; trigger de
+    detección corregido a épocas reales (no observaciones individuales) en Fase 4 — ambos aplicados a las 14 clases.</p>
 
-    <h3 style="margin:30px 0 12px; font-size:1rem;">Diagnóstico: una causa universal, una hipótesis descartada</h3>
+    <h3 style="margin:30px 0 12px; font-size:1rem;">Diagnóstico: dos hipótesis reales, ninguna explica la brecha dominante</h3>
     <div class="causes">
       <div class="cause-card confirmed">
         <p class="cause-label">Causa confirmada — las 14 clases</p>
@@ -1087,15 +1094,17 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <p>Presente incluso en clases sin extinción de host que declarar (<code>SNIa-91bg</code>, <code>SNII-NMF</code>)
         y en las que sí la implementan correctamente (<code>TDE-MOSFIT</code>). Dos causas ya corregidas (cosmología,
         columnas de ruido) — la sospecha no confirmada es la evaluación de la superficie SALT2/SIMSED, o la dispersión
-        intrínseca simplificada. Después de Fase 3, es la explicación más probable de la brecha que queda.</p>
+        intrínseca simplificada. Sigue siendo la explicación más probable de la brecha que queda, tras descartar dos
+        hipótesis alternativas en Fase 3 y 4.</p>
       </div>
       <div class="cause-card refuted">
-        <p class="cause-label">Hipótesis descartada (Fase 3) — 9 de 14 clases</p>
-        <h3>Extinción de host <code>WV07</code></h3>
-        <p>Se pensaba que su omisión explicaba las brechas más grandes. Implementada con la fórmula real esta fase:
-        efecto real pero pequeño (AV mediano ~0.15 mag) y no sistemático — 5 clases mejoraron, 2 empeoraron, 2 quedaron
-        igual. <code>CaRT</code>, el caso más extremo (8.50x), casi no se movió (8.56x) — la extinción omitida no era
-        la explicación.</p>
+        <p class="cause-label">Hipótesis descartada (Fase 4) — el trigger de detección</p>
+        <h3>Épocas contadas como observaciones individuales</h3>
+        <p>Bug real: el trigger "≥2 épocas" contaba cada observación OpSim como candidata, cuando SNANA agrupa
+        observaciones dentro de <code>NEWMJD_DIF=0.007</code> días (~10 min) en una sola época
+        (145.345 obs → 14.293 épocas reales en DDF). Corregido y verificado formalmente correcto — pero el
+        promedio del catálogo apenas cambió (2.577x→2.561x): más exposiciones por época real compensan
+        parcialmente la reducción en conteo de épocas.</p>
       </div>
     </div>
 
@@ -1112,11 +1121,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         </ul>
       </div>
       <div>
-        <h3>Lo que nunca se probó</h3>
+        <h3>Lo que nunca se probó (o quedó pendiente)</h3>
         <ul class="plain-list">
           <li><strong>Escala WFD real</strong> — todo corrió a escala DDF (2000), no a los 200.000 de WFD.</li>
-          <li><strong>Múltiples semillas</strong> — cada corrida es una sola realización; para clases de bajo conteo
-          (<code>CaRT</code> n=16, <code>SNIIn-MOSFIT</code> n=37) el ruido estadístico puede ser comparable al efecto medido.</li>
+          <li><strong>Semillas fijas en selección de templates</strong> — hallazgo de Fase 4: <code>SIMSEDModel</code>
+          nunca fijaba semilla para elegir template, afectando la reproducibilidad de comparaciones previas en
+          clases de peso uniforme. Corregido para corridas futuras, no re-corrido retroactivamente.</li>
           <li><strong>Más de un baseline</strong> — todo contra la única campaña real disponible (v8).</li>
           <li><strong>Integración de pipeline</strong> — nada toca Capa 3 ni ningún archivo de producción.</li>
         </ul>
@@ -1124,13 +1134,16 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:30px;">
-      <p><strong>No reemplazar SNANA todavía.</strong> La brecha cuantitativa (1.37x–8.56x) es demasiado grande y
+      <p><strong>No reemplazar SNANA todavía.</strong> La brecha cuantitativa (1.35x–9.56x) es demasiado grande y
       variable por clase para usar LightCurveLynx como fuente de verdad científica en su estado actual.</p>
-      <p><strong>Sí vale la pena seguir invirtiendo — pero la causa raíz ahora está más clara.</strong> Implementar
-      el modelo real de extinción de host (Fase 3) fue lo correcto científicamente y cerró la brecha en 5 de 9
-      clases, pero el promedio del catálogo completo apenas se movió (2.57x→2.58x): el residuo sistémico de
-      ruido/población de Fase 2A, no la extinción, domina la brecha en casi todos los casos. La ventaja de
-      velocidad (~150x) sigue siendo lo bastante grande como para que cerrar esa calibración tenga retorno real.</p>
+      <p><strong>Sí vale la pena seguir invirtiendo — pero la causa raíz sigue sin identificarse.</strong> Dos
+      hipótesis concretas y bien fundamentadas (extinción omitida en Fase 3, sobre-conteo de épocas en Fase 4) se
+      investigaron con rigor real — fórmulas y algoritmos verificados línea por línea contra el código fuente,
+      correcciones formalmente verificadas — y ninguna explica la brecha dominante (promedio del catálogo:
+      2.577x→2.561x, prácticamente sin cambio). Descartar causas reales con evidencia real es progreso científico
+      genuino, aunque no cierre la brecha. Antes de seguir cazando la causa raíz, la prioridad debería ser cerrar
+      el agujero de reproducibilidad descubierto en Fase 4 (semillas fijas + múltiples corridas por clase) para
+      poder confiar en cualquier comparación futura.</p>
     </div>
 
     <p class="section-sub" style="margin-top:30px;">Mismos 4 gráficos de control que la sección 03, generados por el PoC de cada clase.</p>
