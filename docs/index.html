@@ -1251,7 +1251,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     const worst = records[records.length - 1];
     const statsEl = document.getElementById("lcl-stats");
     statsEl.innerHTML = [
-      [`${n}/11`, "clases SIMSED/SALT2 evaluadas"],
+      [`${n}`, "clases SIMSED/SALT2 evaluadas (catálogo completo)"],
       [`${avg.toFixed(2)}x`, "razón promedio LCL/SNANA"],
       [`${best.ratio.toFixed(2)}x`, `mejor caso (${best.class})`],
       [`${worst.ratio.toFixed(2)}x`, `peor caso (${worst.class})`],

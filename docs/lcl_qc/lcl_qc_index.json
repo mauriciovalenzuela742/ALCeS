@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-13T08:10:00+00:00",
+  "generated_at": "2026-08-13T11:20:00+00:00",
   "campaign_ref": "full_v5.3_10yrs (baselines DDF reales)",
   "kinds": [
     "redshift",
@@ -35,6 +35,34 @@
       "lcl_pct": 24.9,
       "ratio": 1.4,
       "note": "Control limpio (sin extincion) -- cae en la misma banda residual que SNIa-91bg/TDE-MOSFIT."
+    },
+    {
+      "class": "PISN-STELLA-HYDROGENIC",
+      "source_model": "SIMSED (6 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
+      "host_av": "omitida (GENAV_WV07 real)",
+      "snana_detected": 4268,
+      "lcl_detected": 6106,
+      "ngentot": 20000,
+      "snana_pct": 21.34,
+      "lcl_pct": 30.53,
+      "ratio": 1.43,
+      "note": "Unica clase del catalogo con NGENTOT_LC=20000 (no 2000). Primer intento con 16G de memoria fallo (OOM); resuelto con 64G."
+    },
+    {
+      "class": "PISN-STELLA-HECORE",
+      "source_model": "SIMSED (14 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
+      "host_av": "omitida (GENAV_WV07 real)",
+      "snana_detected": 384,
+      "lcl_detected": 577,
+      "ngentot": 2000,
+      "snana_pct": 19.2,
+      "lcl_pct": 28.85,
+      "ratio": 1.5,
+      "note": "Variante PISN mas alla de las 11 originales (Heger & Woosley 2002). Reuso directo de PISN_PLK12."
     },
     {
       "class": "SLSN-I",
@@ -135,6 +163,20 @@
       "note": "Investigada a fondo (ronda 3): corregir la extincion NO cerro la brecha (2.65x->2.72x) -- causa real sigue abierta."
     },
     {
+      "class": "KN-BULLA19",
+      "source_model": "SIMSED (550 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "POWERLAW (identico a KN-K17)",
+      "host_av": "omitida (WV07_REWGT_EXPAV -> mismo GENAV_WV07 real)",
+      "snana_detected": 103,
+      "lcl_detected": 294,
+      "ngentot": 2000,
+      "snana_pct": 5.15,
+      "lcl_pct": 14.7,
+      "ratio": 2.85,
+      "note": "Ultima de las 11 clases SIMSED originales. Templates reales eran ZIP mal etiquetados .gz (fix: setup_knbulla19_local.py)."
+    },
+    {
       "class": "SNIIn-MOSFIT",
       "source_model": "SIMSED (839 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
@@ -229,6 +271,24 @@
       "magnitudes": "lcl_qc/PISN-MOSFIT/magnitudes.png",
       "detections": "lcl_qc/PISN-MOSFIT/detections.png",
       "lightcurves": "lcl_qc/PISN-MOSFIT/lightcurves.png"
+    },
+    "KN-BULLA19": {
+      "redshift": "lcl_qc/KN-BULLA19/redshift.png",
+      "magnitudes": "lcl_qc/KN-BULLA19/magnitudes.png",
+      "detections": "lcl_qc/KN-BULLA19/detections.png",
+      "lightcurves": "lcl_qc/KN-BULLA19/lightcurves.png"
+    },
+    "PISN-STELLA-HECORE": {
+      "redshift": "lcl_qc/PISN-STELLA-HECORE/redshift.png",
+      "magnitudes": "lcl_qc/PISN-STELLA-HECORE/magnitudes.png",
+      "detections": "lcl_qc/PISN-STELLA-HECORE/detections.png",
+      "lightcurves": "lcl_qc/PISN-STELLA-HECORE/lightcurves.png"
+    },
+    "PISN-STELLA-HYDROGENIC": {
+      "redshift": "lcl_qc/PISN-STELLA-HYDROGENIC/redshift.png",
+      "magnitudes": "lcl_qc/PISN-STELLA-HYDROGENIC/magnitudes.png",
+      "detections": "lcl_qc/PISN-STELLA-HYDROGENIC/detections.png",
+      "lightcurves": "lcl_qc/PISN-STELLA-HYDROGENIC/lightcurves.png"
     }
   }
 }
