@@ -680,3 +680,179 @@ sistémico (~1.4-1.8x, ver Fase 2 parte A) y la extinción de galaxia anfitriona
 implementada (afecta solo a clases que la declaran — 3 de las 5 ya corridas). A decidir con
 el usuario: implementar WV07 con una referencia más sólida antes de seguir escalando, o
 continuar a más clases con esta brecha ya cuantificada como caveat conocido.
+
+# Fase 2 — parte B (continuación 2): 3 clases más, extinción de host real (no WV07) y dos
+# modelos de tasa nuevos encontrados en el código fuente real de SNANA
+
+Ronda dedicada a `SNIax`, `TDE-MOSFIT`, `SNII-NMF` — elegidas porque, a diferencia de la ronda
+anterior (`KN-K17`/`CaRT`/`SLSN-I`, extinción de host omitida por prudencia), estas 3 sí
+permiten poner a prueba directamente la hipótesis de esa ronda ("las brechas grandes se deben
+a la extinción de host omitida, no a un problema nuevo"): dos de las tres (`SNIax`,
+`TDE-MOSFIT`) declaran un modelo de extinción de host **exponencial puro** (`GENTAU_AV`, sin
+componente WV07/half-Gaussian) en su `.INPUT` real — implementable con confianza, a diferencia
+de WV07 — y la tercera (`SNII-NMF`) no declara ninguna, sirviendo de control limpio igual que
+`SNIa`/`SNIa-91bg`.
+
+## 1. Dos modelos de tasa (`DNDZ`) nuevos, encontrados en el código fuente real de SNANA
+
+`SNII-NMF` usa `DNDZ: CC_S15` y `TDE-MOSFIT` usa `DNDZ: TDE` — en la ronda anterior ambos se
+habían descartado implícitamente por parecer "nombres propios" sin fórmula obvia (mismo
+criterio que excluyó `PISN_PLK12`). Revisando el código fuente real de SNANA
+(`~/github/SNANA_src/src/snlc_sim.c`, bloques `INDEX_RATEMODEL_CCS15` e
+`INDEX_RATEMODEL_TDE`) ambos resultaron ser fórmulas simples y bien documentadas:
+
+- **`CC_S15`** (tasa de core-collapse, Strolger 2015): misma forma funcional que `MD14`
+  (`SFRfun_MD14`) pero con los parámetros A,B,C,D re-ajustados a la tasa de core-collapse
+  observada (Fig 6, Ec 9 de Strolger 2015), no a la formación estelar general:
+
+      rate(z) = k · h² · SFR_MD14(z; A=0.015, B=1.50, C=5.00, D=6.10) · DNDZ_ALLSCALE
+      k = 0.0091, h = H0/100
+
+- **`TDE`**: decaimiento exponencial simple en base 10, sin dependencia de cosmología en la
+  forma funcional misma:
+
+      rate(z) = rate0 · 10^(-0.5·z/0.6)
+
+Ambas nuevas en `snana_params.py`: `build_dndz_ccs15_cdf()`, `build_dndz_tde_cdf()` — mismo
+patrón de inversión de CDF numérica que `build_dndz_md14_cdf()`/`build_dndz_powerlaw2_cdf()`,
+verificadas standalone antes de conectarlas al grafo (salidas con forma y percentiles
+razonables). `PISN_PLK12` (la única `DNDZ` de nombre propio que queda entre las 11 clases
+SIMSED) se revisó de nuevo por si el mismo patrón de "está en snlc_sim.c con nombre distinto"
+aplicaba, pero no se encontró razón para reconsiderarla en esta ronda — sigue fuera de
+alcance, no una clase de esta ronda.
+
+## 2. Extinción de host real implementada (modelo exponencial puro, no WV07)
+
+`SNIax` y `TDE-MOSFIT` declaran en su `.INPUT` real (confirmado leyendo
+`SIMGEN_INCLUDE_SNIax.INPUT` y el equivalente de `TDE-MOSFIT`) `GENTAU_AV`/`GENRANGE_AV`/
+`GENPEAK_RV` **sin** `GENAV_WV07` — el modelo exponencial puro que Fase 0/G10 ya había
+señalado como implementable con `make_exp_av_sampler()` (Fase 2 parte B, ronda 1). Se conectó
+por primera vez esta ronda: `av_func` (muestreo de AV por inversión de CDF truncada) →
+conversión a `ebv = av/r_v` → segundo `ExtinctionEffect(frame="rest")` añadido al
+`source_model` vía `add_effect()`, sobre el ya existente de extinción MW (`frame="observer"`).
+
+| clase | `GENTAU_AV` | `GENRANGE_AV` | `GENPEAK_RV` |
+|---|---|---|---|
+| `SNIax` | 1.7 | 0.001–3.0 | 3.1 |
+| `TDE-MOSFIT` | 0.4 | (mismo rango asumido, `av_max=3.0`) | 3.1 |
+
+## 3. Bug real encontrado: `CCM89` no está calibrado para el UV extremo que z=2.9 produce en rest-frame
+
+Al conectar la extinción de host para `TDE-MOSFIT` (`GENRANGE_REDSHIFT: 0.01–2.9`, el rango de
+redshift más amplio de las 8 clases SIMSED corridas hasta ahora), el primer smoke test
+(`N=15`) falló con:
+
+    ValueError: Input x outside of range defined for CCM89 [0.3 <= x <= 10.0, x has units 1/micron]
+
+Causa raíz (confirmada leyendo `lightcurvelynx/models/physical_model.py::_evaluate_single()`):
+los efectos `frame='rest'` reciben `wavelengths` ya convertidas a rest-frame
+(`obs_to_rest_times_waves(times, wavelengths, redshift, t0)`, división por `1+z`). El borde
+azul de LSST-u (~3200Å observado) a z≈2.9 cae en rest-frame a ~820Å — por debajo del límite
+físico real de 1000Å (x=10 μm⁻¹) al que está calibrada la ley de extinción CCM89 (y toda la
+familia de leyes paramétricas estándar: O94, F99, etc. comparten el mismo límite UV). No es un
+bug de LightCurveLynx ni nuestro — es el límite real de la calibración empírica de esa ley,
+que `dust_extinction` (correctamente) rechaza en vez de extrapolar en silencio.
+
+**Fix**: `ClippedExtinctionEffect` (nuevo en `snana_params.py`, subclase de `ExtinctionEffect`)
+clampea las longitudes de onda al rango válido del modelo (`ext_obj.x_range`) antes de
+evaluar, en vez de fallar — mismo espíritu que la extrapolación `ZeroPadding`/`LinearDecay` que
+LightCurveLynx ya usa para el SED fuera de `RESTLAMBDA_RANGE`: la extinción se mantiene
+constante (igual al valor de borde) más allá del rango calibrado, en vez de inventar una
+fórmula de extrapolación nueva. Aplicado tanto a la extinción MW como a la de host (esta última
+es la que realmente lo necesita; la de MW opera en wavelengths de observador, siempre dentro de
+rango) — cambio barato y sin efecto en clases de redshift bajo (el clip es un no-op ahí).
+Verificado: el mismo smoke test de `TDE-MOSFIT` con el fix corre limpio de punta a punta.
+
+## 4. Otro bug real encontrado (no nuestro): línea suelta inválida en `SED.INFO` de `TDE-MOSFIT`
+
+`SIMSEDModel._read_simsed_info_file()` (que sí exige YAML estricto) falló al cargar
+`SIMSED.TDE-MOSFIT/SED.INFO` con un `yaml.scanner.ScannerError` en la línea 254. Confirmado con
+`sed`/`cat -A` en NLHPC: esa línea es literalmente `tde_384.json` — un nombre de archivo
+suelto, sin prefijo `SED:` ni `#`, intercalado entre dos entradas `SED:` reales (entre
+`tde239.dat` y `tde241.dat`). El parser de SNANA (`snlc_sim.exe`) lo tolera por no exigir YAML
+estricto; el nuestro no. A diferencia del typo de un solo carácter de `SNIa-91bg` (Fase 2B,
+ronda 1), este archivo es demasiado grande para copiar entero (**144M, 745 templates** vs los
+35 de `SNIa-91bg`) — `setup_simsed_local.py` (nuevo, generaliza `setup_simsed_91bg_local.py`)
+en vez de copiar, **symlinkea** los 745 archivos de template y solo reescribe `SED.INFO`,
+descartando cualquier línea que no matchee un formato conocido (comentario, blank, o una
+palabra clave real como `SED:`/`PARNAMES:`/etc.) — 1 línea descartada, 745 symlinkeadas. No se
+toca el archivo real de SNANA. `CLASS_CONFIGS["TDE-MOSFIT"]["simsed_dir"]` apunta a esta copia
+local saneada (`exploration/lightcurvelynx/simsed_tdemosfit_local/`, no versionada).
+
+## 5. Resultado: 3/3 corridas limpias, `NGENTOT_LC=2000` (igual que SNANA DDF real)
+
+Comparado contra los baselines reales de la campaña v8 (`postprocess_manifest.json`,
+`n_objects` = detectados de `NGENTOT_LC=2000`):
+
+| clase | extinción host | SNR mediana LCL | SNR p90 LCL | detectados SNANA real | detectados LCL | razón |
+|---|---|---|---|---|---|---|
+| `SNII-NMF` | no declarada (control limpio) | 0.741 | 1.921 | 356/2000 (17.8%) | 498/2000 (24.9%) | **1.40x** |
+| `TDE-MOSFIT` | sí, `GENTAU_AV=0.4` | 1.007 | 4.406 | 812/2000 (40.6%) | 1277/2000 (63.85%) | **1.57x** |
+| `SNIax` | sí, `GENTAU_AV=1.7` | 0.761 | 2.054 | 175/2000 (8.75%) | 464/2000 (23.2%) | **2.65x** |
+
+**La hipótesis de la ronda anterior se confirma parcialmente, no del todo.** `SNII-NMF`
+(control limpio, sin extinción) y `TDE-MOSFIT` (con extinción de host real implementada) caen
+ambas dentro de la misma banda de brecha residual sistémica ya documentada para las clases
+"limpias" de rondas anteriores (`SNIa` 1.8x, `SNIa-91bg` 1.37x, ver Fase 2 parte A/B) — un
+resultado que **sí** respalda la hipótesis: implementar extinción de host real en
+`TDE-MOSFIT` la trajo de vuelta a la banda 1.4-1.8x, en vez de quedarse en la banda 2.5-8.5x de
+`KN-K17`/`CaRT`/`SLSN-I` (que omitieron extinción). Pero `SNIax` **no** siguió el mismo patrón:
+pese a implementar extinción de host con los parámetros exactos de su `.INPUT` real
+(`GENTAU_AV=1.7`, `GENRANGE_AV=0.001–3.0`, `GENPEAK_RV=3.1` — verificado línea por línea contra
+`SIMGEN_INCLUDE_SNIax.INPUT`, sin discrepancia), su razón (2.65x) queda claramente por encima de
+la banda sistémica, más cerca de las clases sin extinción de la ronda anterior.
+
+**No se investigó más a fondo esta ronda** (mismo criterio de "dos hipótesis concretas, luego
+documentar y decidir con el usuario" ya aplicado en Fase 2 parte A) — candidatos abiertos, sin
+confirmar: (a) el `GENTAU_AV` de `SNIax` (1.7) es ~4x el de `TDE-MOSFIT` (0.4), así que
+cualquier error pequeño en el muestreo de AV alto pesaría más en `SNIax` que en `TDE-MOSFIT`;
+(b) `SNIax` es la única de las 3 clases de esta ronda que reusa `DNDZ: MD14` (ya usado en la
+ronda anterior para `CaRT`/`SLSN-I`, ambas con brechas grandes) en vez de un modelo de tasa
+nuevo — no se puede descartar un efecto de la tasa/población en sí, independiente de la
+extinción. Ninguno de los dos se investigó con la misma profundidad que el diagnóstico término
+a término de Fase 2 parte A.
+
+## 6. Hallazgo de rendimiento: `SNIax` confirma que la carga de templates es impredecible por clase
+
+    | clase      | templates | tiempo de carga (aislado) | seg/template |
+    |------------|-----------|----------------------------|---------------|
+    | `TDE-MOSFIT` | 742     | ~150-190s                  | ~0.20-0.26    |
+    | `SNIax`      | 1001    | 465s (smoke, login) / 992s (sbatch, largemem) | 0.46-0.99 |
+
+Mismo patrón que `KN-K17` en la ronda anterior (6.0s/template vs 0.2s/template de `SLSN-I` con
+más templates): el tiempo de carga no escala solo con la cantidad de templates, sino con
+tamaño/resolución de cada archivo SED individual — y aquí además con contención de I/O
+compartida del nodo (la corrida de `sbatch` en partición `largemem` tardó ~2x más que el smoke
+test aislado en el login node para la misma clase). El límite de tiempo del sbatch
+(`-t 02:00:00`) sigue siendo suficiente margen (corrida real: 21 min), pero confirma que no hay
+forma de estimar el tiempo de job de una clase nueva sin correr al menos un smoke test primero
+— práctica que ya se venía siguiendo, esta ronda la justifica de nuevo.
+
+## Archivos de esta ronda
+
+- `snana_params.py` — agregado `build_dndz_ccs15_cdf()`, `build_dndz_tde_cdf()`,
+  `make_exp_av_sampler()` (ya existía desde antes, conectado por primera vez esta ronda),
+  `make_correlated_normal_weights()`, `ClippedExtinctionEffect`.
+- `setup_simsed_local.py` (nuevo) — versión generalizada/symlink de
+  `setup_simsed_91bg_local.py`, para clases SIMSED grandes con un `SED.INFO` inválido.
+- `simsed_tdemosfit_local/` (no versionado, se regenera) — copia saneada de `SED.INFO` +
+  745 templates symlinkeados.
+- `run_simsed_poc.py` — 3 configs nuevas (`SNIax`, `TDE-MOSFIT`, `SNII-NMF`), branching de
+  `DNDZ`/pesos/extinción de host generalizado.
+- `poc_output_sniax/`, `poc_output_tdemosfit/`, `poc_output_sniinmf/` — resultados reales
+  (`summary.json` + 4 QC c/u).
+
+## Estado y siguiente decisión
+
+8 clases SIMSED/SALT2 validadas de punta a punta en total. La hipótesis de "extinción de host
+omitida explica las brechas grandes" quedó **parcialmente confirmada** (`TDE-MOSFIT` sí,
+`SNIax` no) — un resultado honesto, no la confirmación limpia que se esperaba, y una señal de
+que la brecha residual sistémica (ruido/población, Fase 2 parte A) y la extinción de host no
+son completamente independientes o hay un tercer factor sin identificar específico de
+`SNIax`/`MD14`. A decidir con el usuario: (a) investigar el caso `SNIax` con el mismo rigor que
+Fase 2 parte A (comparación término a término, no solo eficiencia agregada), (b) seguir
+escalando a las 3 clases restantes que sí declaran WV07 (`ILOT-MOSFIT`, `SNIIn-MOSFIT`,
+`PISN-MOSFIT` con su `DNDZ` propia) con las brechas ya conocidas como caveat, o (c) dar por
+suficientemente cubierto el catálogo SIMSED (8/11 clases, cobertura de todos los patrones de
+implementación: peso uniforme, `SIMSED_REDCOR`, extinción de host exponencial, 4 modelos
+`DNDZ` distintos) y cerrar la evaluación de LightCurveLynx con una recomendación final.

@@ -1,0 +1,11 @@
+{
+  "class_key": "TDE-MOSFIT",
+  "ngentot_lc": 2000,
+  "n_with_obs": 1993,
+  "n_detected": 1277,
+  "n_total_dump": 2000,
+  "sim_wall_time_s": 78.39961194992065,
+  "detection_efficiency_pct": 63.85,
+  "snr_median": 1.007055483684435,
+  "snr_p90": 4.406252139607523
+}

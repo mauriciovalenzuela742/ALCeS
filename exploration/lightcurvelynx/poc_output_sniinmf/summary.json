@@ -1,0 +1,11 @@
+{
+  "class_key": "SNII-NMF",
+  "ngentot_lc": 2000,
+  "n_with_obs": 1992,
+  "n_detected": 498,
+  "n_total_dump": 2000,
+  "sim_wall_time_s": 65.4583432674408,
+  "detection_efficiency_pct": 24.9,
+  "snr_median": 0.7407312813410677,
+  "snr_p90": 1.9208601312268758
+}

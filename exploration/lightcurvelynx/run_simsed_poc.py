@@ -25,9 +25,21 @@ en vez de adivinar mal la formula -- mismo criterio que la aproximacion de
 G10 en Fase 1. Queda como brecha adicional documentada, no una que se
 descubrio por accidente.
 
+Ronda 2 (ver NOTES.md Fase 2 parte B, continuacion 2): SNIax, TDE-MOSFIT,
+SNII-NMF. A diferencia de la ronda 1, aqui SI se implementa extincion de
+host cuando el .INPUT real declara el modelo exponencial puro
+(`GENTAU_AV`, sin componente WV07/Gaussiana) -- se encontro la formula
+real en el codigo fuente de SNANA (snlc_sim.c, funciones
+`SFRfun_MD14`/`INDEX_RATEMODEL_CCS15`/`INDEX_RATEMODEL_TDE`) para los
+modelos de tasa CC_S15/TDE tambien, que en la ronda 1 se habian evitado
+por parecer "nombres propios" sin formula obvia -- resultaron ser
+formulas simples y bien documentadas una vez revisado el codigo real, no
+las supuestas complejas de PISN_PLK12 (esa sigue sin implementarse, no
+se encontro razon para reconsiderarla en esta ronda).
+
 Uso (dentro de un job sbatch, nunca en el login node):
     python3 run_simsed_poc.py <clave_clase>
-    (claves validas: KN-K17, CaRT, SLSN-I)
+    (claves validas: ver CLASS_CONFIGS)
 """
 from __future__ import annotations
 
@@ -41,7 +53,6 @@ import numpy as np
 import pandas as pd
 
 from lightcurvelynx.astro_utils.passbands import PassbandGroup
-from lightcurvelynx.effects.extinction import ExtinctionEffect
 from lightcurvelynx.math_nodes.np_random import NumpyRandomFunc
 from lightcurvelynx.math_nodes.ra_dec_sampler import ObsTableRADECSampler
 from lightcurvelynx.models.sed_template_model import SIMSEDModel
@@ -50,7 +61,11 @@ from lightcurvelynx.simulate import simulate_lightcurves
 from lightcurvelynx.survey_info import SurveyInfo
 from lightcurvelynx.utils.extrapolate import LinearDecay, ZeroPadding
 
-from snana_params import build_dndz_powerlaw2_cdf, build_dndz_md14_cdf, make_dndz_sampler, SizeAwareFunctionNode
+from snana_params import (
+    build_dndz_powerlaw2_cdf, build_dndz_md14_cdf, build_dndz_ccs15_cdf, build_dndz_tde_cdf,
+    make_dndz_sampler, make_exp_av_sampler, make_correlated_normal_weights, SizeAwareFunctionNode,
+    ClippedExtinctionEffect,
+)
 from searcheff import parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency
 
 sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
@@ -92,6 +107,43 @@ CLASS_CONFIGS = {
         dndz=("md14", 2.0e-8),
         sntype=40,
     ),
+    "SNIax": dict(
+        simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNIax",
+        genrange_redshift=(0.011, 0.7),
+        dndz=("md14", 6.0e-6),
+        sntype=12,
+        # GENTAU_AV=1.7 -- "dN/dAV = exp(-AV/xxx)" explicito en el .INPUT
+        # real (no WV07), formula pura exponencial, implementable con
+        # confianza -- ver make_exp_av_sampler.
+        host_av=dict(tau=1.7, av_max=3.0, r_v=3.1),
+    ),
+    "TDE-MOSFIT": dict(
+        # SED.INFO real trae una linea suelta invalida ("tde_384.json",
+        # sin prefijo "SED:" ni ':') que rompe el parser YAML de
+        # LightCurveLynx (no el de SNANA, que no es YAML estricto) -- ver
+        # setup_simsed_local.py. Se usa una copia local saneada (SED.INFO
+        # reescrito, templates symlinkeados, archivo real no tocado).
+        simsed_dir=HERE / "simsed_tdemosfit_local",
+        genrange_redshift=(0.01, 2.9),
+        dndz=("tde", 1.0e-6),
+        sntype=51,
+        # GENAV_WV07 esta comentado (deshabilitado) en el .INPUT real de
+        # esta clase -- usa GENTAU_AV=0.4 puro, no el modelo WV07 mixto.
+        host_av=dict(tau=0.4, av_max=3.0, r_v=3.1),
+    ),
+    "SNII-NMF": dict(
+        simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNII-NMF",
+        genrange_redshift=(0.011, 1.0),
+        dndz=("ccs15", 0.162),
+        sntype=42,
+        # sin extincion de host declarada en el .INPUT real -- comparacion
+        # limpia, igual que SNIa/SNIa-91bg.
+        redcor_params=dict(
+            peaks=dict(pc1=0.0854, pc2=0.0199, pc3=0.0250),
+            sigmas=dict(pc1=0.075, pc2=0.021, pc3=0.017),
+            redcor={("pc1", "pc2"): 0.241, ("pc1", "pc3"): 0.052, ("pc2", "pc3"): -0.074},
+        ),
+    ),
 }
 
 
@@ -126,18 +178,52 @@ def main(class_key: str):
 
     simsed_dir = cfg["simsed_dir"]
     file_names, _ = SIMSEDModel._read_simsed_info_file(simsed_dir)
-    # peso uniforme (SIMSED_GRIDONLY en el .INPUT real de las 3 clases) --
-    # None hace que MultiSEDTemplateModel pese todos los templates igual.
-    weights = None
-    print(f"[{time.time()-t_start:.1f}s] {len(file_names)} templates SIMSED "
-          f"(peso uniforme, SIMSED_GRIDONLY)")
+    if "redcor_params" in cfg:
+        # peso real via bivariada/multivariada normal correlacionada
+        # (SIMSED_REDCOR), no uniforme -- parsear los valores propios de
+        # cada template desde SED.INFO (mismo orden que PARNAMES).
+        sed_info_text = (simsed_dir / "SED.INFO").read_text()
+        param_names = None
+        for line in sed_info_text.splitlines():
+            if line.strip().upper().startswith("PARNAMES:"):
+                param_names = line.split()[1:]
+                break
+        param_rows = [
+            line.split()[2:] for line in sed_info_text.splitlines()
+            if line.strip().upper().startswith("SED:")
+        ]
+        rc = cfg["redcor_params"]
+        # PARNAMES puede traer columnas extra que no son parametros fisicos
+        # correlacionados (p.ej. "II_INDEX" antes de pc1/pc2/pc3 en
+        # SNII-NMF) -- solo se usan las columnas que aparecen en
+        # redcor_params["peaks"], el resto se ignora.
+        values = {
+            name: np.array([float(r[i]) for r in param_rows])
+            for i, name in enumerate(param_names)
+            if name in rc["peaks"]
+        }
+        weights = make_correlated_normal_weights(values, rc["peaks"], rc["sigmas"], rc["redcor"])
+        print(f"[{time.time()-t_start:.1f}s] {len(file_names)} templates SIMSED, "
+              f"pesos via SIMSED_REDCOR real ({list(values.keys())})")
+    else:
+        # peso uniforme (SIMSED_GRIDONLY en el .INPUT real) -- None hace
+        # que MultiSEDTemplateModel pese todos los templates igual.
+        weights = None
+        print(f"[{time.time()-t_start:.1f}s] {len(file_names)} templates SIMSED "
+              f"(peso uniforme, SIMSED_GRIDONLY)")
 
     z_min, z_max = cfg["genrange_redshift"]
     dndz_kind, dndz_params = cfg["dndz"]
     if dndz_kind == "powerlaw":
         z_grid, cdf = build_dndz_powerlaw2_cdf(segments=dndz_params, z_min=z_min, z_max=z_max)
-    else:
+    elif dndz_kind == "md14":
         z_grid, cdf = build_dndz_md14_cdf(rate0=dndz_params, z_min=z_min, z_max=z_max)
+    elif dndz_kind == "ccs15":
+        z_grid, cdf = build_dndz_ccs15_cdf(scale=dndz_params, z_min=z_min, z_max=z_max)
+    elif dndz_kind == "tde":
+        z_grid, cdf = build_dndz_tde_cdf(rate0=dndz_params, z_min=z_min, z_max=z_max)
+    else:
+        raise ValueError(f"dndz_kind desconocido: {dndz_kind}")
     redshift_func = SizeAwareFunctionNode(make_dndz_sampler(z_grid, cdf, seed=SEED_BASE + 1), node_label="redshift")
     radec_sampler = ObsTableRADECSampler(obs_table, extra_cols=["field"], seed=SEED_BASE + 5)
     t0_func = NumpyRandomFunc(
@@ -158,7 +244,7 @@ def main(class_key: str):
         return np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
 
     ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
-    mw_extinction = ExtinctionEffect(
+    mw_extinction = ClippedExtinctionEffect(
         extinction_model="O94", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
     )
 
@@ -168,6 +254,28 @@ def main(class_key: str):
         redshift=redshift_func, distance=distance_func, t0=t0_func,
     )
     source_model.add_effect(mw_extinction)
+
+    if "host_av" in cfg:
+        # extincion de host real (modelo exponencial puro, ver
+        # make_exp_av_sampler) -- a diferencia de la ronda 1, esta clase SI
+        # declara un modelo de AV implementable con confianza.
+        hp = cfg["host_av"]
+        av_func = SizeAwareFunctionNode(
+            make_exp_av_sampler(tau=hp["tau"], av_max=hp["av_max"], seed=SEED_BASE + 8),
+            node_label="host_av",
+        )
+
+        def _av_to_ebv(size=None, host_av=None, **_kwargs):
+            return np.asarray(host_av) / hp["r_v"]
+
+        host_ebv_func = SizeAwareFunctionNode(_av_to_ebv, node_label="host_ebv", host_av=av_func)
+        host_extinction = ClippedExtinctionEffect(
+            extinction_model="CCM89", ebv=host_ebv_func, r_v=hp["r_v"], frame="rest", backend="dust_extinction",
+        )
+        source_model.add_effect(host_extinction)
+        print(f"[{time.time()-t_start:.1f}s] extincion de host real aplicada "
+              f"(GENTAU_AV={hp['tau']}, R_V={hp['r_v']})")
+
     print(f"[{time.time()-t_start:.1f}s] SIMSEDModel cargado ({len(source_model)} templates)")
 
     t_sim0 = time.time()
