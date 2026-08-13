@@ -1224,7 +1224,7 @@ forzar una narrativa limpia.
   ninguna capa de producción — es exploración aislada en `exploration/lightcurvelynx/`, sin
   ningún archivo de producción modificado.
 
-## Recomendación concreta
+## Recomendación concreta (superada por Fase 3 — ver más abajo)
 
 **No reemplazar SNANA todavía.** La brecha cuantitativa (1.37x-8.50x) es demasiado grande y
 variable por clase para usar LightCurveLynx como fuente de verdad científica en su estado
@@ -1232,3 +1232,108 @@ actual. **Sí vale la pena seguir invirtiendo** — la mecánica funciona en las
 catálogo, dos causas reales de brecha ya están diagnosticadas con precisión (no es una caja
 negra), y la ventaja de velocidad (~150x) es lo bastante grande como para que cerrar la
 calibración cuantitativa sea un objetivo con retorno real, no un ejercicio académico.
+
+# Fase 3 — implementar el modelo real de extinción de host `WV07`
+
+Primera fase con alcance definido después de la recomendación final (arriba). De las 2 causas
+diagnosticadas de la brecha cuantitativa, `WV07` era la única con una vía de cierre concreta
+(el residuo sistémico de Causa 1 ya había agotado dos rondas reales de investigación en Fase
+2A). Objetivo: encontrar la fórmula real de `GENAV_WV07()`, implementarla con confianza, y
+medir el efecto real en las 9 clases que la declaran.
+
+## 1. La función real es autónoma y ya está corregida — la precaución de las rondas 1-4 era sobre la función equivocada
+
+Leyendo `GENAV_WV07()` completa en `snlc_sim.c` (nunca se había leído línea por línea antes,
+solo un comentario de un archivo adyacente): es el modelo real de extinción de host de
+**ESSENCE-WV07** (Wood-Vasey et al. 2007) — comentario real en el código: *"return AV from
+distribution used by ESSENCE-WV07"*. Mezcla una exponencial ancha + un núcleo semi-Gaussiano
+angosto, con **constantes fijas en el código** (no configurables por `.INPUT`, iguales para las
+9 clases): `tau=0.4`, `sqsigma=0.01` (sigma del núcleo = 0.1 mag). Muestreo por rechazo: `AV`
+uniforme en `GENRANGE_AV`, peso `W(AV) = AEXP·exp(-AV/tau) + BEXP·exp(-0.5·AV²/sqsigma)`
+normalizado por `W(0)`, aceptar con probabilidad `W(AV)/W(0)`.
+
+**Es una función completamente autónoma** — nunca llama a `getRan_GEN_EXP_HALFGAUSS()` (la
+función con el bug de peso corregido en Dic 2023 que motivó la precaución original). El único
+bug histórico real de `GENAV_WV07()` (comentario real: *"Mar 17 2022: fix bug that has resulted
+in all AV=0; use INPUTS.GENPROFILE_AV.RANGE instead of obsolete INPUTS.GENRANGE_AV"* — una
+variable obsoleta) ya está corregido en la versión del código fuente leída esta ronda. La
+precaución de las rondas 1-4 (omitir WV07 por el bug de una función *adyacente*) era razonable
+dado lo que se sabía entonces, pero resultó ser sobre la función equivocada.
+
+`make_wv07_av_sampler()` (nuevo en `snana_params.py`) implementa el algoritmo exacto. Si el
+`.INPUT` declara `WV07_REWGT_EXPAV` (`KN-K17` y `KN-BULLA19`, valor `0.5` — confirmado que
+activa el mismo `WV07_GENAV_FLAG`, mismo camino de código, no una excepción nueva), reescala
+`AEXP`. Las otras 7 clases no lo declaran (`AEXP` sin modificar). Verificado standalone: `AV`
+mediano ≈0.15 mag (caso default) / ≈0.11 mag (rewgt=0.5) — una distribución bastante
+concentrada cerca de cero, con cola larga hasta el límite de `GENRANGE_AV` (3.0 mag).
+
+## 2. Resultado: efecto real, pero pequeño y no sistemático — el catálogo completo apenas se movió
+
+`NGENTOT_LC` real de cada clase (2000, excepto `PISN-STELLA-HYDROGENIC` a 20000). Único cambio
+respecto a las corridas ya reportadas: el sampler de `host_av` (de omitido/AV=0 a `WV07` real).
+
+| clase | razón (sin WV07) | razón (WV07 real) | Δ |
+|---|---|---|---|
+| `SLSN-I` | 1.54x | 1.50x | mejor |
+| `PISN-STELLA-HYDROGENIC` | 1.43x | 1.38x | mejor |
+| `PISN-STELLA-HECORE` | 1.50x | 1.41x | mejor |
+| `PISN-MOSFIT` | 1.74x | 1.62x | mejor |
+| `ILOT-MOSFIT` | 1.96x | 2.25x | **peor** |
+| `KN-K17` | 2.56x | 2.87x | **peor** |
+| `SNIax` *(no afectada, otro modelo)* | 2.72x | 2.72x | — |
+| `KN-BULLA19` | 2.85x | 2.84x | igual |
+| `SNIIn-MOSFIT` | 5.05x | 4.76x | mejor |
+| `CaRT` | 8.50x | 8.56x | **igual, el caso más extremo no se movió** |
+
+**Promedio de las 9 clases afectadas: 3.01x antes → 3.02x después — esencialmente sin
+cambio.** 5 mejoraron (leve a moderado), 2 empeoraron, 2 quedaron iguales dentro del ruido.
+**Promedio del catálogo completo (14 clases): 2.57x → 2.58x — sin cambio significativo.**
+
+## 3. Esto refuta parcialmente la hipótesis de la ronda 1 de Fase 2B
+
+La hipótesis original (Fase 2B ronda 1) era que omitir `WV07` explicaba las brechas más grandes
+del catálogo, con el efecto amplificado en clases intrínsecamente tenues — y que implementarlo
+correctamente debía cerrar esas brechas. El resultado real la refuta parcialmente: **`CaRT`,
+el caso más extremo (8.50x) y el que más debería beneficiarse según la hipótesis, prácticamente
+no se movió** (8.50x→8.56x). `KN-K17` incluso empeoró. Solo las clases que ya estaban cerca de
+la banda sistémica (`SLSN-I`, `PISN-MOSFIT`, ambas `PISN-STELLA-*`) mejoraron de forma
+consistente — es decir, `WV07` ayuda un poco donde la brecha ya era chica, pero no explica las
+brechas grandes.
+
+**Causa más probable, no confirmada**: el `AV` mediano real de `WV07` (~0.15 mag) es
+modesto — una corrección de ese tamaño es fácilmente dominada por el residuo sistémico de
+Causa 1 (~1.4-1.8x, sin cerrar desde Fase 2A) para las clases ya cerca de esa banda, pero es
+demasiado pequeña para mover clases con brechas de 5-8x. Además, los baselines reales de SNANA
+para las clases más tenues son conteos muy bajos (`CaRT` n=16, `ILOT-MOSFIT` n=73, `KN-K17`
+n=82, `KN-BULLA19` n=103, `SNIIn-MOSFIT` n=37) — con incertidumbre de Poisson de ese orden
+(`CaRT`: ±25% relativo solo por conteo), diferencias de ±10-15% en la razón antes/después no
+distinguen necesariamente una mejora real de ruido estadístico. **No se investigó más a fondo
+esta ronda** (mismo criterio de "documentar y decidir con el usuario" de toda la sesión) — si
+se quiere una conclusión más firme sobre `CaRT`/`KN-K17` específicamente, hace falta más de una
+semilla/corrida, o una comparación término a término como la de Fase 2A.
+
+## Archivos de esta fase
+
+- `snana_params.py` — `make_wv07_av_sampler()` (modelo ESSENCE-WV07 real, constantes fijas
+  `tau=0.4`/`sqsigma=0.01`, muestreo por rechazo).
+- `run_simsed_poc.py` — `host_av["kind"]="wv07"` agregado al dispatch; 9 `CLASS_CONFIGS`
+  actualizados (`KN-K17`, `CaRT`, `SLSN-I`, `ILOT-MOSFIT`, `SNIIn-MOSFIT`, `PISN-MOSFIT`,
+  `KN-BULLA19`, `PISN-STELLA-HECORE`, `PISN-STELLA-HYDROGENIC`).
+- `poc_output_knk17/`, `poc_output_cart/`, `poc_output_slsni/`, `poc_output_ilotmosfit/`,
+  `poc_output_sniinmosfit/`, `poc_output_pisnmosfit/`, `poc_output_knbulla19/`,
+  `poc_output_pisnstellahecore/`, `poc_output_pisnstellahydrogenic/` — resultados actualizados
+  con `WV07` real (`summary.json` + 4 QC c/u, sobrescriben los de las rondas anteriores).
+
+## Recomendación final (actualizada)
+
+**Sigue siendo GO condicional — la conclusión no cambia, pero la causa raíz sí se aclaró.**
+Implementar `WV07` fue lo correcto científicamente (fórmula real, verificada línea por línea
+contra el código fuente, no una aproximación) y cerró la brecha para 5 de 9 clases afectadas
+— pero el promedio del catálogo completo apenas se movió (2.57x→2.58x), porque el residuo
+sistémico de Causa 1 (~1.4-1.8x, sin cerrar desde Fase 2A) domina sobre la extinción de host en
+casi todos los casos. **La causa raíz real de la brecha cuantitativa de LightCurveLynx contra
+SNANA no es la extinción de host — es el residuo sistémico no resuelto de Fase 2A.** Esto
+redirige dónde vale la pena invertir a continuación: cerrar ese residuo (comparación más
+profunda de la evaluación de superficie SALT2/SIMSED, o correr múltiples semillas para
+distinguir señal de ruido en las clases de bajo conteo) tiene más potencial de cerrar la brecha
+que seguir ajustando modelos de extinción.

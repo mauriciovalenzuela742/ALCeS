@@ -1,11 +1,11 @@
 {
   "class_key": "CaRT",
   "ngentot_lc": 2000,
-  "n_with_obs": 1998,
-  "n_detected": 136,
+  "n_with_obs": 1988,
+  "n_detected": 137,
   "n_total_dump": 2000,
-  "sim_wall_time_s": 66.69564533233643,
-  "detection_efficiency_pct": 6.8,
-  "snr_median": 0.6819701063380437,
-  "snr_p90": 1.6719288283866443
+  "sim_wall_time_s": 81.85912704467773,
+  "detection_efficiency_pct": 6.85,
+  "snr_median": 0.6801071942807952,
+  "snr_p90": 1.6648845594886574
 }

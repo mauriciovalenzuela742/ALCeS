@@ -352,10 +352,10 @@ def make_exp_halfgauss_av_sampler(
     (~/github/SNANA_src/src/sntools_genExpHalfGauss.c, refactor de Mar 2020
     por D.Brout/R.Kessler, bug de peso EXPON/GAUSS corregido en Dic 2023) --
     mezcla exponencial truncada + semi-Gaussiana con seleccion de rama por
-    peso relativo real, **no** el flag legacy `GENAV_WV07` (ese sigue sin
-    implementar -- distinto camino de codigo en `snlc_sim.c::gen_AV()`,
-    con un historial de bugs propio documentado en el mismo archivo fuente,
-    "WV07 AV flag was never refactored to use this function"). Usada por
+    peso relativo real, **no** el flag legacy `GENAV_WV07` (esa es una
+    funcion completamente autonoma y distinta -- ver
+    `make_wv07_av_sampler()` -- que nunca llama a esta, confirmado leyendo
+    `snlc_sim.c::GENAV_WV07()` linea por linea en Fase 3). Usada por
     SNIax (`GENTAU_AV: 1.7`, `GENSIG_AV: 0.6`, `GENRATIO_AV0: 4.0`,
     `GENRANGE_AV: 0.001 3.0`, sin `GENAV_WV07` en su .INPUT real).
 
@@ -400,6 +400,68 @@ def make_exp_halfgauss_av_sampler(
         return out if size is not None else float(out[0])
 
     sampler.__name__ = "exp_halfgauss_av_sampler"
+    return sampler
+
+
+def make_wv07_av_sampler(
+    av_range: tuple[float, float], rewgt_expav: float | None = None, *, seed: int | None = None,
+):
+    """Replica exacta de `GENAV_WV07()`
+    (~/github/SNANA_src/src/snlc_sim.c, funcion real del modelo de
+    extincion de host ESSENCE-WV07, Wood-Vasey et al. 2007 -- comentario
+    real en el codigo: "return AV from distribution used by ESSENCE-WV07").
+
+    Fase 3 (esta ronda): investigada a fondo por primera vez -- funcion
+    completamente autonoma, NO llama a `getRan_GEN_EXP_HALFGAUSS()` (esa
+    es la funcion con el bug de peso corregido en Dic 2023 que motivo
+    omitir WV07 en las rondas 1-2 de Fase 2B, por prudencia, sin haber
+    leido esta funcion linea por linea todavia). El unico bug historico
+    real de `GENAV_WV07()` (Mar 2022: "fix bug that has resulted in all
+    AV=0", una variable obsoleta) ya esta corregido en la version del
+    codigo fuente leida esta ronda -- se implementa la version ya
+    corregida, no la bugueada.
+
+    Constantes FIJAS en el codigo real (no configurables por .INPUT,
+    iguales para las 9 clases que declaran este modelo):
+        tau = 0.4, sqsigma = 0.01  (sigma del nucleo Gaussiano = 0.1)
+        AEXP = 1/tau, BEXP = 1/sqrt(sqsigma*2*pi)
+
+    Si el .INPUT declara `WV07_REWGT_EXPAV` (`rewgt_expav`, KN-K17 y
+    KN-BULLA19 usan 0.5 -- las demas 7 clases no lo declaran, AEXP sin
+    modificar), reescala AEXP (`AEXP *= rewgt_expav`) -- confirmado leyendo
+    `snlc_sim.c` linea ~7887: cualquier valor real de `WV07_REWGT_EXPAV`
+    activa el mismo `WV07_GENAV_FLAG` que `GENAV_WV07: 1` directo, mismo
+    camino de codigo.
+
+    Algoritmo (identico al C real, muestreo por rechazo, no inversion de
+    CDF):
+        W0 = AEXP + BEXP  (peso en AV=0)
+        por cada intento: AV ~ Uniform(r0, r1)
+        W(AV) = AEXP*exp(-AV/tau) + BEXP*exp(-0.5*AV^2/sqsigma)
+        aceptar si Uniform(0,1) < W(AV)/W0, si no reintentar."""
+    rng = np.random.default_rng(seed)
+    r0, r1 = av_range
+    tau, sqsigma = 0.4, 0.01
+    aexp = 1.0 / tau
+    if rewgt_expav is not None:
+        aexp *= rewgt_expav
+    bexp = 1.0 / np.sqrt(sqsigma * 2.0 * np.pi)
+    w0 = aexp + bexp
+
+    def sampler(size=None, **_kwargs):
+        n = 1 if size is None else (size if np.isscalar(size) else size[0])
+        out = np.full(n, np.nan)
+        pending = np.arange(n)
+        while len(pending) > 0:
+            av = rng.uniform(r0, r1, size=len(pending))
+            w = (aexp * np.exp(-av / tau) + bexp * np.exp(-0.5 * av * av / sqsigma)) / w0
+            u = rng.uniform(0.0, 1.0, size=len(pending))
+            accept = u < w
+            out[pending[accept]] = av[accept]
+            pending = pending[~accept]
+        return out if size is not None else float(out[0])
+
+    sampler.__name__ = "wv07_av_sampler"
     return sampler
 
 

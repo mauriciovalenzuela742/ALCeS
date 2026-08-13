@@ -1,11 +1,11 @@
 {
   "class_key": "ILOT-MOSFIT",
   "ngentot_lc": 2000,
-  "n_with_obs": 1986,
-  "n_detected": 143,
+  "n_with_obs": 1982,
+  "n_detected": 164,
   "n_total_dump": 2000,
-  "sim_wall_time_s": 53.67848873138428,
-  "detection_efficiency_pct": 7.15,
-  "snr_median": 0.6940727788064835,
-  "snr_p90": 1.7135651985623293
+  "sim_wall_time_s": 65.55554962158203,
+  "detection_efficiency_pct": 8.2,
+  "snr_median": 0.69319919485313,
+  "snr_p90": 1.7133993510230112
 }

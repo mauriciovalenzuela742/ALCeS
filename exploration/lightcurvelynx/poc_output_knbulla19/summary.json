@@ -1,11 +1,11 @@
 {
   "class_key": "KN-BULLA19",
   "ngentot_lc": 2000,
-  "n_with_obs": 1975,
-  "n_detected": 294,
+  "n_with_obs": 1974,
+  "n_detected": 293,
   "n_total_dump": 2000,
-  "sim_wall_time_s": 49.225648641586304,
-  "detection_efficiency_pct": 14.7,
-  "snr_median": 0.6834500341174887,
-  "snr_p90": 1.6848904246060052
+  "sim_wall_time_s": 61.655704975128174,
+  "detection_efficiency_pct": 14.65,
+  "snr_median": 0.6845250324748444,
+  "snr_p90": 1.6908084025710892
 }

@@ -64,7 +64,7 @@ from lightcurvelynx.utils.extrapolate import LinearDecay, ZeroPadding
 from snana_params import (
     build_dndz_powerlaw2_cdf, build_dndz_md14_cdf, build_dndz_ccs15_cdf, build_dndz_tde_cdf,
     build_dndz_pisn_cdf, make_dndz_sampler, make_exp_av_sampler, make_exp_halfgauss_av_sampler,
-    make_correlated_normal_weights, SizeAwareFunctionNode, ClippedExtinctionEffect,
+    make_wv07_av_sampler, make_correlated_normal_weights, SizeAwareFunctionNode, ClippedExtinctionEffect,
 )
 from searcheff import parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency
 
@@ -89,23 +89,32 @@ MW_RV = 3.1
 
 # --- config por clase, parametros reales de cada SIMGEN_INCLUDE_*.INPUT ---
 CLASS_CONFIGS = {
+    # Fase 3: modelo de host extinction real ESSENCE-WV07 (Wood-Vasey+2007),
+    # ver make_wv07_av_sampler() en snana_params.py -- reemplaza la omision
+    # (AV=0) de las rondas 1-4 de Fase 2B. GENRANGE_AV=0-3 real en las 9
+    # clases que lo declaran; KN-K17/KN-BULLA19 son las 2 unicas con
+    # WV07_REWGT_EXPAV=0.5 (confirmado en su .INPUT real), las demas 7 no
+    # lo declaran (rewgt_expav=None -> AEXP sin modificar).
     "KN-K17": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.KN-K17",
         genrange_redshift=(0.011, 0.28),
         dndz=("powerlaw", [(320e-9, 0.0, 0.011, 0.28)]),
         sntype=51,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=0.5, r_v=3.1),
     ),
     "CaRT": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.CART-MOSFIT",
         genrange_redshift=(0.012, 1.4),
         dndz=("md14", 2.3e-6),
         sntype=87,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
     ),
     "SLSN-I": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SLSN-I-MOSFIT",
         genrange_redshift=(0.02, 9.7),
         dndz=("md14", 2.0e-8),
         sntype=40,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
     ),
     "SNIax": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNIax",
@@ -151,30 +160,31 @@ CLASS_CONFIGS = {
             redcor={("pc1", "pc2"): 0.241, ("pc1", "pc3"): 0.052, ("pc2", "pc3"): -0.074},
         ),
     ),
-    # Fase 2B ronda 3: las 3 clases SIMSED restantes que declaran WV07 real
-    # (confirmado `GENAV_WV07: 1` en su .INPUT, no el camino GENPROFILE_AV
-    # de SNIax) -- se omite host extinction (AV=0) por el mismo criterio
-    # que la ronda 1 (bug historico documentado en GENAV_WV07() real, ver
-    # NOTES.md). ILOT-MOSFIT y SNIIn-MOSFIT reusan DNDZ: CC_S15 (ya
-    # validado en SNII-NMF); PISN-MOSFIT usa el polinomio PISN_PLK12 real
-    # (formula encontrada en snlc_sim.c esta ronda, no una aproximacion).
+    # Fase 2B ronda 3: 3 clases SIMSED que declaran WV07 real (confirmado
+    # `GENAV_WV07: 1` en su .INPUT, no el camino GENPROFILE_AV de SNIax).
+    # ILOT-MOSFIT y SNIIn-MOSFIT reusan DNDZ: CC_S15 (ya validado en
+    # SNII-NMF); PISN-MOSFIT usa el polinomio PISN_PLK12 real. Host
+    # extinction real agregada en Fase 3, ver comentario arriba.
     "ILOT-MOSFIT": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.ILOT-MOSFIT",
         genrange_redshift=(0.011, 0.30),
         dndz=("ccs15", 0.06),
         sntype=61,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
     ),
     "SNIIn-MOSFIT": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNIIn-MOSFIT",
         genrange_redshift=(0.03, 2.0),
         dndz=("ccs15", 0.0235),
         sntype=45,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
     ),
     "PISN-MOSFIT": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.PISN-MOSFIT",
         genrange_redshift=(0.02, 2.4),
         dndz=("pisn", 1.0),
         sntype=70,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
     ),
     # Fase 2B ronda 4: cierra el catalogo. KN-BULLA19 es la ultima de las
     # 11 clases SIMSED originales (su estructura de 3 sub-variantes
@@ -188,10 +198,8 @@ CLASS_CONFIGS = {
     # KN-BULLA19 usa `WV07_REWGT_EXPAV: 0.5` (no `GENAV_WV07: 1` directo) --
     # confirmado leyendo snlc_sim.c (linea ~7887): cualquier valor real de
     # WV07_REWGT_EXPAV activa `INPUTS.WV07_GENAV_FLAG = DO_WV07 = 1`, el
-    # mismo flag que usan KN-K17/CaRT/SLSN-I -- mismo camino de codigo
-    # bugueado, se omite por el mismo criterio (no una excepcion nueva).
-    # PISN-STELLA-HECORE/-HYDROGENIC declaran `GENAV_WV07: 1` directo, igual
-    # que PISN-MOSFIT -- tambien omitida.
+    # mismo flag que usan KN-K17/CaRT/SLSN-I. PISN-STELLA-HECORE/-HYDROGENIC
+    # declaran `GENAV_WV07: 1` directo, igual que PISN-MOSFIT.
     "KN-BULLA19": dict(
         # los 550 "*.txt.gz" reales no son gzip -- son ZIP mal etiquetados
         # (firma PK, confirmado con `file`), cada uno con 1 miembro interno
@@ -203,12 +211,14 @@ CLASS_CONFIGS = {
         genrange_redshift=(0.011, 0.28),
         dndz=("powerlaw", [(320e-9, 0.0, 0.011, 0.28)]),  # identico a KN-K17
         sntype=52,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=0.5, r_v=3.1),
     ),
     "PISN-STELLA-HECORE": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/elastic/model_libs_updates/SIMSED.PISN-STELLA-HECORE",
         genrange_redshift=(0.02, 2.2),
         dndz=("pisn", 1.0),
         sntype=71,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
     ),
     "PISN-STELLA-HYDROGENIC": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/elastic/model_libs_updates/SIMSED.PISN-STELLA-HYDROGENIC",
@@ -218,6 +228,7 @@ CLASS_CONFIGS = {
         # unica clase del catalogo con ngen_ddf != 2000 (pipeline/models.yaml:
         # 20000) -- confirmado, no un valor por defecto sin verificar.
         ngentot_lc=20000,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
     ),
 }
 
@@ -338,19 +349,30 @@ def main(class_key: str, ngentot_override: int | None = None):
     source_model.add_effect(mw_extinction)
 
     if "host_av" in cfg:
-        # extincion de host real -- dos variantes reales de SNANA
-        # (snlc_sim.c::gen_AV()), ninguna es el flag GENAV_WV07 (ese sigue
-        # sin implementar, ver NOTES.md): "exp" = solo componente
-        # exponencial (TDE-MOSFIT); "exp_halfgauss" = mezcla real
-        # exponencial+semi-Gaussiana via GENPROFILE_AV (SNIax).
+        # extincion de host real -- tres variantes reales de SNANA, todas
+        # verificadas linea por linea contra snlc_sim.c (ver NOTES.md):
+        # "exp" = solo componente exponencial (TDE-MOSFIT); "exp_halfgauss"
+        # = mezcla exponencial+semi-Gaussiana via GENPROFILE_AV (SNIax);
+        # "wv07" = modelo ESSENCE-WV07 real (GENAV_WV07(), Fase 3) --
+        # funcion autonoma con constantes fijas (tau=0.4, sqsigma=0.01),
+        # NO la que tenia el bug historico (esa es getRan_GEN_EXP_HALFGAUSS,
+        # nunca llamada por GENAV_WV07).
         hp = cfg["host_av"]
-        if hp.get("kind") == "exp_halfgauss":
+        kind = hp.get("kind", "exp")
+        if kind == "exp_halfgauss":
             av_sampler_fn = make_exp_halfgauss_av_sampler(
                 tau=hp["tau"], sig=hp["sig"], ratio=hp["ratio"],
                 av_range=hp["av_range"], seed=SEED_BASE + 8,
             )
+            av_desc = f"GENTAU_AV={hp['tau']}"
+        elif kind == "wv07":
+            av_sampler_fn = make_wv07_av_sampler(
+                av_range=hp["av_range"], rewgt_expav=hp.get("rewgt_expav"), seed=SEED_BASE + 8,
+            )
+            av_desc = f"WV07_REWGT_EXPAV={hp.get('rewgt_expav')}"
         else:
             av_sampler_fn = make_exp_av_sampler(tau=hp["tau"], av_max=hp["av_max"], seed=SEED_BASE + 8)
+            av_desc = f"GENTAU_AV={hp['tau']}"
         av_func = SizeAwareFunctionNode(av_sampler_fn, node_label="host_av")
 
         def _av_to_ebv(size=None, host_av=None, **_kwargs):
@@ -362,7 +384,7 @@ def main(class_key: str, ngentot_override: int | None = None):
         )
         source_model.add_effect(host_extinction)
         print(f"[{time.time()-t_start:.1f}s] extincion de host real aplicada "
-              f"(kind={hp.get('kind', 'exp')}, GENTAU_AV={hp['tau']}, R_V={hp['r_v']})")
+              f"(kind={kind}, {av_desc}, R_V={hp['r_v']})")
 
     print(f"[{time.time()-t_start:.1f}s] SIMSEDModel cargado ({len(source_model)} templates)")
 

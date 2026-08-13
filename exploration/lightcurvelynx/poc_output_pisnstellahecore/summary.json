@@ -1,11 +1,11 @@
 {
   "class_key": "PISN-STELLA-HECORE",
   "ngentot_lc": 2000,
-  "n_with_obs": 1998,
-  "n_detected": 577,
+  "n_with_obs": 1995,
+  "n_detected": 543,
   "n_total_dump": 2000,
-  "sim_wall_time_s": 77.54427814483643,
-  "detection_efficiency_pct": 28.85,
-  "snr_median": 0.7459109966562624,
-  "snr_p90": 2.053736405715919
+  "sim_wall_time_s": 86.13957571983337,
+  "detection_efficiency_pct": 27.15,
+  "snr_median": 0.75221591904767,
+  "snr_p90": 2.131596618746416
 }

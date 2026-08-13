@@ -1,11 +1,11 @@
 {
   "class_key": "SNIIn-MOSFIT",
   "ngentot_lc": 2000,
-  "n_with_obs": 1997,
-  "n_detected": 187,
+  "n_with_obs": 1993,
+  "n_detected": 176,
   "n_total_dump": 2000,
-  "sim_wall_time_s": 74.24040079116821,
-  "detection_efficiency_pct": 9.35,
-  "snr_median": 0.6832901149394631,
-  "snr_p90": 1.6763743365496218
+  "sim_wall_time_s": 85.31018447875977,
+  "detection_efficiency_pct": 8.8,
+  "snr_median": 0.6852587467903392,
+  "snr_p90": 1.6872404675231323
 }
