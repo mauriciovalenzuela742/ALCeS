@@ -4,7 +4,7 @@
 # ----------------------------------------------------------------------------
 # Uso:
 #     cd ~/AUTOSIM
-#     sbatch exploration/lightcurvelynx/run_snia_ddf_poc.sbatch
+#     sbatch exploration/lightcurvelynx/run_snia_ddf_poc.sbatch [seed_index]
 #
 # Liviano (NGENTOT_LC=2000, DDF, ~seg de simulacion segun bench_snia.py) pero
 # via SLURM de todas formas, nunca en el login node para nada no trivial
@@ -21,14 +21,16 @@
 #SBATCH --mail-type=END,FAIL
 
 set -euo pipefail
+SEED_INDEX="${1:-0}"
+
 cd "$SLURM_SUBMIT_DIR"
 module load python/3.12.3-legacy-skylake
 source exploration/lightcurvelynx/venv/bin/activate
 
-echo "=== Fase 1 LightCurveLynx: SNIa_DDF PoC · job=$SLURM_JOB_ID · nodo=$(hostname) ==="
+echo "=== Fase 1 LightCurveLynx: SNIa_DDF PoC (seed_index=$SEED_INDEX) · job=$SLURM_JOB_ID · nodo=$(hostname) ==="
 date
 cd exploration/lightcurvelynx
-python3 run_snia_ddf_poc.py
+python3 run_snia_ddf_poc.py "$SEED_INDEX"
 
 echo "=== terminado ==="
 date

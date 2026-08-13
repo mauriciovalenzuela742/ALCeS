@@ -261,14 +261,22 @@ def snana_noise_columns(df_ddf: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def main(class_key: str, ngentot_override: int | None = None):
+def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 0):
     cfg = CLASS_CONFIGS[class_key]
     # la mayoria de las clases DDF usan NGENTOT_LC=2000 (pipeline/models.yaml:
     # ngen_ddf), pero PISN-STELLA-HYDROGENIC es la excepcion real (ngen_ddf:
     # 20000) -- cfg["ngentot_lc"] la overridea; ngentot_override (usado por
     # los smoke tests) tiene prioridad sobre ambas.
     ngentot = ngentot_override if ngentot_override is not None else cfg.get("ngentot_lc", NGENTOT_LC)
-    out_dir = HERE / f"poc_output_{class_key.lower().replace('-', '')}"
+    # Fase 5: seed_index != 0 corre una realizacion independiente (semilla
+    # real distinta, offset grande para no chocar con los sub-offsets +1..+9
+    # ya usados abajo) en un directorio de salida separado -- no pisa el
+    # resultado "principal" (seed_index=0) ya reportado en el dashboard/
+    # NOTES.md, para poder cuantificar varianza entre semillas sin invalidar
+    # las comparaciones ya publicadas.
+    seed_base = SEED_BASE + seed_index * 1_000_000
+    suffix = f"_seed{seed_index}" if seed_index else ""
+    out_dir = HERE / f"poc_output_{class_key.lower().replace('-', '')}{suffix}"
     out_dir.mkdir(exist_ok=True)
     t_start = time.time()
 
@@ -334,10 +342,27 @@ def main(class_key: str, ngentot_override: int | None = None):
         z_grid, cdf = build_dndz_pisn_cdf(scale=dndz_params, z_min=z_min, z_max=z_max)
     else:
         raise ValueError(f"dndz_kind desconocido: {dndz_kind}")
-    redshift_func = SizeAwareFunctionNode(make_dndz_sampler(z_grid, cdf, seed=SEED_BASE + 1), node_label="redshift")
-    radec_sampler = ObsTableRADECSampler(obs_table, extra_cols=["field"], seed=SEED_BASE + 5)
+    redshift_func = SizeAwareFunctionNode(make_dndz_sampler(z_grid, cdf, seed=seed_base + 1), node_label="redshift")
+    # Fase 5: radius=0.0 explicito -- ObsTableRADECSampler.compute() aplica
+    # un jitter de posicion dentro del FOV usando np.random.default_rng()
+    # SIN seed cuando self.radius>0 (heredado del radius real de OpSim,
+    # bug de la libreria, confirmado leyendo ra_dec_sampler.py). Los campos
+    # DDF son pointings fijos, no requieren jitter sub-FOV -- radius=0.0
+    # evita ese codepath entero.
+    radec_sampler = ObsTableRADECSampler(obs_table, extra_cols=["field"], seed=seed_base + 5, radius=0.0)
+    # Segundo bug de la libreria, mas profundo: TableSampler.__init__
+    # (clase base de ObsTableRADECSampler) crea su propio muestreador de
+    # indice de fila via `NumpyRandomFunc("integers", low=0, high=N)` SIN
+    # pasarle seed= (confirmado leyendo given_sampler.py) -- el seed=
+    # que se le pasa al constructor de ObsTableRADECSampler nunca llega a
+    # este nodo hijo, asi que la fila/pointing real elegida para cada
+    # objeto (y por lo tanto que observaciones reales le corresponden)
+    # segui siendo no reproducible incluso despues del fix de radius=0.0
+    # de arriba. Mismo patron que el bug de SIMSEDModel de Fase 4: fijar
+    # el seed del nodo interno directamente via .setters[...].dependency.
+    radec_sampler.setters["selected_table_index"].dependency.set_seed(seed_base + 5)
     t0_func = NumpyRandomFunc(
-        "uniform", low=float(obs_table["time"].min()), high=float(obs_table["time"].max()), seed=SEED_BASE + 6,
+        "uniform", low=float(obs_table["time"].min()), high=float(obs_table["time"].max()), seed=seed_base + 6,
     )
 
     def _luminosity_distance_pc(size=None, redshift=None, **_kwargs):
@@ -372,7 +397,7 @@ def main(class_key: str, ngentot_override: int | None = None):
     # ninguna ronda anterior de Fase 2B/3, pese a SEED_BASE. Fijar el seed
     # aqui para que corridas futuras sean reproducibles -- no se re-corrio
     # el catalogo completo de nuevo solo por esto (ver NOTES.md Fase 4).
-    source_model._sampler_node.set_seed(SEED_BASE + 9)
+    source_model._sampler_node.set_seed(seed_base + 9)
     source_model.add_effect(mw_extinction)
 
     if "host_av" in cfg:
@@ -389,16 +414,16 @@ def main(class_key: str, ngentot_override: int | None = None):
         if kind == "exp_halfgauss":
             av_sampler_fn = make_exp_halfgauss_av_sampler(
                 tau=hp["tau"], sig=hp["sig"], ratio=hp["ratio"],
-                av_range=hp["av_range"], seed=SEED_BASE + 8,
+                av_range=hp["av_range"], seed=seed_base + 8,
             )
             av_desc = f"GENTAU_AV={hp['tau']}"
         elif kind == "wv07":
             av_sampler_fn = make_wv07_av_sampler(
-                av_range=hp["av_range"], rewgt_expav=hp.get("rewgt_expav"), seed=SEED_BASE + 8,
+                av_range=hp["av_range"], rewgt_expav=hp.get("rewgt_expav"), seed=seed_base + 8,
             )
             av_desc = f"WV07_REWGT_EXPAV={hp.get('rewgt_expav')}"
         else:
-            av_sampler_fn = make_exp_av_sampler(tau=hp["tau"], av_max=hp["av_max"], seed=SEED_BASE + 8)
+            av_sampler_fn = make_exp_av_sampler(tau=hp["tau"], av_max=hp["av_max"], seed=seed_base + 8)
             av_desc = f"GENTAU_AV={hp['tau']}"
         av_func = SizeAwareFunctionNode(av_sampler_fn, node_label="host_av")
 
@@ -416,9 +441,15 @@ def main(class_key: str, ngentot_override: int | None = None):
     print(f"[{time.time()-t_start:.1f}s] SIMSEDModel cargado ({len(source_model)} templates)")
 
     t_sim0 = time.time()
+    # Fase 5: rng= explicito -- simulate_lightcurves() acepta un
+    # numpy.random.Generator opcional que se propaga a cualquier nodo del
+    # grafo sin seed propio (p.ej. la aplicacion de ruido fotometrico), y
+    # que si no se pasa cae en un generador default no reproducible. Los
+    # otros nodos (redshift, radec, t0, host_av, template) ya tienen su
+    # propio seed explicito arriba -- este cierra el ultimo hueco.
     lc = simulate_lightcurves(source_model, ngentot, survey_info=SurveyInfo(
         obstable=obs_table, passbands=passband_group, survey_name="LSST",
-    ), rest_time_window_offset=(-30, 100))
+    ), rest_time_window_offset=(-30, 100), rng=np.random.default_rng(seed_base + 2))
     sim_wall_time = time.time() - t_sim0
     print(f"[{time.time()-t_start:.1f}s] simulacion terminada: {len(lc)} objetos, "
           f"{sim_wall_time:.1f}s ({sim_wall_time/max(len(lc),1)*1000:.2f} ms/objeto)")
@@ -455,7 +486,7 @@ def main(class_key: str, ngentot_override: int | None = None):
 
     band_curves = parse_searcheff_pipeline(SEARCHEFF_PIPELINE_FILE)
     min_epochs = parse_pipeline_logic(SEARCHEFF_LOGIC_FILE)
-    detected_mask = apply_detection_efficiency(phot_df, band_curves, seed=SEED_BASE + 7)
+    detected_mask = apply_detection_efficiency(phot_df, band_curves, seed=seed_base + 7)
     phot_df["PHOTFLAG"] = np.where(detected_mask, 4096, 0)
     # Fase 4: agrupar observaciones en epocas reales (NEWMJD_DIF=0.007d, ver
     # searcheff.group_into_epochs) antes de aplicar el trigger ">=2 epocas" --
@@ -471,6 +502,7 @@ def main(class_key: str, ngentot_override: int | None = None):
 
     (out_dir / "summary.json").write_text(json.dumps({
         "class_key": class_key,
+        "seed_index": seed_index,
         "ngentot_lc": ngentot,
         "n_with_obs": len(head_df),
         "n_detected": len(detected_snids),
@@ -493,7 +525,8 @@ def main(class_key: str, ngentot_override: int | None = None):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2 or sys.argv[1] not in CLASS_CONFIGS:
-        print(f"uso: python3 run_simsed_poc.py <clase>  (opciones: {list(CLASS_CONFIGS)})")
+    if len(sys.argv) not in (2, 3) or sys.argv[1] not in CLASS_CONFIGS:
+        print(f"uso: python3 run_simsed_poc.py <clase> [seed_index]  (opciones: {list(CLASS_CONFIGS)})")
         sys.exit(1)
-    main(sys.argv[1])
+    _seed_index = int(sys.argv[2]) if len(sys.argv) == 3 else 0
+    main(sys.argv[1], seed_index=_seed_index)

@@ -1500,3 +1500,92 @@ las comparaciones de clases SIMSED de peso uniforme a lo largo de toda la sesió
 Fase 4. Antes de seguir cazando la causa raíz, la prioridad real debería ser cerrar ese agujero
 de reproducibilidad (semillas fijas + múltiples corridas por clase) para poder confiar en
 cualquier comparación futura, incluidas las ya reportadas.
+
+# Fase 5 — reproducibilidad real: semillas múltiples por clase
+
+## Motivación
+
+Fase 4 cerró documentando un problema metodológico: `SIMSEDModel.from_dir()` nunca semilla su
+selector interno de template, así que la elección de template real fue no reproducible en
+**todas** las corridas de clases SIMSED de peso uniforme a lo largo de toda la sesión (Fases
+2B-4). El usuario decidió (confirmado explícitamente vía pregunta directa): antes de seguir
+cazando la causa raíz del residuo sistémico, cerrar primero este agujero de reproducibilidad —
+correr múltiples semillas fijas por clase para poder poner una banda de incertidumbre real a
+cada razón LCL/SNANA reportada, y determinar si la aparente regresión de `CaRT` en Fase 4
+(8.56x → 9.56x) fue señal real o ruido de semilla.
+
+## Tres bugs de reproducibilidad adicionales encontrados (más allá del ya documentado en Fase 4)
+
+Antes de poder confiar en un barrido de semillas múltiples, había que verificar que **una misma
+semilla produce el mismo resultado** — condición necesaria para que variar la semilla mida algo
+real. Un smoke test directo (`CaRT`, N=15, `seed_index=0` corrido dos veces como procesos
+Python **separados**, no llamadas repetidas dentro del mismo proceso — para que el test
+reflejara el uso real, donde cada semilla es un job SLURM independiente) reveló que el fix de
+Fase 4 **no era suficiente**: dos corridas con la misma semilla producían conteos de fotometría
+completamente distintos (10,260 vs. 23,240 filas para los mismos 15 objetos). Investigar la
+causa, leyendo directamente el código fuente instalado de LightCurveLynx en NLHPC (mismo método
+que Fases 3-4, nunca asumir), encontró **tres bugs reales de la librería**, todos con el mismo
+patrón de fondo: un nodo interno construye su propio generador aleatorio y nunca recibe el
+`seed=` que se le pasa al constructor externo.
+
+**Bug A — jitter de posición sub-FOV no sembrado (`ObsTableRADECSampler.compute()`)**: cuando
+`self.radius > 0` (heredado del radio real de campo de visión de `OpSim`, el FOV de LSST),
+`compute()` aplica un desplazamiento aleatorio de la posición (RA/dec) dentro del FOV usando
+`rng = rng_info if rng_info is not None else np.random.default_rng()` — es decir, si el
+`rng_info` no llega explícitamente desde el framework de evaluación del grafo, cae en un
+generador **sin semilla**. Confirmado leyendo
+`lightcurvelynx/math_nodes/ra_dec_sampler.py` línea por línea en el entorno instalado.
+**Fix**: pasar `radius=0.0` explícito al construir `ObsTableRADECSampler` — los campos DDF de
+esta campaña son *pointings* fijos (no requieren jitter dentro del FOV), así que esto evita el
+código no reproducible por completo, no es un parche indirecto.
+
+**Bug B — selección de fila/pointing no sembrada (`TableSampler.__init__`, clase base de
+`ObsTableRADECSampler`)**: el constructor de `TableSampler` arma su propio muestreador de
+índice de fila así: `NumpyRandomFunc("integers", low=0, high=self._num_values)` — **sin pasar
+`seed=`**, aunque el `seed=` que se le pasó al `ObsTableRADECSampler` externo sí llega hasta
+`FunctionNode.__init__` (el nodo padre), nunca hasta este nodo hijo interno. Este es el bug
+verdaderamente responsable de la mayor parte de la varianza observada: es el que decide *qué
+pointing/fila real de OpSim* (y por lo tanto qué observaciones reales) le corresponde a cada
+objeto simulado. Confirmado leyendo `lightcurvelynx/math_nodes/given_sampler.py`. Mismo patrón
+exacto que el bug de Fase 4 en `SIMSEDModel`/`GivenValueSampler`. **Fix**: acceder al nodo
+interno vía `radec_sampler.setters["selected_table_index"].dependency` (confirmado que expone
+`.set_seed()`, mismo método usado en Fase 4) y sembrarlo explícitamente después de construir el
+sampler: `radec_sampler.setters["selected_table_index"].dependency.set_seed(seed_base + 5)`.
+
+**Bug C — ruido fotométrico no sembrado (`simulate_lightcurves()`)**: incluso con A y B
+corregidos, dos corridas idénticas coincidían exactamente en número de filas de fotometría pero
+diferían levemente en SNR (mediana 0.678 vs. 0.676) y conteo de detecciones (2/15 vs. 1/15) —
+indicio de que la realización del ruido fotométrico en sí no estaba fija. `simulate_lightcurves()`
+acepta un parámetro opcional `rng=` (un `numpy.random.Generator`) que se propaga a cualquier
+nodo del grafo sin semilla propia — no se estaba pasando. **Fix**: pasar
+`rng=np.random.default_rng(seed_base + 2)` (o `+ 8` en `run_snia_ddf_poc.py`, offset libre en
+ese script) explícitamente en la llamada a `simulate_lightcurves()`.
+
+**Verificación**: tras aplicar los tres fixes, `CaRT` con `seed_index=0` corrido dos veces como
+procesos separados produjo resultados **byte-idénticos** (7,942 filas de fotometría,
+SNR mediana=0.672/p90=1.644, 0/15 detectados en ambas corridas). `seed_index=1` produjo un
+resultado claramente distinto (58,330 filas, SNR mediana=0.677, 4/15 detectados) — confirmando
+que la semilla ahora tiene efecto real y es plenamente reproducible.
+
+## Alcance real de estos bugs
+
+Los bugs A-C afectan a **todas** las clases que usan `ObsTableRADECSampler` — es decir, las 13
+clases SIMSED **y** la corrida `SNIa` (SALT2, `run_snia_ddf_poc.py`) — no solo las clases
+SIMSED de peso uniforme como el bug ya documentado en Fase 4. Esto significa que **ninguna**
+comparación de una sola corrida a lo largo de toda la sesión (Fases 1-4) tuvo garantía real de
+reproducibilidad a nivel de emparejamiento de observaciones o realización de ruido — no solo la
+selección de template. No se volvió a correr retroactivamente el catálogo completo solo por
+esto (misma decisión práctica que en Fase 4): el propósito de Fase 5 es precisamente generar,
+de ahora en adelante, resultados con banda de incertidumbre real usando el código ya corregido,
+en vez de intentar reconstruir la incertidumbre de corridas pasadas que nunca la tuvieron.
+
+## Metodología: 5 semillas fijas por clase
+
+`seed_base = SEED_BASE + seed_index * 1_000_000` (offset grande para no colisionar con los
+sub-offsets +1..+9 ya usados por cada componente del grafo dentro de una misma semilla).
+`seed_index=0` reutiliza el directorio de salida histórico (`poc_output_<clase>/`, ya reportado
+en el dashboard/NOTES.md); `seed_index=1..4` escriben en directorios nuevos
+(`poc_output_<clase>_seed<N>/`) para no pisar el resultado principal. Se corrieron las 14
+clases × 5 semillas (70 corridas) vía `sbatch run_simsed_poc.sbatch <clase> <seed_index>` /
+`sbatch run_snia_ddf_poc.sbatch <seed_index>`, con `--mem=64G` para
+`PISN-STELLA-HYDROGENIC` (única clase que satura los 16G por defecto, ver Fase 4).

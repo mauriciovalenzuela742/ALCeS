@@ -135,9 +135,14 @@ def snana_noise_columns(df_ddf: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def main():
+def main(seed_index: int = 0):
+    # Fase 5: seed_index != 0 corre una realizacion independiente con
+    # semilla real distinta, en un directorio de salida separado -- mismo
+    # patron que run_simsed_poc.py (ver comentario ahi).
+    seed_base = SEED_BASE + seed_index * 1_000_000
+    out_dir = OUT_DIR if not seed_index else HERE / f"poc_output_seed{seed_index}"
+    out_dir.mkdir(exist_ok=True)
     t_start = time.time()
-    OUT_DIR.mkdir(exist_ok=True)
 
     con = sqlite3.connect(str(OPSIM_DB))
     df = pd.read_sql_query("SELECT * FROM observations", con)
@@ -171,13 +176,13 @@ def main():
         segments=DNDZ_SEGMENTS, z_min=GENRANGE_REDSHIFT[0], z_max=GENRANGE_REDSHIFT[1],
     )
     redshift_func = SizeAwareFunctionNode(
-        make_dndz_sampler(z_grid, cdf, seed=SEED_BASE + 1), node_label="redshift"
+        make_dndz_sampler(z_grid, cdf, seed=seed_base + 1), node_label="redshift"
     )
     c_func = SizeAwareFunctionNode(
-        make_bifurcated_normal_sampler(**SALT2C, seed=SEED_BASE + 2), node_label="c"
+        make_bifurcated_normal_sampler(**SALT2C, seed=seed_base + 2), node_label="c"
     )
     x1_func = SizeAwareFunctionNode(
-        make_bifurcated_normal_sampler(**SALT2X1, seed=SEED_BASE + 3), node_label="x1"
+        make_bifurcated_normal_sampler(**SALT2X1, seed=seed_base + 3), node_label="x1"
     )
     # H0=70 (no 73, el placeholder heredado de bench_snia.py/Fase 0) -- SNANA
     # no fija cosmologia en ningun .INPUT de la campana (grep sin resultados
@@ -186,14 +191,22 @@ def main():
     # el linaje de este catalogo). H0=73 introduce un ~0.1 mag de brillo
     # sistematico de mas -- ver NOTES.md Fase 2 parte A.
     distmod_func = DistModFromRedshift(redshift_func, H0=70.0, Omega_m=0.3)
-    m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=SIGMA_INT, seed=SEED_BASE + 4)
+    m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=SIGMA_INT, seed=seed_base + 4)
     x0_func = X0FromDistMod(
         distmod=distmod_func, x1=x1_func, c=c_func, alpha=ALPHA, beta=BETA, m_abs=m_abs_func,
     )
-    radec_sampler = ObsTableRADECSampler(obs_table, extra_cols=["field"], seed=SEED_BASE + 5)
+    # Fase 5: radius=0.0 explicito -- evita el jitter de posicion sub-FOV no
+    # reproducible de ObsTableRADECSampler (usa np.random.default_rng() sin
+    # seed cuando self.radius>0, bug de la libreria, ver run_simsed_poc.py).
+    radec_sampler = ObsTableRADECSampler(obs_table, extra_cols=["field"], seed=seed_base + 5, radius=0.0)
+    # Segundo bug de la libreria: TableSampler.__init__ crea su muestreador
+    # de indice de fila via NumpyRandomFunc("integers", ...) SIN seed= --
+    # el seed del constructor nunca llega a ese nodo hijo. Fijarlo aqui
+    # directamente (mismo patron que el fix de SIMSEDModel en Fase 4).
+    radec_sampler.setters["selected_table_index"].dependency.set_seed(seed_base + 5)
     t0_func = NumpyRandomFunc(
         "uniform", low=float(obs_table["time"].min()), high=float(obs_table["time"].max()),
-        seed=SEED_BASE + 6,
+        seed=seed_base + 6,
     )
 
     def _field_to_ebv(size=None, field=None, **_kwargs):
@@ -215,7 +228,12 @@ def main():
     print(f"[{time.time()-t_start:.1f}s] modelo armado, simulando {NGENTOT_LC} objetos...")
 
     t_sim0 = time.time()
-    lc = simulate_lightcurves(source, NGENTOT_LC, survey_info, rest_time_window_offset=(-30, 100))
+    # Fase 5: rng= explicito -- simulate_lightcurves() propaga este generador
+    # a cualquier nodo del grafo sin seed propio (p.ej. ruido fotometrico),
+    # que sin esto cae en un default no reproducible (ver run_simsed_poc.py).
+    lc = simulate_lightcurves(
+        source, NGENTOT_LC, survey_info, rest_time_window_offset=(-30, 100), rng=np.random.default_rng(seed_base + 8),
+    )
     sim_wall_time = time.time() - t_sim0
     print(f"[{time.time()-t_start:.1f}s] simulacion terminada: {len(lc)} objetos, "
           f"{sim_wall_time:.1f}s ({sim_wall_time/len(lc)*1000:.2f} ms/objeto)")
@@ -266,7 +284,7 @@ def main():
     band_curves = parse_searcheff_pipeline(SEARCHEFF_PIPELINE_FILE)
     min_epochs = parse_pipeline_logic(SEARCHEFF_LOGIC_FILE)
     detected_mask = apply_detection_efficiency(
-        phot_df, band_curves, seed=SEED_BASE + 7,
+        phot_df, band_curves, seed=seed_base + 7,
     )
     phot_df["PHOTFLAG"] = np.where(detected_mask, 4096, 0)
     # Fase 4: agrupar en epocas reales (NEWMJD_DIF=0.007d) antes del trigger
@@ -284,7 +302,8 @@ def main():
     # marcar detectados en head_df (subconjunto que paso SEARCHEFF)
     head_df_detected = head_df[head_df["SNID"].isin(detected_snids)].reset_index(drop=True)
 
-    (OUT_DIR / "summary.json").write_text(json.dumps({
+    (out_dir / "summary.json").write_text(json.dumps({
+        "seed_index": seed_index,
         "ngentot_lc": NGENTOT_LC,
         "n_with_obs": len(head_df),
         "n_detected": len(detected_snids),
@@ -297,7 +316,7 @@ def main():
     sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
     from pipeline.postproc import qc
 
-    qc_dir = OUT_DIR / "qc"
+    qc_dir = out_dir / "qc"
     paths = qc.run_all_qc(head_df_detected, phot_df, qc_dir, "LightCurveLynx_SNIa_DDF_poc",
                           dump_df=dump_df)
     print(f"[{time.time()-t_start:.1f}s] QC generado: {list(paths.keys())}")
@@ -306,4 +325,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _seed_index = int(sys.argv[1]) if len(sys.argv) == 2 else 0
+    main(seed_index=_seed_index)
