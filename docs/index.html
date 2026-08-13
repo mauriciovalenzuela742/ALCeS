@@ -661,6 +661,52 @@
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   }
 
+  /* ---------------------------------------------------------- lightcurvelynx */
+  .lcl-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .lcl-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+
+  .lcl-stat .lcl-stat-n {
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.1;
+  }
+
+  .lcl-stat .lcl-stat-label {
+    margin-top: 4px;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+  }
+
+  .ratio-chip {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+
+  .ratio-chip.band-good { background: var(--good-bg); color: var(--good); }
+  .ratio-chip.band-warn { background: var(--warn-bg); color: var(--warn); }
+  .ratio-chip.band-critical { background: var(--critical-bg); color: var(--critical); }
+
+  td.lcl-note { color: var(--ink-faint); font-size: 0.78rem; max-width: 320px; white-space: normal; }
+  td.host-av { font-size: 0.78rem; color: var(--ink-dim); max-width: 220px; white-space: normal; }
+  td.model { white-space: normal; }
+
   /* ---------------------------------------------------------- recipe */
   .recipe {
     display: flex;
@@ -886,6 +932,39 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         </div>
       </li>
     </ol>
+  </section>
+
+  <section id="lcl">
+    <div class="section-head"><span class="section-num">06</span><h2>Evaluación LightCurveLynx (spike exploratorio)</h2></div>
+    <p class="section-sub">¿Puede <a href="https://github.com/lincc-frameworks/lightcurvelynx" target="_blank" rel="noopener">LightCurveLynx</a> (LINCC Frameworks) reemplazar a SNANA como motor de simulación? Evaluación clase por clase con parámetros reales de cada
+    <code>SIMGEN_INCLUDE_*.INPUT</code>, comparada contra los baselines DDF reales de <code>full_v5.3_10yrs</code> —
+    no forma parte del pipeline de producción. Detalle completo, con hallazgos honestos en ambas direcciones
+    (confirmados y refutados), en <code>exploration/lightcurvelynx/NOTES.md</code>.</p>
+
+    <div class="lcl-stats" id="lcl-stats"></div>
+
+    <div class="table-scroll">
+      <table id="lcl-table">
+        <thead>
+          <tr>
+            <th>Clase</th>
+            <th>Modelo fuente</th>
+            <th>Extinción de host</th>
+            <th>SNANA real</th>
+            <th>LightCurveLynx</th>
+            <th>Razón</th>
+            <th>Nota</th>
+          </tr>
+        </thead>
+        <tbody id="lcl-table-body"></tbody>
+      </table>
+    </div>
+    <p class="table-note">Razón = detectados<sub>LCL</sub> / detectados<sub>SNANA</sub> sobre <code>NGENTOT_LC=2000</code> (DDF). Verde ≤2x
+    (banda residual sistémica ya diagnosticada, ver Fase 2 parte A), ámbar 2–4x, rojo &gt;4x (clases muy tenues con extinción de host omitida).</p>
+
+    <p class="section-sub" style="margin-top:22px;">Mismos 4 gráficos de control que la sección 03, generados por el PoC de cada clase.</p>
+    <div class="qc-selector" id="lcl-selector"></div>
+    <div class="qc-panels" id="lcl-panels"></div>
   </section>
 
   <footer>
@@ -1153,6 +1232,108 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     }
   });
   lightbox.addEventListener("click", () => lightbox.classList.remove("open"));
+
+  // -------------------------------------------------- lightcurvelynx (sección 06)
+  const LCL_QC_KINDS = QC_KINDS; // mismos 4 gráficos que la sección 03
+  let LCL_DATA = null;
+  let lclSelected = null;
+
+  function ratioBand(ratio) {
+    if (ratio <= 2.0) return "band-good";
+    if (ratio <= 4.0) return "band-warn";
+    return "band-critical";
+  }
+
+  function renderLclStats(records) {
+    const n = records.length;
+    const avg = records.reduce((s, r) => s + r.ratio, 0) / n;
+    const best = records[0];
+    const worst = records[records.length - 1];
+    const statsEl = document.getElementById("lcl-stats");
+    statsEl.innerHTML = [
+      [`${n}/11`, "clases SIMSED/SALT2 evaluadas"],
+      [`${avg.toFixed(2)}x`, "razón promedio LCL/SNANA"],
+      [`${best.ratio.toFixed(2)}x`, `mejor caso (${best.class})`],
+      [`${worst.ratio.toFixed(2)}x`, `peor caso (${worst.class})`],
+    ].map(([n_, label]) => `
+      <div class="lcl-stat"><div class="lcl-stat-n">${n_}</div><div class="lcl-stat-label">${label}</div></div>
+    `).join("");
+  }
+
+  function renderLclTable(records) {
+    document.getElementById("lcl-table-body").innerHTML = records.map(r => `
+      <tr>
+        <td class="model">${r.class}</td>
+        <td>${r.source_model}<br><span class="strategy-chip">${r.dndz}</span></td>
+        <td class="host-av">${r.host_av}</td>
+        <td class="ngen">${r.snana_detected}/${r.ngentot} (${r.snana_pct}%)</td>
+        <td class="ngen">${r.lcl_detected}/${r.ngentot} (${r.lcl_pct}%)</td>
+        <td><span class="ratio-chip ${ratioBand(r.ratio)}">${r.ratio.toFixed(2)}x</span></td>
+        <td class="lcl-note">${r.note || "—"}</td>
+      </tr>`).join("");
+  }
+
+  function lclPanelHtml(cls) {
+    const images = (LCL_DATA.images && LCL_DATA.images[cls]) || {};
+    return `
+      <div class="qc-panel">
+        <div class="qc-panel-head"><span class="strategy-chip">DDF</span><h3>${cls}</h3></div>
+        <div class="qc-img-grid">
+          ${LCL_QC_KINDS.map(([kind, label]) => images[kind] ? `
+            <div class="qc-img-cell">
+              <figure>
+                <img src="${images[kind]}" alt="${label}" loading="lazy">
+                <figcaption>${label}</figcaption>
+              </figure>
+            </div>` : "").join("")}
+        </div>
+      </div>`;
+  }
+
+  function renderLclPanels() {
+    document.getElementById("lcl-panels").innerHTML = lclPanelHtml(lclSelected);
+  }
+
+  function renderLclSelector(records) {
+    const selEl = document.getElementById("lcl-selector");
+    selEl.innerHTML = "";
+    records.forEach(r => {
+      const btn = document.createElement("button");
+      btn.className = "qc-class-btn";
+      btn.textContent = r.class;
+      btn.setAttribute("aria-pressed", r.class === lclSelected ? "true" : "false");
+      btn.addEventListener("click", () => {
+        lclSelected = r.class;
+        [...selEl.children].forEach(b => b.setAttribute("aria-pressed", "false"));
+        btn.setAttribute("aria-pressed", "true");
+        renderLclPanels();
+      });
+      selEl.appendChild(btn);
+    });
+  }
+
+  fetch("lcl_qc/lcl_qc_index.json")
+    .then(r => r.json())
+    .then(data => {
+      LCL_DATA = data;
+      const records = data.records || [];
+      lclSelected = records.length ? records[0].class : null;
+      renderLclStats(records);
+      renderLclTable(records);
+      renderLclSelector(records);
+      renderLclPanels();
+    })
+    .catch(err => {
+      document.getElementById("lcl-panels").innerHTML =
+        `<div class="qc-panel"><div class="qc-unavailable broken">No se pudo cargar lcl_qc/lcl_qc_index.json (${err}).</div></div>`;
+    });
+
+  document.getElementById("lcl-panels").addEventListener("click", e => {
+    if (e.target.tagName === "IMG") {
+      lightboxImg.src = e.target.src;
+      lightbox.classList.add("open");
+    }
+  });
 </script>
 </body>
 </html>

@@ -1,0 +1,234 @@
+{
+  "generated_at": "2026-08-13T08:10:00+00:00",
+  "campaign_ref": "full_v5.3_10yrs (baselines DDF reales)",
+  "kinds": [
+    "redshift",
+    "magnitudes",
+    "detections",
+    "lightcurves"
+  ],
+  "records": [
+    {
+      "class": "SNIa-91bg",
+      "source_model": "SIMSED (35 templates)",
+      "weight_method": "SIMSED_REDCOR (stretch,color)",
+      "dndz": "POWERLAW",
+      "host_av": "no declarada",
+      "snana_detected": 723,
+      "lcl_detected": 993,
+      "ngentot": 2000,
+      "snana_pct": 36.15,
+      "lcl_pct": 49.65,
+      "ratio": 1.37,
+      "note": "Primer PoC SIMSED -- brecha menor que SNIa pese a SNR similar."
+    },
+    {
+      "class": "SNII-NMF",
+      "source_model": "SIMSED (384 templates, PCA)",
+      "weight_method": "SIMSED_REDCOR (pc1,pc2,pc3)",
+      "dndz": "CC_S15",
+      "host_av": "no declarada",
+      "snana_detected": 356,
+      "lcl_detected": 498,
+      "ngentot": 2000,
+      "snana_pct": 17.8,
+      "lcl_pct": 24.9,
+      "ratio": 1.4,
+      "note": "Control limpio (sin extincion) -- cae en la misma banda residual que SNIa-91bg/TDE-MOSFIT."
+    },
+    {
+      "class": "SLSN-I",
+      "source_model": "SIMSED (960 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "MD14",
+      "host_av": "omitida (GENAV_WV07 real)",
+      "snana_detected": 824,
+      "lcl_detected": 1266,
+      "ngentot": 2000,
+      "snana_pct": 41.2,
+      "lcl_pct": 63.3,
+      "ratio": 1.54,
+      "note": "Rango de redshift mas amplio probado (0.02-9.7) sin errores."
+    },
+    {
+      "class": "TDE-MOSFIT",
+      "source_model": "SIMSED (742 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "TDE",
+      "host_av": "implementada (exponencial pura, GENTAU_AV=0.4)",
+      "snana_detected": 812,
+      "lcl_detected": 1277,
+      "ngentot": 2000,
+      "snana_pct": 40.6,
+      "lcl_pct": 63.85,
+      "ratio": 1.57,
+      "note": "SED.INFO real con linea invalida (sanitizada via symlink) + fix de CCM89 fuera de rango UV a z=2.9."
+    },
+    {
+      "class": "PISN-MOSFIT",
+      "source_model": "SIMSED (1000 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "PISN_PLK12 (polinomio real, snlc_sim.c)",
+      "host_av": "omitida (GENAV_WV07 real)",
+      "snana_detected": 411,
+      "lcl_detected": 716,
+      "ngentot": 2000,
+      "snana_pct": 20.55,
+      "lcl_pct": 35.8,
+      "ratio": 1.74,
+      "note": "DNDZ que las rondas 1-2 habian descartado por 'nombre propio' -- formula real encontrada esta ronda."
+    },
+    {
+      "class": "SNIa",
+      "source_model": "SALT2 (sncosmo, H17)",
+      "weight_method": "continuo (bifurcadas x1/c)",
+      "dndz": "POWERLAW2",
+      "host_av": "no implementada (solo MW)",
+      "snana_detected": 597,
+      "lcl_detected": 1086,
+      "ngentot": 2000,
+      "snana_pct": 29.85,
+      "lcl_pct": 54.3,
+      "ratio": 1.82,
+      "note": "Fase 1/2A -- baseline SALT2, brecha residual sistemica original."
+    },
+    {
+      "class": "ILOT-MOSFIT",
+      "source_model": "SIMSED (385 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "CC_S15",
+      "host_av": "omitida (GENAV_WV07 real)",
+      "snana_detected": 73,
+      "lcl_detected": 143,
+      "ngentot": 2000,
+      "snana_pct": 3.65,
+      "lcl_pct": 7.15,
+      "ratio": 1.96,
+      "note": ""
+    },
+    {
+      "class": "KN-K17",
+      "source_model": "SIMSED (329 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "POWERLAW",
+      "host_av": "omitida (GENAV_WV07 real, bug historico documentado)",
+      "snana_detected": 82,
+      "lcl_detected": 210,
+      "ngentot": 2000,
+      "snana_pct": 4.1,
+      "lcl_pct": 10.5,
+      "ratio": 2.56,
+      "note": "Carga de templates ~6s/template -- hallazgo de rendimiento."
+    },
+    {
+      "class": "SNIax",
+      "source_model": "SIMSED (1001 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "MD14",
+      "host_av": "implementada (mezcla exp+semi-Gauss real, GENTAU_AV/GENSIG_AV/GENRATIO_AV0)",
+      "snana_detected": 175,
+      "lcl_detected": 476,
+      "ngentot": 2000,
+      "snana_pct": 8.75,
+      "lcl_pct": 23.8,
+      "ratio": 2.72,
+      "note": "Investigada a fondo (ronda 3): corregir la extincion NO cerro la brecha (2.65x->2.72x) -- causa real sigue abierta."
+    },
+    {
+      "class": "SNIIn-MOSFIT",
+      "source_model": "SIMSED (839 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "CC_S15",
+      "host_av": "omitida (GENAV_WV07 real)",
+      "snana_detected": 37,
+      "lcl_detected": 187,
+      "ngentot": 2000,
+      "snana_pct": 1.85,
+      "lcl_pct": 9.35,
+      "ratio": 5.05,
+      "note": "Clase mas tenue evaluada (37/2000 real) -- brecha mas grande junto a CaRT."
+    },
+    {
+      "class": "CaRT",
+      "source_model": "SIMSED (225 templates)",
+      "weight_method": "uniforme (SIMSED_GRIDONLY)",
+      "dndz": "MD14",
+      "host_av": "omitida (GENAV_WV07 real)",
+      "snana_detected": 16,
+      "lcl_detected": 136,
+      "ngentot": 2000,
+      "snana_pct": 0.8,
+      "lcl_pct": 6.8,
+      "ratio": 8.5,
+      "note": "Brecha mas grande del catalogo -- clase intrinsecamente muy tenue (16/2000 real)."
+    }
+  ],
+  "images": {
+    "SNIa": {
+      "redshift": "lcl_qc/SNIa/redshift.png",
+      "magnitudes": "lcl_qc/SNIa/magnitudes.png",
+      "detections": "lcl_qc/SNIa/detections.png",
+      "lightcurves": "lcl_qc/SNIa/lightcurves.png"
+    },
+    "SNIa-91bg": {
+      "redshift": "lcl_qc/SNIa-91bg/redshift.png",
+      "magnitudes": "lcl_qc/SNIa-91bg/magnitudes.png",
+      "detections": "lcl_qc/SNIa-91bg/detections.png",
+      "lightcurves": "lcl_qc/SNIa-91bg/lightcurves.png"
+    },
+    "KN-K17": {
+      "redshift": "lcl_qc/KN-K17/redshift.png",
+      "magnitudes": "lcl_qc/KN-K17/magnitudes.png",
+      "detections": "lcl_qc/KN-K17/detections.png",
+      "lightcurves": "lcl_qc/KN-K17/lightcurves.png"
+    },
+    "CaRT": {
+      "redshift": "lcl_qc/CaRT/redshift.png",
+      "magnitudes": "lcl_qc/CaRT/magnitudes.png",
+      "detections": "lcl_qc/CaRT/detections.png",
+      "lightcurves": "lcl_qc/CaRT/lightcurves.png"
+    },
+    "SLSN-I": {
+      "redshift": "lcl_qc/SLSN-I/redshift.png",
+      "magnitudes": "lcl_qc/SLSN-I/magnitudes.png",
+      "detections": "lcl_qc/SLSN-I/detections.png",
+      "lightcurves": "lcl_qc/SLSN-I/lightcurves.png"
+    },
+    "SNIax": {
+      "redshift": "lcl_qc/SNIax/redshift.png",
+      "magnitudes": "lcl_qc/SNIax/magnitudes.png",
+      "detections": "lcl_qc/SNIax/detections.png",
+      "lightcurves": "lcl_qc/SNIax/lightcurves.png"
+    },
+    "TDE-MOSFIT": {
+      "redshift": "lcl_qc/TDE-MOSFIT/redshift.png",
+      "magnitudes": "lcl_qc/TDE-MOSFIT/magnitudes.png",
+      "detections": "lcl_qc/TDE-MOSFIT/detections.png",
+      "lightcurves": "lcl_qc/TDE-MOSFIT/lightcurves.png"
+    },
+    "SNII-NMF": {
+      "redshift": "lcl_qc/SNII-NMF/redshift.png",
+      "magnitudes": "lcl_qc/SNII-NMF/magnitudes.png",
+      "detections": "lcl_qc/SNII-NMF/detections.png",
+      "lightcurves": "lcl_qc/SNII-NMF/lightcurves.png"
+    },
+    "ILOT-MOSFIT": {
+      "redshift": "lcl_qc/ILOT-MOSFIT/redshift.png",
+      "magnitudes": "lcl_qc/ILOT-MOSFIT/magnitudes.png",
+      "detections": "lcl_qc/ILOT-MOSFIT/detections.png",
+      "lightcurves": "lcl_qc/ILOT-MOSFIT/lightcurves.png"
+    },
+    "SNIIn-MOSFIT": {
+      "redshift": "lcl_qc/SNIIn-MOSFIT/redshift.png",
+      "magnitudes": "lcl_qc/SNIIn-MOSFIT/magnitudes.png",
+      "detections": "lcl_qc/SNIIn-MOSFIT/detections.png",
+      "lightcurves": "lcl_qc/SNIIn-MOSFIT/lightcurves.png"
+    },
+    "PISN-MOSFIT": {
+      "redshift": "lcl_qc/PISN-MOSFIT/redshift.png",
+      "magnitudes": "lcl_qc/PISN-MOSFIT/magnitudes.png",
+      "detections": "lcl_qc/PISN-MOSFIT/detections.png",
+      "lightcurves": "lcl_qc/PISN-MOSFIT/lightcurves.png"
+    }
+  }
+}
