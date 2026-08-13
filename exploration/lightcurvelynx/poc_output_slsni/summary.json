@@ -1,0 +1,11 @@
+{
+  "class_key": "SLSN-I",
+  "ngentot_lc": 2000,
+  "n_with_obs": 1997,
+  "n_detected": 1266,
+  "n_total_dump": 2000,
+  "sim_wall_time_s": 90.99685096740723,
+  "detection_efficiency_pct": 63.3,
+  "snr_median": 0.9929733271953658,
+  "snr_p90": 8.435915828506793
+}

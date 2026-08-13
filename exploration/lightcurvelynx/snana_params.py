@@ -46,14 +46,51 @@ def _comoving_volume_element(z: float, cosmo: FlatLambdaCDM) -> float:
     return cosmo.differential_comoving_volume(z).value  # Mpc^3/sr, luego *4pi si hiciera falta
 
 
+def _md14_sfr(z: np.ndarray) -> np.ndarray:
+    """Madau & Dickinson 2014 (ApJ, arXiv:1403.0007) cosmic star-formation-
+    rate density, Msun/yr/Mpc^3 -- formula estandar y ampliamente citada,
+    usada por SNANA como `DNDZ: MD14 <rate0>` (rate0 = tasa en z=0, la
+    forma se normaliza a SFR_MD14(0))."""
+    return 0.015 * (1.0 + z) ** 2.7 / (1.0 + ((1.0 + z) / 2.9) ** 5.6)
+
+
+def build_dndz_md14_cdf(
+    rate0: float,
+    z_min: float,
+    z_max: float,
+    *,
+    H0: float = 70.0,
+    Om0: float = 0.3,
+    n_grid: int = 2000,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Como build_dndz_powerlaw2_cdf pero con `DNDZ: MD14 <rate0>` de SNANA
+    -- tasa proporcional a la forma de Madau&Dickinson 2014 en vez de una
+    ley de potencia simple, normalizada para que rate(0) = rate0."""
+    cosmo = FlatLambdaCDM(H0=H0, Om0=Om0)
+    z_grid = np.linspace(z_min, z_max, n_grid)
+    sfr0 = _md14_sfr(np.array([0.0]))[0]
+    rate_z = rate0 * _md14_sfr(z_grid) / sfr0
+
+    dn_dz = np.array([
+        rate_z[i] * _comoving_volume_element(z_grid[i], cosmo) / (1.0 + z_grid[i])
+        for i in range(n_grid)
+    ])
+    cdf = np.cumsum(dn_dz)
+    cdf -= cdf[0]
+    if cdf[-1] <= 0:
+        raise ValueError("CDF de DNDZ MD14 degenerada -- revisar rate0/z_min/z_max.")
+    cdf /= cdf[-1]
+    return z_grid, cdf
+
+
 def build_dndz_powerlaw2_cdf(
     segments: list[tuple[float, float, float, float]],
     z_min: float,
     z_max: float,
     *,
-    H0: float = 73.0,
-    Om0: float = 0.3,
-    n_grid: int = 2000,
+    H0: float = 70.0,  # SNANA default (ver Fase 2 parte A) -- antes 73.0 sin
+    Om0: float = 0.3,  # verificar, mismo placeholder que ya se corrigio en
+    n_grid: int = 2000,  # el calculo de distancia/flujo.
 ) -> tuple[np.ndarray, np.ndarray]:
     """Construye la CDF de dN/dz = DNDZ(z) * dVc/dz / (1+z) para redshift.
 

@@ -1,0 +1,11 @@
+{
+  "class_key": "KN-K17",
+  "ngentot_lc": 2000,
+  "n_with_obs": 1979,
+  "n_detected": 210,
+  "n_total_dump": 2000,
+  "sim_wall_time_s": 49.69544720649719,
+  "detection_efficiency_pct": 10.5,
+  "snr_median": 0.6852180596476495,
+  "snr_p90": 1.6924365880937264
+}

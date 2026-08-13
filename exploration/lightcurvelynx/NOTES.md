@@ -579,7 +579,104 @@ en qué parte de la curva SEARCHEFF cae la población de cada clase.
 
 Primer PoC SIMSED exitoso: el lector nativo de LightCurveLynx funciona, el patrón de pesado
 por `SIMSED_REDCOR` es correcto, y la brecha de eficiencia (1.37x) es menor que la del PoC
-SALT2 de Fase 1/2A. Con dos clases ahora validadas de punta a punta (una SALT2 continua, una
-SIMSED discreta), hay una base razonable para decidir si escalar a las 10 clases SIMSED
-restantes del catálogo o seguir investigando el residuo de SNR sistémico primero — a decidir
-con el usuario.
+SALT2 de Fase 1/2A. Decisión del usuario: escalar a 2-3 clases SIMSED más antes de decidir
+sobre las 10 restantes — ver siguiente sección.
+
+# Fase 2 — parte B (continuación): 3 clases más, patrón generalizado
+
+Se generalizó `run_simsed_91bg_ddf_poc.py` a `run_simsed_poc.py <clase>` (config por clase en
+un dict, mismo patrón de ruido/cosmología/SEARCHEFF/QC reusado) para evitar triplicar el
+boilerplate. Se agregó `build_dndz_md14_cdf()` a `snana_params.py` (fórmula real de Madau &
+Dickinson 2014, `DNDZ: MD14 <rate0>` en varias clases del catálogo). De paso: el default de
+`H0` en `build_dndz_powerlaw2_cdf()` seguía en `73.0` (el placeholder original de Fase 0,
+nunca corregido pese a que la Fase 2 parte A sí corrigió el `H0` usado para
+distancia/flujo) — corregido a `70.0` aquí; no se re-corrieron los PoC ya reportados de
+SNIa/SNIa-91bg por esto (el efecto en la forma del redshift simulado es de segundo orden
+frente al ya corregido en distancia/flujo, y ya están documentados con sus números reales).
+
+## Clases elegidas (complejidad variada) y una descartada por buena razón
+
+Se evaluaron las 11 clases SIMSED del catálogo por conteo de templates y parámetros. Se
+eligieron `KN-K17` (peso uniforme `SIMSED_GRIDONLY`, `DNDZ: POWERLAW` sin dependencia de z,
+redshift bajo 0.011–0.28), `CaRT`/CART-MOSFIT (peso uniforme, `DNDZ: MD14`, redshift medio
+0.012–1.4), y `SLSN-I`/SLSN-I-MOSFIT (peso uniforme, `DNDZ: MD14`, redshift muy amplio
+0.02–9.7 — prueba de escala). `PISN-MOSFIT` se descartó para esta ronda: usa
+`DNDZ: PISN_PLK12`, un modelo de tasa con nombre propio (no una fórmula analítica simple como
+`POWERLAW`/`POWERLAW2`/`MD14`) sin una referencia clara disponible — mejor no adivinar la
+fórmula que implementarla mal.
+
+## Simplificación deliberada: extinción de galaxia anfitriona (WV07) no implementada
+
+Las 3 clases nuevas declaran extinción de polvo de la galaxia anfitriona en su `.INPUT` real
+(`GENAV_WV07`/`GENRANGE_AV`/`GENPEAK_RV`, modelo WV07 con "half expon component"). Antes de
+adivinar la fórmula, se buscó la implementación real en el código fuente de SNANA
+(`~/github/SNANA_src/src/sntools_genExpHalfGauss.c`, el mismo árbol usado para compilar el
+binario custom mencionado en el README del proyecto) — el propio código trae un comentario de
+Dic 2023 documentando un bug histórico en esta función ("WV07 AV flag was never refactored to
+use this function, so this might be a harmless bug"), señal de que no es una fórmula trivial
+de reimplementar de memoria con confianza. **Se omite (AV=0) en vez de reimplementar mal** —
+mismo criterio que la aproximación de `SIGMA_INT` para G10 en Fase 1, documentado explícitamente
+como brecha conocida, no un descuido.
+
+## Resultado: 3/3 corridas limpias, sin errores
+
+`NGENTOT_LC=2000` para las 3 (igual que SNANA DDF real). Comparado contra los baselines reales
+ya generados en la campaña v8 (`postprocess_manifest.json`):
+
+| clase | SNR mediana LCL | SNR p90 LCL | detectados SNANA real | detectados LCL | razón |
+|---|---|---|---|---|---|
+| `KN-K17` | 0.685 | 1.692 | 82/2000 (4.1%) | 210/2000 (10.5%) | **2.56x** |
+| `CaRT` | 0.682 | 1.672 | 16/2000 (0.8%) | 136/2000 (6.8%) | **8.5x** |
+| `SLSN-I` | 0.993 | 8.436 | 824/2000 (41.2%) | 1266/2000 (63.3%) | **1.54x** |
+
+Las 3 brechas son **mayores** que las de `SNIa`/`SNIa-91bg` (1.8x / 1.37x) — pero esto es
+**esperado y coherente**, no una regresión nueva: `SNIa` y `SNIa-91bg` no declaran extinción
+de galaxia anfitriona en su `.INPUT` real (solo MW, ya implementada), mientras que las 3
+clases de esta ronda sí la declaran y no se implementó (ver sección anterior). Omitir un
+efecto que dimueve/reduce brillo sistemáticamente produce exactamente el sesgo observado:
+eficiencia inflada, más aún cuanto más débil es la clase intrínsecamente (`CaRT`, con solo 16
+detecciones reales de 2000, es el caso más extremo — la cola de redshift alto del histograma
+de `CaRT` muestra detecciones simuladas hasta z=1.4 que en la realidad casi no deberían
+ocurrir para una clase tan tenue). Verificado visualmente: las curvas de luz y distribuciones
+de redshift de las 3 clases se ven físicamente razonables (sin bugs de sampling como los de
+Fase 1), la brecha es de magnitud/eficiencia, no de forma.
+
+## Hallazgo de rendimiento: la carga de templates SIMSED no escala solo con la cantidad
+
+Tiempo de carga aislado (tiempo entre leer `SED.INFO` y terminar la simulación, menos el
+tiempo de simulación propiamente dicho, medido aparte con su propio timer):
+
+| clase | templates | tiempo de carga (aislado) | seg/template |
+|---|---|---|---|
+| `SNIa-91bg` | 35 | ~18s (aprox., smoke test) | ~0.5 |
+| `SLSN-I` | 960 | 194.1s | 0.202 |
+| `CaRT` | 225 | 87.5s | 0.389 |
+| `KN-K17` | 329 | **1976.0s (~33 min)** | **6.007** |
+
+`KN-K17` tardó **~15-30x más por template** que las demás pese a tener menos templates que
+`SLSN-I` (960) — el tiempo de carga depende del tamaño/resolución de cada archivo SED
+individual (grilla de fase×longitud de onda), no solo de cuántos templates hay. Job de
+`KN-K17` corrió con `-t 02:00:00` (aumentado preventivamente tras un smoke test de N=20 que
+ya mostraba ~3.4s/template) — terminó en 37 min reales, dentro del margen. Relevante para
+dimensionar tiempo de cómputo si se escala a las clases restantes (revisar el tamaño de los
+archivos `.SED`/`.txt.gz` de cada clase antes de asumir un tiempo de job, no solo el conteo
+de templates).
+
+## Archivos de esta parte
+
+- `run_simsed_poc.py` + `.sbatch` (nuevo) — version generalizada, reemplaza el patrón de
+  script-por-clase para clases nuevas (el script específico de `SNIa-91bg` se deja como
+  referencia histórica, no se migra).
+- `snana_params.py` — agregado `build_dndz_md14_cdf()`, corregido default `H0` a 70.
+- `poc_output_knk17/`, `poc_output_cart/`, `poc_output_slsni/` — resultados reales (`summary.json` + 4 QC c/u).
+
+## Estado y siguiente decisión
+
+5 clases validadas de punta a punta ahora (1 SALT2 continua + 4 SIMSED discretas). Patrón de
+implementación sólido y reusable (`run_simsed_poc.py` generaliza a cualquier clase con peso
+uniforme o `SIMSED_REDCOR`, `DNDZ` `POWERLAW`/`POWERLAW2`/`MD14`). Dos brechas abiertas y
+documentadas, ambas con causa identificada (no misteriosas): el residuo de ruido/población
+sistémico (~1.4-1.8x, ver Fase 2 parte A) y la extinción de galaxia anfitriona WV07 no
+implementada (afecta solo a clases que la declaran — 3 de las 5 ya corridas). A decidir con
+el usuario: implementar WV07 con una referencia más sólida antes de seguir escalando, o
+continuar a más clases con esta brecha ya cuantificada como caveat conocido.
