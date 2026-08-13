@@ -481,6 +481,105 @@ brecha sustancialmente pero sin cerrarla del todo. El residuo (~1.8x) probableme
 población/modelo de fuente (evaluación exacta de la superficie SALT2 vía `sncosmo` vs el
 código interno de SNANA, o la simplificación de `SIGMA_INT` coherente en vez de la covarianza
 completa de G10 — ambas ya señaladas como aproximaciones aceptadas desde Fase 1, no
-investigadas más a fondo aquí). Queda pendiente decidir con el usuario: seguir investigando el
-residuo, o proceder a Fase 2 parte B (SIMSED) con este ~1.8x como caveat explícito y
-cuantificado (mejor que el ~2x sin diagnosticar de Fase 1).
+investigadas más a fondo aquí). Decisión del usuario: proceder a Fase 2 parte B (SIMSED) con
+este ~1.8x como caveat explícito y cuantificado (mejor que el ~2x sin diagnosticar de Fase 1).
+
+# Fase 2 — parte B: primer PoC del wrapper SIMSED (`SNIa-91bg_DDF`)
+
+## Hallazgo que cambia el plan original: LightCurveLynx ya trae un lector SIMSED nativo
+
+Fase 0 concluyó "no hay lector de librería SIMSED nativo... hay que escribir un wrapper
+propio" (`SEDTemplate`/`SEDTemplateModel` + `GivenValueSampler` a mano). Al investigar para
+esta fase se encontró `lightcurvelynx.models.sed_template_model.SIMSEDModel` — una clase
+**completa y lista para usar**, no disponible (o no encontrada) en la versión de Fase 0:
+`SIMSEDModel.from_dir(simsed_dir, weights=...)` parsea `SED.INFO` (YAML), carga todos los
+templates (maneja `.gz` automáticamente), aplica `FLUX_SCALE`, y selecciona un template por
+objeto simulado vía `GivenValueSampler(weights=...)` ya integrado — exactamente la
+combinación que Fase 0 anticipaba tener que construir a mano. Esto reduce sustancialmente el
+riesgo/esfuerzo de ingeniería que se esperaba para esta fase.
+
+## Elegir la clase más simple: no era `TDE-MOSFIT`
+
+El plan original (basado en una lectura rápida de Fase 0) asumía `TDE-MOSFIT` como la más
+simple. Verificado contra los directorios reales en NLHPC: `SIMSED.TDE-MOSFIT` tiene **745**
+templates con **8** parámetros físicos (`TDE_INDEX Rph0 Tvis b bhmass eff lphoto starmass`) —
+no es simple en absoluto. Comparando las 11 clases SIMSED del catálogo:
+
+| clase | templates | NPAR |
+|---|---|---|
+| **`SIMSED.SNIa-91bg`** | **35** | **2** |
+| `SIMSED.KN-K17` | 330 | 4 |
+| `SIMSED.CART-MOSFIT` | 225 | 6 |
+| `SIMSED.ILOT-MOSFIT` | 385 | 6 |
+| `SIMSED.SNIax` | 1001 | 5 |
+| `SIMSED.SNIIn-MOSFIT` | 839 | 6 |
+| `SIMSED.SLSN-I-MOSFIT` | 960 | 9 |
+| `SIMSED.PISN-MOSFIT` | 1000 | 3 |
+| `SIMSED.SNII-NMF` | ~385 (+`COV.INFO`, modelo PCA) | 4 |
+| `SIMSED.TDE-MOSFIT` | 745 | 8 |
+| `SIMSED.KN-BULLA19` | *(directorio con 3 sub-variantes anidadas)* | — |
+
+`SNIa-91bg` es la más simple por márgen amplio: grilla regular 7×5 (stretch × color), sin
+covarianza espectral compleja — se eligió como primer PoC en su lugar.
+
+## Bug real encontrado en el dato de referencia de SNANA (no nuestro)
+
+`SED.INFO` de `SIMSED.SNIa-91bg` trae un typo real: la línea de comentario
+
+    $ template to all 91bg at low-z as from Gonzalez-Gaitan+14.
+
+usa `$` en vez de `#` (confirmado con `cat -A` en NLHPC). El parser de SNANA
+(`snlc_sim.exe`) lo tolera porque no exige YAML estricto, pero
+`SIMSEDModel._read_simsed_info_file()` sí hace `yaml.safe_load()` sobre el archivo completo, y
+ese carácter rompe el parseo. **No se modificó el archivo real de SNANA** — mismo patrón que
+`setup_salt2_local.py` de Fase 1: `setup_simsed_91bg_local.py` (nuevo) copia los 35 templates
++ una copia de `SED.INFO` con el fix de un carácter a
+`exploration/lightcurvelynx/simsed_91bg_local/` (no versionado, se regenera desde NLHPC).
+
+## Otro detalle de API real: `SIMSEDModel` valida sus parámetros en el constructor
+
+A diferencia de `SncosmoWrapperModel` (Fase 1), `SIMSEDModel` **exige** `distance` (distancia
+lumínica en pc, no `redshift` directamente) ya en el constructor — agregar parámetros después
+vía `.add_parameter()` no funciona porque la validación ocurre en `__init__`. Se agregó un
+sampler propio (`_luminosity_distance_pc`, misma cosmología `H0=70/Ωm=0.3` de Fase 2 parte A)
+que convierte `redshift_func` a distancia en pc, pasado junto con `ra`/`dec`/`t0` directo al
+`from_dir(...)`.
+
+## Resultado: `run_simsed_91bg_ddf_poc.py`, `NGENTOT_LC=2000` (igual que SNANA DDF real)
+
+Mismo patrón de Fase 1/2A: `H0=70` + ruido real de SNANA inyectado desde el inicio (no una
+brecha nueva por cerrar), extinción MW real por campo, SEARCHEFF real, `pipeline.postproc.qc`
+reusado sin modificar. `DNDZ: POWERLAW` (un tramo, más simple que el `POWERLAW2` de SNIa) y
+los pesos de cada uno de los 35 templates calculados con la bivariada normal correlacionada
+real (`GENPEAK_stretch=0.975 σ=0.096`, `GENPEAK_color=0.557 σ=0.175`,
+`SIMSED_REDCOR=-0.656`) evaluada en el `(stretch, color)` propio de cada template — no un peso
+uniforme.
+
+| | mediana SNR | p90 SNR | eficiencia |
+|---|---|---|---|
+| SNANA real (`SNIa-91bg_DDF`) | 0.769 | 2.087 | 36.15% (723/2000) |
+| LightCurveLynx (este PoC) | 0.890 (+15.7%) | 3.232 (+55%) | 49.65% (993/2000, **1.37x**) |
+
+**Corrió de punta a punta sin errores** (57.8s de simulación para 2000 objetos, curvas de luz
+con marcadores detectado/no-detectado reales, QC de 4 gráficos generado y visualmente
+verificado). La brecha de eficiencia (1.37x) es notablemente **menor** que la de SNIa/SALT2
+(1.8x) pese a que las brechas de SNR son de magnitud muy similar (mediana ~15%, p90 ~50-55%
+en ambas clases) — señal cruzada útil: el residuo de SNR parece ser un factor sistémico
+(no específico del modelo SALT2 vs SIMSED), pero su efecto en la eficiencia final depende de
+en qué parte de la curva SEARCHEFF cae la población de cada clase.
+
+## Archivos de esta parte
+
+- `setup_simsed_91bg_local.py` (nuevo) — copia local de `SIMSED.SNIa-91bg` con el fix de
+  `SED.INFO`, no versionada (se regenera).
+- `run_simsed_91bg_ddf_poc.py` + `.sbatch` (nuevo) — PoC principal.
+- `poc_output_91bg/summary.json` + `poc_output_91bg/qc/*.png` — resultado real.
+
+## Estado y siguiente decisión
+
+Primer PoC SIMSED exitoso: el lector nativo de LightCurveLynx funciona, el patrón de pesado
+por `SIMSED_REDCOR` es correcto, y la brecha de eficiencia (1.37x) es menor que la del PoC
+SALT2 de Fase 1/2A. Con dos clases ahora validadas de punta a punta (una SALT2 continua, una
+SIMSED discreta), hay una base razonable para decidir si escalar a las 10 clases SIMSED
+restantes del catálogo o seguir investigando el residuo de SNR sistémico primero — a decidir
+con el usuario.
