@@ -1183,15 +1183,17 @@ diferencias en cómo se evalúa la superficie SALT2/SIMSED entre `sncosmo`/Light
 código interno de SNANA, o simplificaciones aceptadas de dispersión intrínseca (`SIGMA_INT`
 coherente en vez de la covarianza completa de G10).
 
-**2. Extinción de host `WV07` no implementada — afecta a 8/14 clases, con efecto proporcional a
-cuán tenue es la clase intrínsecamente.** Decisión deliberada desde la ronda 1 (no un
-descuido): la función real de SNANA para el modelo WV07 (`GENAV_WV07()` en
-`sntools_genExpHalfGauss.c`) trae un bug histórico documentado en su propio código fuente. Se
-omitió (AV=0) en vez de arriesgar una reimplementación incorrecta. El efecto es medible y
-coherente: clases intrínsecamente brillantes/comunes (`SLSN-I` 1.54x, `PISN-STELLA-HECORE`
-1.50x, `PISN-MOSFIT` 1.74x) caen cerca de la banda sistémica pese a omitir extinción, mientras
-que clases intrínsecamente tenues (`CaRT` 8.50x con solo 16 detecciones reales de 2000,
-`SNIIn-MOSFIT` 5.05x con 37/2000) muestran el efecto amplificado — omitir un factor que oscurece
+**2. Extinción de host `WV07` no implementada — afecta a 9/14 clases** (`KN-K17`, `CaRT`,
+`SLSN-I`, `ILOT-MOSFIT`, `SNIIn-MOSFIT`, `PISN-MOSFIT`, `PISN-STELLA-HECORE`,
+`PISN-STELLA-HYDROGENIC`, `KN-BULLA19` — recuento corregido; una cuenta anterior decía 8/14 por
+error), **con efecto proporcional a cuán tenue es la clase intrínsecamente.** Decisión
+deliberada desde la ronda 1 (no un descuido): se había leído un comentario de bug histórico en
+`getRan_GEN_EXP_HALFGAUSS()` (`sntools_genExpHalfGauss.c`) y se asumió, por prudencia, que
+afectaba también al modelo WV07. El efecto es medible y coherente: clases intrínsecamente
+brillantes/comunes (`SLSN-I` 1.54x, `PISN-STELLA-HECORE` 1.50x, `PISN-MOSFIT` 1.74x) caen cerca
+de la banda sistémica pese a omitir extinción, mientras que clases intrínsecamente tenues
+(`CaRT` 8.50x con solo 16 detecciones reales de 2000, `SNIIn-MOSFIT` 5.05x con 37/2000)
+muestran el efecto amplificado — omitir un factor que oscurece
 sistemáticamente pesa mucho más cerca del umbral de detección.
 
 **Validación cruzada real de la causa 2** (Fase 2B ronda 3): al implementar el modelo de host
@@ -1213,7 +1215,8 @@ forzar una narrativa limpia.
   extrapolar a WFD sin probarlo primero sería especular.
 - **`WV07` real**: se decidió omitir por precaución, no se investigó si existe una
   referencia/implementación alternativa confiable (a diferencia de `PISN_PLK12`/`CC_S15`/`TDE`,
-  que sí se encontraron y verificaron esta sesión). Afecta a 8/14 clases.
+  que sí se encontraron y verificaron esta sesión). Afecta a 9/14 clases. **Actualización: ver
+  Fase 3 más abajo — se investigó y sí se encontró una referencia sólida.**
 - **Comparación contra más de un baseline**: todo se comparó contra la única campaña real
   disponible (`full_v5.3_10yrs`/v8) — no se probó si la brecha cuantitativa es estable entre
   distintas configuraciones OpSim o campañas.
