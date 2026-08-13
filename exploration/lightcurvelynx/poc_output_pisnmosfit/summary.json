@@ -1,0 +1,11 @@
+{
+  "class_key": "PISN-MOSFIT",
+  "ngentot_lc": 2000,
+  "n_with_obs": 1994,
+  "n_detected": 716,
+  "n_total_dump": 2000,
+  "sim_wall_time_s": 77.41372728347778,
+  "detection_efficiency_pct": 35.8,
+  "snr_median": 0.8139812193074016,
+  "snr_p90": 2.370062674477896
+}

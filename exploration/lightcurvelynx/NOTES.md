@@ -856,3 +856,141 @@ escalando a las 3 clases restantes que sí declaran WV07 (`ILOT-MOSFIT`, `SNIIn-
 suficientemente cubierto el catálogo SIMSED (8/11 clases, cobertura de todos los patrones de
 implementación: peso uniforme, `SIMSED_REDCOR`, extinción de host exponencial, 4 modelos
 `DNDZ` distintos) y cerrar la evaluación de LightCurveLynx con una recomendación final.
+
+# Fase 2 — parte B (continuación 3): investigación del caso `SNIax` + 3 clases más
+# (`ILOT-MOSFIT`, `SNIIn-MOSFIT`, `PISN-MOSFIT`)
+
+## 1. Root-cause de `SNIax`: el `.INPUT` real no es pura exponencial — se leyó incompleto
+
+Releyendo `SIMGEN_INCLUDE_SNIax.INPUT` línea por línea (no solo `grep`-eando las claves ya
+conocidas de `TDE-MOSFIT`, como se hizo en la ronda 2) aparecen dos líneas que la ronda anterior
+no vio:
+
+    GENTAU_AV:        1.7          # dN/dAV = exp(-AV/xxx)
+    GENSIG_AV:        0.6          # += Guass(AV,sigma)
+    GENRATIO_AV0:     4.0
+
+`SNIax` **no** es el caso "solo componente exponencial" que se le asignó — es una **mezcla
+exponencial + semi-Gaussiana**, con la componente Gaussiana pesada 4x más fuerte que la
+exponencial en `AV=0` (`GENRATIO_AV0`). El error de la ronda 2 fue de lectura, no de
+implementación: se generalizó el patrón de `TDE-MOSFIT` (que sí declara únicamente
+`GENTAU_AV`) sin verificar que `SNIax` no tuviera parámetros adicionales.
+
+**¿Es esto el modelo WV07 bugueado que se descartó en la ronda 1?** No — confirmado leyendo
+`snlc_sim.c::gen_AV()` completo: hay dos caminos de código completamente distintos.
+`GENAV_WV07()` (el que trae el bug histórico documentado, usado por `KN-K17`/`CaRT`/`SLSN-I`/
+`ILOT-MOSFIT`/`SNIIn-MOSFIT`/`PISN-MOSFIT` vía el flag real `GENAV_WV07: 1`, confirmado en sus
+`.INPUT`) solo se invoca si `INPUTS.WV07_GENAV_FLAG` está activo. `SNIax` no declara ese flag —
+usa el camino `INPUTS.GENPROFILE_AV.USE` → `getRan_GEN_EXP_HALFGAUSS()`
+(`sntools_genExpHalfGauss.c`), una función **refactorizada en Mar 2020** (D.Brout/R.Kessler) y
+con un bug de peso relativo distinto **corregido en Dic 2023** (`WGT_EXPON`/`WGT_GAUSS`
+invertidos) — el propio comentario del fix dice explícitamente: *"WV07 AV flag was never
+refactored to use this function, so this might be a harmless bug"*, confirmando que son dos
+funciones independientes con historiales de bugs separados. Implementable con confianza.
+
+## 2. Implementación real del algoritmo (no una aproximación)
+
+`make_exp_halfgauss_av_sampler()` (nuevo en `snana_params.py`) replica exactamente
+`getRan_GEN_EXP_HALFGAUSS()` con la versión ya corregida (Dic 2023):
+
+    WGT_EXPON = tau * (exp(-r0/tau) - exp(-r1/tau))
+    WGT_GAUSS = 0.5 * ratio * sqrt(2*pi*sig^2)
+
+Con probabilidad `WGT_EXPON/(WGT_EXPON+WGT_GAUSS)`: AV de una exponencial truncada en
+`[r0,r1]` (inversión de CDF). Si no: AV de una semi-Gaussiana (`peak=0` → solo lado positivo,
+`sig*|Gauss|`) por rechazo hasta caer en `[r0,r1]`. Verificado standalone contra la versión
+pura exponencial que se venía usando:
+
+| | mediana AV | media AV | p90 AV |
+|---|---|---|---|
+| pura exponencial (ronda 2, incorrecta para `SNIax`) | 0.908 | 1.079 | 2.328 |
+| mezcla real (`tau=1.7, sig=0.6, ratio=4.0`) | **0.493** | **0.670** | **1.515** |
+
+La mezcla real aplica **menos** extinción típica que la aproximación exponencial pura (68% de
+los objetos cae en la rama Gaussiana, con AV típico ~0.4-0.5, no en la cola exponencial de AV
+típico ~1.2-1.7) — el sesgo iba en la dirección opuesta a la esperada.
+
+## 3. Resultado: la brecha no se cerró — empeoró levemente
+
+`NGENTOT_LC=2000`, mismo pipeline, único cambio: el sampler de AV.
+
+| | SNR mediana | SNR p90 | detectados SNANA | detectados LCL | razón |
+|---|---|---|---|---|---|
+| ronda 2 (AV exponencial puro, incorrecto) | 0.761 | 2.054 | 175/2000 (8.75%) | 464/2000 (23.2%) | 2.65x |
+| ronda 3 (AV mezcla real, correcto) | 0.755 | 2.026 | 175/2000 (8.75%) | 476/2000 (23.8%) | **2.72x** |
+
+**Resultado honesto, no el esperado**: corregir el modelo de extinción (menos AV típico →
+objetos menos atenuados → más detecciones) empeoró la brecha en vez de cerrarla, exactamente
+como predecía el cálculo de AV típico del punto 2. Esto **descarta la extinción de host como
+la causa de la brecha anómala de `SNIax`** — con el modelo correcto implementado y verificado
+línea por línea contra `snlc_sim.c`, la brecha persiste casi sin cambio (2.65x→2.72x, dentro
+del ruido de simulación). La causa real de por qué `SNIax` queda fuera de la banda sistémica
+1.4-1.8x (que sí explica `TDE-MOSFIT`/`SNII-NMF`) sigue sin identificarse. Candidatos no
+descartados pero tampoco confirmados, sin investigar más a fondo esta ronda (mismo criterio de
+"documentar y decidir con el usuario" del resto de la sesión): `DNDZ: MD14` (reusado de
+`CaRT`/`SLSN-I`, que también mostraron brechas grandes en la ronda 1 — pero esas SÍ tenían
+extinción omitida, no es una comparación limpia); o un efecto de población/color específico de
+la plantilla SIMSED de `SNIax` no capturado por ninguno de los términos ya auditados en Fase 2
+parte A.
+
+## 4. Tres clases más: `ILOT-MOSFIT`, `SNIIn-MOSFIT`, `PISN-MOSFIT`
+
+Las 3 últimas del catálogo que declaran extinción de host (todas con el flag real
+`GENAV_WV07: 1`, confirmado — no el camino de `SNIax`, así que la omisión sigue siendo la
+decisión correcta y justificada, mismo criterio de la ronda 1). `ILOT-MOSFIT` y `SNIIn-MOSFIT`
+reusan `DNDZ: CC_S15` (ya validado en `SNII-NMF`). `PISN-MOSFIT` usa `DNDZ: PISN_PLK12` — un
+modelo que las rondas 1-2 habían descartado por "nombre propio sin fórmula obvia", pero que
+esta vez sí se encontró en el código fuente real (`snlc_sim.c`, bloque
+`INDEX_RATEMODEL_PISN`), sin necesidad de `h²`/`H0` en la forma funcional (a diferencia de
+`MD14`/`CC_S15`):
+
+    rate(z) = 1.98 + 6.38z + 6.558z² - 4.42z³ + 0.8312z⁴ - 0.0508z⁵   [/yr/Gpc³]
+
+`build_dndz_pisn_cdf()` (nuevo en `snana_params.py`) implementa esta fórmula exacta. Los 3
+`SED.INFO` reales parsean como YAML limpio (sin el problema de `TDE-MOSFIT`), no hizo falta
+sanitizar nada.
+
+## 5. Resultado: 4/4 corridas limpias esta ronda, `NGENTOT_LC=2000`
+
+| clase | extinción host | SNR mediana | SNR p90 | detectados SNANA | detectados LCL | razón |
+|---|---|---|---|---|---|---|
+| `SNIax` (corregido) | mezcla real (exp+semi-Gauss) | 0.755 | 2.026 | 175/2000 (8.75%) | 476/2000 (23.8%) | 2.72x |
+| `ILOT-MOSFIT` | omitida (WV07 real) | 0.694 | 1.714 | 73/2000 (3.65%) | 143/2000 (7.15%) | 1.96x |
+| `SNIIn-MOSFIT` | omitida (WV07 real) | 0.683 | 1.676 | 37/2000 (1.85%) | 187/2000 (9.35%) | 5.05x |
+| `PISN-MOSFIT` | omitida (WV07 real) | 0.814 | 2.370 | 411/2000 (20.55%) | 716/2000 (35.8%) | 1.74x |
+
+Las 3 clases con extinción omitida (`ILOT-MOSFIT`, `SNIIn-MOSFIT`, `PISN-MOSFIT`) caen dentro
+del mismo rango amplio 1.5-8.5x ya visto en la ronda 1 (`KN-K17` 2.56x, `CaRT` 8.5x, `SLSN-I`
+1.54x) — más evidencia de que ese rango, no una banda estrecha, es lo que produce omitir
+extinción de host, con la magnitud dependiendo de cuán débil es la clase intrínsecamente
+(`SNIIn-MOSFIT`, con solo 37 detecciones reales de 2000, es de nuevo el caso extremo, igual que
+`CaRT` en la ronda 1 con 16/2000).
+
+## 6. Estado del catálogo SIMSED: 10/11 clases cubiertas
+
+Con esta ronda: `SNIa-91bg`, `KN-K17`, `CaRT`, `SLSN-I`, `SNIax`, `TDE-MOSFIT`, `SNII-NMF`,
+`ILOT-MOSFIT`, `SNIIn-MOSFIT`, `PISN-MOSFIT` — 10 de las 11 clases SIMSED del catálogo (más
+`SNIa`/SALT2, 11 clases en total evaluadas). Solo queda `KN-BULLA19`, con una estructura de
+directorio anidada de 3 sub-variantes nunca investigada (ver Fase 2 parte B, sección "Elegir
+la clase más simple") — no evaluada aún, fuera del alcance de esta ronda.
+
+## Archivos de esta ronda
+
+- `snana_params.py` — `make_exp_halfgauss_av_sampler()` (mezcla real exp+semi-Gauss, fix del
+  caso `SNIax`), `build_dndz_pisn_cdf()` (fórmula `PISN_PLK12` real).
+- `run_simsed_poc.py` — config de `SNIax` corregida (`kind="exp_halfgauss"`), 3 configs nuevas
+  (`ILOT-MOSFIT`, `SNIIn-MOSFIT`, `PISN-MOSFIT`), dispatch de `host_av["kind"]` generalizado.
+- `poc_output_sniax/` (actualizado), `poc_output_ilotmosfit/`, `poc_output_sniinmosfit/`,
+  `poc_output_pisnmosfit/` — resultados reales (`summary.json` + 4 QC c/u).
+
+## Estado y siguiente decisión
+
+La investigación del caso `SNIax` produjo un resultado real y útil aunque no el esperado: se
+encontró y corrigió un error genuino de caracterización (mezcla exp+semi-Gauss real, no pura
+exponencial), implementado con el algoritmo exacto de SNANA verificado línea por línea contra
+el código fuente real — pero la corrección **no** explica la brecha anómala de `SNIax`, que
+sigue sin causa identificada. Esto es información real: descarta una hipótesis concreta en vez
+de dejarla sin probar. 10/11 clases SIMSED evaluadas de punta a punta, con hallazgos honestos
+en ambas direcciones (confirmaciones y refutaciones de hipótesis) documentados en todas las
+rondas. Suficiente cobertura para una recomendación final de la evaluación LightCurveLynx —
+`KN-BULLA19` queda como único pendiente conocido, no bloqueante.

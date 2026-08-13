@@ -225,6 +225,45 @@ def build_dndz_tde_cdf(
     return z_grid, cdf
 
 
+def build_dndz_pisn_cdf(
+    z_min: float,
+    z_max: float,
+    *,
+    scale: float = 1.0,
+    H0: float = 70.0,
+    Om0: float = 0.3,
+    n_grid: int = 2000,
+) -> tuple[np.ndarray, np.ndarray]:
+    """`DNDZ: PISN_PLK12` de SNANA -- polinomio de grado 5 ajustado a
+    arxiv.org/pdf/1111.3648.pdf Fig 2, leido directo de snlc_sim.c (bloque
+    `INDEX_RATEMODEL_PISN`, no una aproximacion ni un nombre sin formula
+    como se penso en Fase 2B ronda 1/2):
+
+        rate(z) = 1.98 + 6.38z + 6.558z^2 - 4.42z^3 + 0.8312z^4 - 0.0508z^5
+                  [/yr/Gpc^3], convertido a /yr/Mpc^3 (/1e9)
+
+    Sin dependencia de H0/h^2 en la forma funcional (a diferencia de
+    MD14/CC_S15) -- H0 solo entra via el elemento de volumen comovil.
+    `scale` = factor multiplicador opcional del `.INPUT` real (PISN-MOSFIT
+    no declara ninguno, scale=1.0 por defecto)."""
+    cosmo = FlatLambdaCDM(H0=H0, Om0=Om0)
+    z_grid = np.linspace(z_min, z_max, n_grid)
+    z2, z3, z4, z5 = z_grid ** 2, z_grid ** 3, z_grid ** 4, z_grid ** 5
+    rate_z = (1.98 + 6.38 * z_grid + 6.558 * z2 - 4.42 * z3 + 0.8312 * z4 - 0.0508 * z5)
+    rate_z = (rate_z / 1.0e9) * scale
+
+    dn_dz = np.array([
+        rate_z[i] * _comoving_volume_element(z_grid[i], cosmo) / (1.0 + z_grid[i])
+        for i in range(n_grid)
+    ])
+    cdf = np.cumsum(dn_dz)
+    cdf -= cdf[0]
+    if cdf[-1] <= 0:
+        raise ValueError("CDF de DNDZ PISN degenerada -- revisar z_min/z_max.")
+    cdf /= cdf[-1]
+    return z_grid, cdf
+
+
 def make_dndz_sampler(z_grid: np.ndarray, cdf: np.ndarray, *, seed: int | None = None):
     """Devuelve una funcion `sampler(size=None)` que samplea redshift por
     inversion de la CDF precomputada (interpolacion lineal)."""
@@ -275,13 +314,23 @@ def make_bifurcated_normal_sampler(
 def make_exp_av_sampler(tau: float, av_max: float, *, seed: int | None = None):
     """Extincion de galaxia anfitriona `dN/dAV = exp(-AV/tau)` truncada en
     [0, av_max] -- el caso "solo componente exponencial, sin nucleo
-    Gaussiano" que declaran TDE-MOSFIT (`GENTAU_AV: 0.4`) y SNIax
-    (`GENTAU_AV: 1.7`) en vez del modelo WV07 mixto (que sí se omitio en
-    esta fase, ver NOTES.md Fase 2 parte B -- ese es un modelo distinto,
-    con un historial de bugs documentado en el codigo real de SNANA que
-    hizo preferible no reimplementarlo de memoria). Esta version pura
-    exponencial es la formula estandar de inversion de CDF truncada, sin
-    esa complejidad -- CDF(AV) = (1-exp(-AV/tau)) / (1-exp(-av_max/tau))."""
+    Gaussiano" que declara TDE-MOSFIT (`GENTAU_AV: 0.4`, comentario real en
+    el .INPUT: "expon component only, no Gauss core") en vez del modelo
+    WV07 mixto (que sí se omitio, ver NOTES.md Fase 2 parte B -- ese es el
+    flag `GENAV_WV07`, con un historial de bugs documentado en el codigo
+    real de SNANA que hizo preferible no reimplementarlo de memoria).
+
+    Nota (Fase 2B ronda 3): SNIax se trato inicialmente como este mismo
+    caso puro, pero su .INPUT real SI declara `GENSIG_AV`/`GENRATIO_AV0`
+    ademas de `GENTAU_AV` -- es la mezcla exponencial+semi-Gaussiana de
+    `make_exp_halfgauss_av_sampler()`, no este caso. Ver esa funcion para
+    el caso mixto (distinto del WV07 bugueado -- confirmado leyendo
+    snlc_sim.c::gen_AV(), que llama a getRan_GEN_EXP_HALFGAUSS() para
+    GENTAU_AV/GENSIG_AV/GENRATIO_AV0 y solo usa GENAV_WV07() si el flag
+    `GENAV_WV07`/`WV07_REWGT_EXPAV` esta presente -- SNIax no lo declara).
+
+    Esta version pura exponencial es la formula estandar de inversion de
+    CDF truncada -- CDF(AV) = (1-exp(-AV/tau)) / (1-exp(-av_max/tau))."""
     rng = np.random.default_rng(seed)
     norm = 1.0 - np.exp(-av_max / tau)
 
@@ -292,6 +341,65 @@ def make_exp_av_sampler(tau: float, av_max: float, *, seed: int | None = None):
         return av if size is not None else float(av[0])
 
     sampler.__name__ = "exp_av_sampler"
+    return sampler
+
+
+def make_exp_halfgauss_av_sampler(
+    tau: float, sig: float, ratio: float, av_range: tuple[float, float],
+    peak: float = 0.0, *, seed: int | None = None,
+):
+    """Replica exacta de `getRan_GEN_EXP_HALFGAUSS()`
+    (~/github/SNANA_src/src/sntools_genExpHalfGauss.c, refactor de Mar 2020
+    por D.Brout/R.Kessler, bug de peso EXPON/GAUSS corregido en Dic 2023) --
+    mezcla exponencial truncada + semi-Gaussiana con seleccion de rama por
+    peso relativo real, **no** el flag legacy `GENAV_WV07` (ese sigue sin
+    implementar -- distinto camino de codigo en `snlc_sim.c::gen_AV()`,
+    con un historial de bugs propio documentado en el mismo archivo fuente,
+    "WV07 AV flag was never refactored to use this function"). Usada por
+    SNIax (`GENTAU_AV: 1.7`, `GENSIG_AV: 0.6`, `GENRATIO_AV0: 4.0`,
+    `GENRANGE_AV: 0.001 3.0`, sin `GENAV_WV07` en su .INPUT real).
+
+    Algoritmo (identico al C real, no una aproximacion):
+        WGT_EXPON = tau * (exp(-r0/tau) - exp(-r1/tau))
+        WGT_GAUSS = 0.5 * ratio * sqrt(2*pi*sig^2)
+        con prob. WGT_EXPON/(WGT_EXPON+WGT_GAUSS): exponencial truncada en
+        [r0,r1] (inversion de CDF); si no, semi-Gaussiana (`peak=0` ->
+        solo lado positivo, `|Gauss|*sig`) por rechazo hasta caer en
+        [r0,r1]."""
+    rng = np.random.default_rng(seed)
+    r0, r1 = av_range
+    wgt_expon = tau * (np.exp(-r0 / tau) - np.exp(-r1 / tau))
+    wgt_gauss = 0.5 * ratio * np.sqrt(2.0 * np.pi * sig ** 2)
+    p_expon = wgt_expon / (wgt_expon + wgt_gauss)
+    expmin, expmax = np.exp(-r0 / tau), np.exp(-r1 / tau)
+    expdif = expmin - expmax
+
+    def sampler(size=None, **_kwargs):
+        n = 1 if size is None else (size if np.isscalar(size) else size[0])
+        branch_expon = rng.uniform(0.0, 1.0, size=n) < p_expon
+        out = np.empty(n)
+
+        n_exp = int(branch_expon.sum())
+        if n_exp > 0:
+            u = rng.uniform(0.0, 1.0, size=n_exp)
+            out[branch_expon] = -tau * np.log(expmin - expdif * u)
+
+        gauss_idx = np.where(~branch_expon)[0]
+        n_gauss = len(gauss_idx)
+        if n_gauss > 0:
+            vals = np.full(n_gauss, np.nan)
+            pending = np.arange(n_gauss)
+            while len(pending) > 0:
+                g = rng.standard_normal(size=len(pending))
+                cand = sig * g + peak if peak > 0.0001 else sig * np.abs(g)
+                ok = (cand >= r0) & (cand <= r1)
+                vals[pending[ok]] = cand[ok]
+                pending = pending[~ok]
+            out[gauss_idx] = vals
+
+        return out if size is not None else float(out[0])
+
+    sampler.__name__ = "exp_halfgauss_av_sampler"
     return sampler
 
 

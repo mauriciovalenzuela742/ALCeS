@@ -63,8 +63,8 @@ from lightcurvelynx.utils.extrapolate import LinearDecay, ZeroPadding
 
 from snana_params import (
     build_dndz_powerlaw2_cdf, build_dndz_md14_cdf, build_dndz_ccs15_cdf, build_dndz_tde_cdf,
-    make_dndz_sampler, make_exp_av_sampler, make_correlated_normal_weights, SizeAwareFunctionNode,
-    ClippedExtinctionEffect,
+    build_dndz_pisn_cdf, make_dndz_sampler, make_exp_av_sampler, make_exp_halfgauss_av_sampler,
+    make_correlated_normal_weights, SizeAwareFunctionNode, ClippedExtinctionEffect,
 )
 from searcheff import parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency
 
@@ -112,10 +112,16 @@ CLASS_CONFIGS = {
         genrange_redshift=(0.011, 0.7),
         dndz=("md14", 6.0e-6),
         sntype=12,
-        # GENTAU_AV=1.7 -- "dN/dAV = exp(-AV/xxx)" explicito en el .INPUT
-        # real (no WV07), formula pura exponencial, implementable con
-        # confianza -- ver make_exp_av_sampler.
-        host_av=dict(tau=1.7, av_max=3.0, r_v=3.1),
+        # Fase 2B ronda 3: el .INPUT real de SNIax declara ADEMAS de
+        # GENTAU_AV=1.7 los parametros GENSIG_AV=0.6/GENRATIO_AV0=4.0 --
+        # NO es pura exponencial (la ronda 2 lo trato como tal por error,
+        # sin leer esas dos lineas). Es la mezcla exponencial+semi-Gaussiana
+        # de make_exp_halfgauss_av_sampler(), via GENPROFILE_AV en
+        # snlc_sim.c::gen_AV() -- un camino de codigo real y distinto del
+        # flag GENAV_WV07 (ese SI sigue bugueado/omitido, confirmado que
+        # SNIax no lo declara). GENRANGE_AV real: 0.001-3.0.
+        host_av=dict(kind="exp_halfgauss", tau=1.7, sig=0.6, ratio=4.0,
+                      av_range=(0.001, 3.0), r_v=3.1),
     ),
     "TDE-MOSFIT": dict(
         # SED.INFO real trae una linea suelta invalida ("tde_384.json",
@@ -128,8 +134,9 @@ CLASS_CONFIGS = {
         dndz=("tde", 1.0e-6),
         sntype=51,
         # GENAV_WV07 esta comentado (deshabilitado) en el .INPUT real de
-        # esta clase -- usa GENTAU_AV=0.4 puro, no el modelo WV07 mixto.
-        host_av=dict(tau=0.4, av_max=3.0, r_v=3.1),
+        # esta clase -- usa GENTAU_AV=0.4 puro (comentario real: "expon
+        # component only, no Gauss core"), no el modelo WV07 mixto.
+        host_av=dict(kind="exp", tau=0.4, av_max=3.0, r_v=3.1),
     ),
     "SNII-NMF": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNII-NMF",
@@ -143,6 +150,31 @@ CLASS_CONFIGS = {
             sigmas=dict(pc1=0.075, pc2=0.021, pc3=0.017),
             redcor={("pc1", "pc2"): 0.241, ("pc1", "pc3"): 0.052, ("pc2", "pc3"): -0.074},
         ),
+    ),
+    # Fase 2B ronda 3: las 3 clases SIMSED restantes que declaran WV07 real
+    # (confirmado `GENAV_WV07: 1` en su .INPUT, no el camino GENPROFILE_AV
+    # de SNIax) -- se omite host extinction (AV=0) por el mismo criterio
+    # que la ronda 1 (bug historico documentado en GENAV_WV07() real, ver
+    # NOTES.md). ILOT-MOSFIT y SNIIn-MOSFIT reusan DNDZ: CC_S15 (ya
+    # validado en SNII-NMF); PISN-MOSFIT usa el polinomio PISN_PLK12 real
+    # (formula encontrada en snlc_sim.c esta ronda, no una aproximacion).
+    "ILOT-MOSFIT": dict(
+        simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.ILOT-MOSFIT",
+        genrange_redshift=(0.011, 0.30),
+        dndz=("ccs15", 0.06),
+        sntype=61,
+    ),
+    "SNIIn-MOSFIT": dict(
+        simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNIIn-MOSFIT",
+        genrange_redshift=(0.03, 2.0),
+        dndz=("ccs15", 0.0235),
+        sntype=45,
+    ),
+    "PISN-MOSFIT": dict(
+        simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.PISN-MOSFIT",
+        genrange_redshift=(0.02, 2.4),
+        dndz=("pisn", 1.0),
+        sntype=70,
     ),
 }
 
@@ -222,6 +254,8 @@ def main(class_key: str):
         z_grid, cdf = build_dndz_ccs15_cdf(scale=dndz_params, z_min=z_min, z_max=z_max)
     elif dndz_kind == "tde":
         z_grid, cdf = build_dndz_tde_cdf(rate0=dndz_params, z_min=z_min, z_max=z_max)
+    elif dndz_kind == "pisn":
+        z_grid, cdf = build_dndz_pisn_cdf(scale=dndz_params, z_min=z_min, z_max=z_max)
     else:
         raise ValueError(f"dndz_kind desconocido: {dndz_kind}")
     redshift_func = SizeAwareFunctionNode(make_dndz_sampler(z_grid, cdf, seed=SEED_BASE + 1), node_label="redshift")
@@ -256,14 +290,20 @@ def main(class_key: str):
     source_model.add_effect(mw_extinction)
 
     if "host_av" in cfg:
-        # extincion de host real (modelo exponencial puro, ver
-        # make_exp_av_sampler) -- a diferencia de la ronda 1, esta clase SI
-        # declara un modelo de AV implementable con confianza.
+        # extincion de host real -- dos variantes reales de SNANA
+        # (snlc_sim.c::gen_AV()), ninguna es el flag GENAV_WV07 (ese sigue
+        # sin implementar, ver NOTES.md): "exp" = solo componente
+        # exponencial (TDE-MOSFIT); "exp_halfgauss" = mezcla real
+        # exponencial+semi-Gaussiana via GENPROFILE_AV (SNIax).
         hp = cfg["host_av"]
-        av_func = SizeAwareFunctionNode(
-            make_exp_av_sampler(tau=hp["tau"], av_max=hp["av_max"], seed=SEED_BASE + 8),
-            node_label="host_av",
-        )
+        if hp.get("kind") == "exp_halfgauss":
+            av_sampler_fn = make_exp_halfgauss_av_sampler(
+                tau=hp["tau"], sig=hp["sig"], ratio=hp["ratio"],
+                av_range=hp["av_range"], seed=SEED_BASE + 8,
+            )
+        else:
+            av_sampler_fn = make_exp_av_sampler(tau=hp["tau"], av_max=hp["av_max"], seed=SEED_BASE + 8)
+        av_func = SizeAwareFunctionNode(av_sampler_fn, node_label="host_av")
 
         def _av_to_ebv(size=None, host_av=None, **_kwargs):
             return np.asarray(host_av) / hp["r_v"]
@@ -274,7 +314,7 @@ def main(class_key: str):
         )
         source_model.add_effect(host_extinction)
         print(f"[{time.time()-t_start:.1f}s] extincion de host real aplicada "
-              f"(GENTAU_AV={hp['tau']}, R_V={hp['r_v']})")
+              f"(kind={hp.get('kind', 'exp')}, GENTAU_AV={hp['tau']}, R_V={hp['r_v']})")
 
     print(f"[{time.time()-t_start:.1f}s] SIMSEDModel cargado ({len(source_model)} templates)")
 
