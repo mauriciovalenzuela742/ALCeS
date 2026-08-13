@@ -1112,3 +1112,120 @@ Catálogo SIMSED/SALT2 completo (14/14 clases planificadas). No quedan clases SI
 sin evaluar en el catálogo activo del proyecto. Recomendación: con esta cobertura, el próximo
 paso natural es una recomendación final consolidada de la evaluación LightCurveLynx (síntesis
 de las 4 rondas de Fase 2B + Fase 1/2A), no más escalado de clases — a decidir con el usuario.
+
+# Recomendación final — LightCurveLynx como reemplazo de SNANA
+
+Síntesis de Fase 0 (spike técnico) → Fase 1 (PoC SNIa) → Fase 2 parte A (cierre de brecha de
+ruido) → Fase 2 parte B, 4 rondas (cobertura SIMSED completa). 14 clases evaluadas de punta a
+punta contra baselines DDF reales de la campaña `full_v5.3_10yrs` (v8).
+
+## Veredicto: GO condicional — viable como motor de simulación, no listo para reemplazo directo
+
+LightCurveLynx **sí puede reproducir mecánicamente** cualquier clase del catálogo (SALT2 y las
+14 variantes SIMSED, incluyendo los 5 modelos `DNDZ` reales del catálogo) con parámetros reales
+de SNANA, extinción MW real, eficiencia de detección real (SEARCHEFF), y una ventaja de
+velocidad de ~150x sobre SNANA en throughput crudo — pero **ninguna corrida coincide
+cuantitativamente** con SNANA todavía. La eficiencia de detección simulada sale sistemáticamente
+más alta, con razones LCL/SNANA entre **1.37x y 8.50x** (promedio 2.57x) según la clase. Esto no
+es un fallo binario ("no sirve") ni una confirmación limpia ("listo para producción") — es una
+herramienta con mecánica sólida y una calibración cuantitativa pendiente, con las causas
+conocidas ya diagnosticadas con precisión variable.
+
+## Tabla completa — 14 clases, ordenadas por razón LCL/SNANA
+
+| clase | modelo | extinción de host | SNANA real | LightCurveLynx | razón |
+|---|---|---|---|---|---|
+| `SNIa-91bg` | SIMSED (35 templates) | no declarada | 723/2000 (36.15%) | 993/2000 (49.65%) | 1.37x |
+| `SNII-NMF` | SIMSED (384, PCA) | no declarada | 356/2000 (17.8%) | 498/2000 (24.9%) | 1.40x |
+| `PISN-STELLA-HYDROGENIC` | SIMSED (6) | omitida (WV07 real) | 4268/20000 (21.34%) | 6106/20000 (30.53%) | 1.43x |
+| `PISN-STELLA-HECORE` | SIMSED (14) | omitida (WV07 real) | 384/2000 (19.2%) | 577/2000 (28.85%) | 1.50x |
+| `SLSN-I` | SIMSED (960) | omitida (WV07 real) | 824/2000 (41.2%) | 1266/2000 (63.3%) | 1.54x |
+| `TDE-MOSFIT` | SIMSED (742) | **implementada** (exp. pura) | 812/2000 (40.6%) | 1277/2000 (63.85%) | 1.57x |
+| `PISN-MOSFIT` | SIMSED (1000) | omitida (WV07 real) | 411/2000 (20.55%) | 716/2000 (35.8%) | 1.74x |
+| `SNIa` | SALT2 (sncosmo H17) | no implementada (solo MW) | 597/2000 (29.85%) | 1086/2000 (54.3%) | 1.82x |
+| `ILOT-MOSFIT` | SIMSED (385) | omitida (WV07 real) | 73/2000 (3.65%) | 143/2000 (7.15%) | 1.96x |
+| `KN-K17` | SIMSED (329) | omitida (WV07 real) | 82/2000 (4.1%) | 210/2000 (10.5%) | 2.56x |
+| `SNIax` | SIMSED (1001) | **implementada** (mezcla real) | 175/2000 (8.75%) | 476/2000 (23.8%) | 2.72x |
+| `KN-BULLA19` | SIMSED (550) | omitida (WV07 real) | 103/2000 (5.15%) | 294/2000 (14.7%) | 2.85x |
+| `SNIIn-MOSFIT` | SIMSED (839) | omitida (WV07 real) | 37/2000 (1.85%) | 187/2000 (9.35%) | 5.05x |
+| `CaRT` | SIMSED (225) | omitida (WV07 real) | 16/2000 (0.8%) | 136/2000 (6.8%) | 8.50x |
+
+## Lo que sí funciona sin reservas
+
+- **Ingesta de OpSim**: exacta, sin transformación de columnas, mismo schema que el simulador
+  oficial de Rubin (Fase 0 punto 3).
+- **Extinción MW**: completa, más flexible que SNANA (soporta más leyes de extinción que las
+  que SNANA usa hoy), verificada por campo real (Fase 1 punto 6).
+- **SIMSED nativo**: `SIMSEDModel.from_dir()` funciona para las 14 variantes probadas — 12
+  peso uniforme, 2 con `SIMSED_REDCOR` (1D y 3D) — cubriendo 5 modelos `DNDZ` reales
+  (`POWERLAW`, `POWERLAW2`, `MD14`, `CC_S15`, `TDE`, `PISN_PLK12`).
+- **SEARCHEFF real**: implementado como post-proceso (`searcheff.py`) reusando los archivos de
+  calibración reales de SNANA, mismo `PHOTFLAG`/criterio de detección en ambos lados de la
+  comparación.
+- **Rendimiento**: ~150x más rápido en throughput crudo (Fase 0), confirmado en cada PoC
+  posterior (2000 objetos DDF en 50-90s de wall time, incluida ingesta completa de OpSim).
+- **Orquestación**: patrón `dask.distributed.LocalCluster` dentro de un job SLURM único
+  validado con 3.16x de speedup real (Fase 1 punto 8b) — nunca se necesitó tocar el login node
+  en ninguna corrida de toda la evaluación.
+
+## Las dos causas reales de la brecha cuantitativa (diagnosticadas, ninguna es un misterio difuso)
+
+**1. Residuo sistémico de ruido/población (~1.4-1.8x), presente incluso sin extinción de host
+omitida.** Diagnosticado en dos rondas reales de investigación (Fase 1 punto 7b, Fase 2 parte
+A): se identificaron y corrigieron dos causas concretas (`H0=73`→`70` sin verificar, y el
+modelo de ruido propio de LightCurveLynx vs las columnas `SKYSIG`/`PSF`/`ZPT` reales de SNANA,
+inyectadas directamente desde Fase 2A en adelante) — la brecha se redujo de ~2x a ~1.4-1.8x
+con ambos fixes, pero no se cerró del todo. Las clases "limpias" (sin extinción de host que
+declarar: `SNIa-91bg`, `SNII-NMF`) y las que sí implementan extinción de host correctamente
+(`TDE-MOSFIT`) caen todas en esta misma banda — señal consistente de que el residuo es
+sistémico, no específico de una clase o un modelo de fuente. Causa más probable no confirmada:
+diferencias en cómo se evalúa la superficie SALT2/SIMSED entre `sncosmo`/LightCurveLynx y el
+código interno de SNANA, o simplificaciones aceptadas de dispersión intrínseca (`SIGMA_INT`
+coherente en vez de la covarianza completa de G10).
+
+**2. Extinción de host `WV07` no implementada — afecta a 8/14 clases, con efecto proporcional a
+cuán tenue es la clase intrínsecamente.** Decisión deliberada desde la ronda 1 (no un
+descuido): la función real de SNANA para el modelo WV07 (`GENAV_WV07()` en
+`sntools_genExpHalfGauss.c`) trae un bug histórico documentado en su propio código fuente. Se
+omitió (AV=0) en vez de arriesgar una reimplementación incorrecta. El efecto es medible y
+coherente: clases intrínsecamente brillantes/comunes (`SLSN-I` 1.54x, `PISN-STELLA-HECORE`
+1.50x, `PISN-MOSFIT` 1.74x) caen cerca de la banda sistémica pese a omitir extinción, mientras
+que clases intrínsecamente tenues (`CaRT` 8.50x con solo 16 detecciones reales de 2000,
+`SNIIn-MOSFIT` 5.05x con 37/2000) muestran el efecto amplificado — omitir un factor que oscurece
+sistemáticamente pesa mucho más cerca del umbral de detección.
+
+**Validación cruzada real de la causa 2** (Fase 2B ronda 3): al implementar el modelo de host
+`no`-WV07 real y correctamente (la mezcla exponencial+semi-Gaussiana de `SNIax`, distinta del
+flag `GENAV_WV07` bugueado — confirmado leyendo `snlc_sim.c::gen_AV()` línea por línea), la
+corrección **no** cerró la brecha de esa clase (2.65x→2.72x, empeoró levemente) — refutando
+extinción como la causa en ese caso puntual y confirmando que `SNIax` es una anomalía real
+seguramente ligada a la causa 1 (residuo sistémico), no a extinción. Este es el único resultado
+de las 4 rondas que contradice una hipótesis en vez de confirmarla — se documentó como tal, sin
+forzar una narrativa limpia.
+
+## Lo que nunca se probó (límites reales de esta evaluación, no ocultos)
+
+- **Escala WFD real**: todas las 14 clases se corrieron a escala DDF (`NGENTOT_LC=2000`,
+  excepto `PISN-STELLA-HYDROGENIC` a 20000) — la escala WFD real de producción es
+  `NGENTOT_LC=200,000` por clase, 100x más. El patrón `dask` está validado (Fase 1 punto 8b)
+  pero nunca se corrió a este volumen real; `PISN-STELLA-HYDROGENIC` (10x escala) ya mostró que
+  la memoria necesaria escala con N de forma no trivial (`--mem=16G` no alcanzó, `64G` sí) —
+  extrapolar a WFD sin probarlo primero sería especular.
+- **`WV07` real**: se decidió omitir por precaución, no se investigó si existe una
+  referencia/implementación alternativa confiable (a diferencia de `PISN_PLK12`/`CC_S15`/`TDE`,
+  que sí se encontraron y verificaron esta sesión). Afecta a 8/14 clases.
+- **Comparación contra más de un baseline**: todo se comparó contra la única campaña real
+  disponible (`full_v5.3_10yrs`/v8) — no se probó si la brecha cuantitativa es estable entre
+  distintas configuraciones OpSim o campañas.
+- **Integración real de pipeline**: nada de esto toca `pipeline/orchestrate/` (Capa 3) ni
+  ninguna capa de producción — es exploración aislada en `exploration/lightcurvelynx/`, sin
+  ningún archivo de producción modificado.
+
+## Recomendación concreta
+
+**No reemplazar SNANA todavía.** La brecha cuantitativa (1.37x-8.50x) es demasiado grande y
+variable por clase para usar LightCurveLynx como fuente de verdad científica en su estado
+actual. **Sí vale la pena seguir invirtiendo** — la mecánica funciona en las 14 clases del
+catálogo, dos causas reales de brecha ya están diagnosticadas con precisión (no es una caja
+negra), y la ventaja de velocidad (~150x) es lo bastante grande como para que cerrar la
+calibración cuantitativa sea un objetivo con retorno real, no un ejercicio académico.
