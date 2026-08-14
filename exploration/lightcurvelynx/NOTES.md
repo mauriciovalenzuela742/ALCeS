@@ -2307,3 +2307,71 @@ tocó el panel de curvas de luz de esas 19 (no los otros 3, que siguen siendo el
 esas mismas 19 clases, y las ~57 clases restantes sin ninguna corrida de LightCurveLynx
 (LCLIB de variables, NON1A adicionales, etc.), quedan con el panel de muestra aleatoria -- no
 hay ningún dato real ni sustituto disponible para esas todavía.
+
+# Fase 9 -- barrido de 5 semillas para `SNIa-91bg-elastic`/`SNIax-elastic`: el bake-off de codificación queda cerrado
+
+## Motivación
+
+Las dos clases auxiliares diagnósticas del bake-off de codificación (Fase 6-7) -- `SNIa-91bg-elastic`
+y `SNIax-elastic` en `run_simsed_poc.py`, sin contraparte SNANA real -- seguían en una sola corrida
+cada una. Los ratios de codificación reportados (~1.15x para `SNIa-91bg`, ~1.07x para `SNIax`)
+combinaban un lado ya con 5 semillas (el NON1ASED) contra el otro de una sola corrida (el
+SIMSED-elastic) -- una comparación asimétrica en confiabilidad. Correr las 4 semillas restantes de
+ambas clases cierra esa asimetría.
+
+## Corridas: dos tandas, sin incidentes de cuota
+
+Headroom verificado antes de empezar (~1GB+, escritura de prueba de 1.2GB exitosa) -- suficiente
+para las 8 corridas nuevas sin liberar espacio (referencia: `phot_df.parquet` de
+`SNIa-91bg-elastic` ~106MB/semilla, de `SNIax-elastic` ~121MB/semilla, ~908MB de pico si las 8
+corrieran en paralelo). Por margen de seguridad se corrieron en dos tandas de 4 (primero
+`SNIa-91bg-elastic`, después `SNIax-elastic`) en vez de las 8 a la vez -- reduce el pico
+simultáneo sin costar tiempo real (cada tanda corre en paralelo internamente). Las 8 corridas
+terminaron limpias (`SNIa-91bg-elastic` ~7 min c/u; `SNIax-elastic` ~20 min c/u, misma carga de
+1001 templates que su par NON1ASED).
+
+## Resultados: los dos bake-offs quedan resueltos con evidencia sólida
+
+| Semilla | `SNIa-91bg-elastic` (SIMSED_REDCOR) | `SNIax-elastic` (SIMSED_GRIDONLY) |
+|---|---:|---:|
+| 0 | 289/2000 = 14.45% | 214/2000 = 10.70% |
+| 1 | 298/2000 = 14.90% | 225/2000 = 11.25% |
+| 2 | 311/2000 = 15.55% | 212/2000 = 10.60% |
+| 3 | 299/2000 = 14.95% | 209/2000 = 10.45% |
+| 4 | 309/2000 = 15.45% | 218/2000 = 10.90% |
+| **media** | **15.06% ± 0.40%** | **10.78% ± 0.28%** |
+
+Comparado contra la media de 5 semillas del lado NON1ASED correspondiente (ya conocida de Fase 6/8):
+
+- **`SNIa-91bg`**: SIMSED_REDCOR 15.06% ± 0.40% vs. NON1ASED 16.57% ± 0.59% -- **razón final ~1.10x**
+  (baja del ~1.23x de una sola semilla, y del ~1.15x de la estimación intermedia con solo el lado
+  NON1ASED promediado). Las bandas de incertidumbre de ambos lados **ya no se solapan** -- es un
+  efecto real y medido con confianza, no una estimación de un solo punto.
+- **`SNIax`**: SIMSED-elastic 10.78% ± 0.28% vs. NON1ASED 10.52% ± 0.48% -- **razón final ~0.98x**,
+  **indistinguible de 1.0** (las bandas se solapan por completo, la diferencia es más chica que
+  cualquiera de los dos errores estándar). El efecto de codificación desaparece por completo cuando
+  no hay `SIMSED_REDCOR` que perder al convertir a NON1ASED.
+
+Ambos resultados refuerzan, ahora con la evidencia más sólida disponible en todo el proyecto para
+esta pregunta específica, la conclusión de Fase 6-7: **el efecto de codificación SIMSED→NON1ASED
+es real pero específico de clases con ponderación correlacionada (`SIMSED_REDCOR`)** -- no una
+propiedad general del formato NON1ASED en sí. Para clases de peso ya uniforme (`SIMSED_GRIDONLY`,
+la mayoría del catálogo de 14 SIMSED), convertir a NON1ASED no debería introducir ningún sesgo de
+población por sí solo.
+
+## Archivos de esta fase
+
+- `docs/lcl_qc/lcl_qc_index.json` -- notas de `SNIa-91bg (NON1ASED)` y `SNIax` (SIMSED) actualizadas
+  con los ratios finales de 5 semillas por lado.
+- Sin archivos nuevos de código; sin incidentes de cuota (headroom suficiente desde el inicio).
+
+## Recomendación final (Fase 9)
+
+**Sigue GO condicional.** El bake-off de codificación queda cerrado con evidencia sólida en ambas
+direcciones -- ya no depende de comparar una sola corrida contra un promedio de 5. Con esto, las
+19 clases del catálogo principal y las 2 clases auxiliares diagnósticas tienen todas banda de
+incertidumbre real de 5 semillas; no queda ninguna comparación de este proyecto basada en una sola
+corrida sin cuantificar su varianza. La causa raíz del residuo sistémico multiplicativo (Fase 3-4,
+SEARCHEFF/encoding en Fase 6, brillo sin ruido en Fase 7) sigue siendo la prioridad para trabajo
+futuro -- ninguna de las fases de reproducibilidad (5, 8, 9) cambia esa conclusión, solo la hacen
+más confiable.

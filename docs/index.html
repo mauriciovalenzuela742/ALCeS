@@ -1028,14 +1028,14 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       la propia codificación del modelo en SNANA (SIMSED con pesos correlacionados vs. NON1ASED con pesos
       uniformes) cambia el resultado ~1.15–1.23x sobre los mismos templates físicos y el mismo rango de
       redshift. Fase 7 confirmó que ese efecto es específico de clases con <code>SIMSED_REDCOR</code> (en una
-      clase de peso ya uniforme el efecto cae a ~1.07x), extendió <code>NON1ASED</code> a 4 clases más, y
+      clase de peso ya uniforme el efecto es indistinguible de 1.0), extendió <code>NON1ASED</code> a 4 clases más, y
       encontró el hallazgo más contraintuitivo de toda la evaluación: comparando el brillo simulado real (sin
       ruido) contra SNANA, LightCurveLynx resulta <strong>más tenue</strong>, no más brillante — lo que descarta
       "plantillas demasiado brillantes" como explicación del sobre-conteo y deja la causa raíz en el lado del
       ruido/SNR o la forma de la curva de luz, no en el flujo simulado en sí.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Once fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Doce fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1100,7 +1100,13 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <li>
         <span class="step-n">9</span>
         <div class="step-body">
-          <p><strong><code>SNIax</code> completa el catálogo de 5 semillas</strong> — headroom real verificado antes de tocar nada (~117MB, apenas alcanzaba para 1 de las 4 semillas que faltaban): se liberó un solo archivo grande ya completamente resumido en el dashboard (<code>PISN-STELLA-HYDROGENIC</code> semilla 4, ~1.3GB) en vez de varios chicos — una sola operación, mismo criterio de "solo lo ya documentado" que la limpieza anterior. Las 4 semillas corrieron limpias esta vez (~20 min cada una). Resultado: 7.06x ± 0.32 (rango 6.78-7.65x) — la semilla 0 (7.65x), la única disponible cuando se publicó por primera vez en Fase 7, volvió a ser la más alta de las 5, mismo patrón que absolutamente todas las demás clases del catálogo. Con esto, las 19 clases del catálogo (excepto las 4 auxiliares <code>*-elastic</code>/diagnósticas, que no tienen contraparte SNANA real) tienen banda de incertidumbre real de 5 semillas.</p>
+          <p><strong><code>SNIax</code> completa el catálogo de 5 semillas</strong> — headroom real verificado antes de tocar nada (~117MB, apenas alcanzaba para 1 de las 4 semillas que faltaban): se liberó un solo archivo grande ya completamente resumido en el dashboard (<code>PISN-STELLA-HYDROGENIC</code> semilla 4, ~1.3GB) en vez de varios chicos — una sola operación, mismo criterio de "solo lo ya documentado" que la limpieza anterior. Las 4 semillas corrieron limpias esta vez (~20 min cada una). Resultado: 7.06x ± 0.32 (rango 6.78-7.65x) — la semilla 0 (7.65x), la única disponible cuando se publicó por primera vez en Fase 7, volvió a ser la más alta de las 5, mismo patrón que absolutamente todas las demás clases del catálogo. Con esto, las 19 clases del catálogo (excepto las 2 auxiliares <code>*-elastic</code>/diagnósticas, que no tienen contraparte SNANA real) tienen banda de incertidumbre real de 5 semillas.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">10</span>
+        <div class="step-body">
+          <p><strong>Las 2 clases <code>*-elastic</code> completan su barrido, y el bake-off de codificación queda cerrado con evidencia sólida</strong> — headroom verificado de nuevo (~1GB, esta vez sin necesidad de liberar espacio), corridas en dos tandas (<code>SNIa-91bg-elastic</code> primero, <code>SNIax-elastic</code> después) para mantener el margen cómodo. Con ambos lados del bake-off ya con 5 semillas completas, los números se refinan: <code>SNIa-91bg</code> (<code>SIMSED_REDCOR</code>) pasa de la estimación intermedia de ~1.15x a <strong>~1.10x</strong> (15.06% ± 0.40% vs. 16.57% ± 0.59%, bandas que ya no se solapan — efecto real). <code>SNIax</code> (<code>SIMSED_GRIDONLY</code>, peso ya uniforme) pasa de ~1.07x a <strong>~0.98x, indistinguible de 1.0</strong> (10.78% ± 0.28% vs. 10.52% ± 0.48%, bandas que se solapan por completo). Confirma con la evidencia más sólida hasta ahora que el efecto de codificación es real pero específico de clases con <code>SIMSED_REDCOR</code> — no una propiedad general del formato <code>NON1ASED</code>.</p>
         </div>
       </li>
     </ol>
@@ -1161,20 +1167,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         jitter sin corregir.</p>
       </div>
       <div class="cause-card confirmed">
-        <p class="cause-label">Hallazgo nuevo (Fase 6-7) — la codificación del modelo importa, pero solo cuando hay pesos correlacionados que perder</p>
-        <h3>SIMSED_REDCOR vs. NON1ASED: mismos templates, ~1.15x de diferencia (en SNIa-91bg)</h3>
-        <p>Bake-off LCL-vs-LCL con <code>SNIa-91bg</code>: los mismos 35 templates físicos, al mismo
-        <code>GENRANGE_REDSHIFT</code> (0.011–1.2), dan 289/2000 (14.45%) detectados vía
-        <code>SIMSED_REDCOR</code> (población correlacionada real stretch/color, una sola corrida) contra un
-        promedio de 331/2000 (16.57%, 5 semillas) vía <code>NON1ASED</code> (peso uniforme 1/35, el que asigna
-        la herramienta oficial <code>convert_SIMSED_to_NON1ASED.py</code> de SNANA) — ~1.15x de diferencia solo
-        por la codificación. La semilla 0 sola (17.75%) daba 1.23x, pero resultó ser la más alta de las 5, no
-        la típica. No es un bug de LightCurveLynx — es una diferencia real de población simulada entre dos
-        codificaciones de SNANA para la misma clase física. Fase 7 repitió el mismo bake-off en
+        <p class="cause-label">Hallazgo nuevo (Fase 6-9) — la codificación del modelo importa, pero solo cuando hay pesos correlacionados que perder</p>
+        <h3>SIMSED_REDCOR vs. NON1ASED: mismos templates, ~1.10x de diferencia (en SNIa-91bg); ~1.0x en una clase de peso uniforme</h3>
+        <p>Bake-off LCL-vs-LCL con <code>SNIa-91bg</code>, ambos lados ya con 5 semillas completas (Fase 9):
+        los mismos 35 templates físicos, al mismo <code>GENRANGE_REDSHIFT</code> (0.011–1.2), dan
+        15.06% ± 0.40% detectados vía <code>SIMSED_REDCOR</code> (población correlacionada real
+        stretch/color) contra 16.57% ± 0.59% vía <code>NON1ASED</code> (peso uniforme 1/35, el que asigna
+        la herramienta oficial <code>convert_SIMSED_to_NON1ASED.py</code> de SNANA) — <strong>~1.10x</strong>
+        de diferencia solo por la codificación (las bandas de incertidumbre ya no se solapan, es un efecto
+        real, no ruido). No es un bug de LightCurveLynx — es una diferencia real de población simulada
+        entre dos codificaciones de SNANA para la misma clase física. El mismo bake-off en
         <code>SNIax</code>, cuyo peso SIMSED ya es uniforme nativo (<code>SIMSED_GRIDONLY</code>, sin
-        <code>SIMSED_REDCOR</code> que perder): 214/2000 (10.7%) vs. 228/2000 (11.4%) — solo ~1.07x, consistente
-        con ruido de una sola semilla. Confirma la hipótesis: el efecto viene de perder la ponderación
-        correlacionada real al convertir, no del formato <code>NON1ASED</code> en sí.</p>
+        <code>SIMSED_REDCOR</code> que perder), también con 5 semillas por lado: 10.78% ± 0.28% vs.
+        10.52% ± 0.48% — <strong>~0.98x, indistinguible de 1.0</strong> (las bandas se solapan por
+        completo). Confirma con evidencia sólida la hipótesis: el efecto viene específicamente de perder
+        la ponderación correlacionada real al convertir, no del formato <code>NON1ASED</code> en sí.</p>
       </div>
       <div class="cause-card confirmed">
         <p class="cause-label">Hallazgo mayor (Fase 7) — comparación directa de brillo, sin ruido, contradice la hipótesis obvia</p>
@@ -1222,7 +1229,6 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
           re-corrió retroactivamente el catálogo completo con el código viejo.</li>
           <li><strong>Más de un baseline</strong> — todo contra la única campaña real disponible (v8).</li>
           <li><strong>Integración de pipeline</strong> — nada toca Capa 3 ni ningún archivo de producción.</li>
-          <li><strong>Barrido de 5 semillas <code>SIMSED-elastic</code>/<code>SNIa-91bg-elastic</code></strong> — las 2 clases auxiliares diagnósticas del bake-off de codificación (Fase 6-7) siguen en 1 sola corrida cada una; no tienen contraparte SNANA real, así que no afectan ningún ratio publicado, pero acotarían mejor el ~1.15x/~1.07x de efecto de codificación reportado.</li>
           <li><strong>Comparación de brillo sin ruido</strong> — un solo caso (<code>SNIa-91bg</code>, Fase 7); extender a más clases y confirmar si el residuo de ~0.2–0.6 mag es consistente en todo el catálogo queda pendiente.</li>
         </ul>
       </div>
