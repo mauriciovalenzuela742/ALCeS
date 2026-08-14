@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-14T06:07:18+00:00",
+  "generated_at": "2026-08-14T10:30:00+00:00",
   "campaign_ref": "full_v5.3_10yrs (baselines DDF reales)",
-  "phase": "Fase 5 -- 5 semillas independientes por clase SIMSED/SALT2 (seed_index 0-4), codigo con 3 bugs de reproducibilidad de LightCurveLynx corregidos. Fase 6 -- primera clase NON1ASED (SNIa-91bg, corrida unica seed_index=0)",
+  "phase": "Fase 5 -- 5 semillas independientes por clase SIMSED/SALT2 (seed_index 0-4), codigo con 3 bugs de reproducibilidad de LightCurveLynx corregidos. Fase 6 -- primera clase NON1ASED (SNIa-91bg, 5 semillas) + verificacion SEARCHEFF + bake-off de codificacion. Fase 7 -- SNIax bake-off (confirma que el efecto de codificacion es especifico de SIMSED_REDCOR), cobertura NON1ASED extendida a TDE/SLSN-I/KN-BULLA-BNS-M2COMP, comparacion directa de brillo simulado (sin ruido) vs. SNANA real",
   "kinds": [
     "redshift",
     "magnitudes",
@@ -105,6 +105,25 @@
       "note": "Rango de redshift mas amplio probado (0.02-9.7). Fase 5: 1.60x +/- 0.04."
     },
     {
+      "class": "SLSN-I (NON1ASED)",
+      "source_model": "NON1ASED (1 template -- fit blackbody a 2016apd, evento real, Yan+2017/Kangas+2017/Guillochon+2017)",
+      "weight_method": "NON1A_KEYS, WGT=1.0 (unico template)",
+      "dndz": "MD14",
+      "host_av": "implementada (WV07 real)",
+      "snana_detected": 11004,
+      "lcl_detected": 1809,
+      "ngentot_snana": 20000,
+      "ngentot_lcl": 2000,
+      "snana_pct": 55.02,
+      "lcl_pct": 90.45,
+      "ratio": 1.644,
+      "ratio_mean_5seeds": 1.644,
+      "ratio_std_5seeds": 0.0,
+      "ratio_min_5seeds": 1.644,
+      "ratio_max_5seeds": 1.644,
+      "note": "Fase 7: familia fisica *-BBFIT, DISTINTA de la *-MOSFIT de la fila SLSN-I de arriba (fit de blackbody a un evento real unico, no un ensemble de modelos) -- sin comparacion directa posible contra esa fila. GENRANGE_REDSHIFT real 0.02-2.95 (no 0.02-9.7 como *-MOSFIT). Bug real de dato en el .SED original (segunda linea de encabezado sin '#', confirmado comparando contra el archivo hermano de TDE-BBFIT) -- se uso copia local saneada. Corrida unica (seed_index=0)."
+    },
+    {
       "class": "TDE-MOSFIT",
       "source_model": "SIMSED (742 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
@@ -160,6 +179,25 @@
       "ratio_min_5seeds": 1.863,
       "ratio_max_5seeds": 2.003,
       "note": "Fase 1/2A -- baseline SALT2. Fase 5 (5 semillas, codigo reproducible): 1.93x +/- 0.05, sube desde 1.81x de Fase 4 (corrida unica, no reproducible)."
+    },
+    {
+      "class": "TDE (NON1ASED)",
+      "source_model": "NON1ASED (1 template -- fit blackbody a 2019qiz, evento real, Nicholl+2020/Hung+2021)",
+      "weight_method": "NON1A_KEYS, WGT=1.0 (unico template)",
+      "dndz": "TDE",
+      "host_av": "implementada (exponencial pura, GENTAU_AV=0.4)",
+      "snana_detected": 2311,
+      "lcl_detected": 984,
+      "ngentot_snana": 10000,
+      "ngentot_lcl": 2000,
+      "snana_pct": 23.11,
+      "lcl_pct": 49.2,
+      "ratio": 2.129,
+      "ratio_mean_5seeds": 2.129,
+      "ratio_std_5seeds": 0.0,
+      "ratio_min_5seeds": 2.129,
+      "ratio_max_5seeds": 2.129,
+      "note": "Fase 7: familia fisica *-BBFIT, DISTINTA de la *-MOSFIT de la fila TDE-MOSFIT de arriba -- sin comparacion directa posible. GENRANGE_REDSHIFT/DNDZ/host_av del .INPUT real resultaron identicos a los de TDE-MOSFIT pese a ser una familia de template distinta. Bug real de dato en el .SED original (segunda linea de encabezado sin '#', typo de un caracter) -- se uso copia local saneada. Corrida unica (seed_index=0)."
     },
     {
       "class": "SNIa-91bg (NON1ASED)",
@@ -255,7 +293,26 @@
       "ratio_std_5seeds": 0.144,
       "ratio_min_5seeds": 2.606,
       "ratio_max_5seeds": 3.011,
-      "note": "Extincion investigada a fondo (ronda 3), no cerro la brecha. Fase 5: 2.82x +/- 0.14."
+      "note": "Extincion investigada a fondo (ronda 3), no cerro la brecha. Fase 5: 2.82x +/- 0.14. Fase 7: bake-off de codificacion contra la fila 'SNIax (NON1ASED)' de abajo -- SNIax ya usa peso uniforme nativo (SIMSED_GRIDONLY), a diferencia de SNIa-91bg (SIMSED_REDCOR). Al mismo rango de z 'elastic' (0.011-1.5, clase auxiliar SNIax-elastic en run_simsed_poc.py, sin contraparte SNANA real): 214/2000=10.7% (SIMSED-elastic) vs 228/2000=11.4% (NON1ASED) -- solo 1.065x de diferencia, muchisimo mas chico que el 1.15-1.23x de SNIa-91bg. Confirma la hipotesis abierta en Fase 6: el efecto de codificacion viene principalmente de perder la ponderacion SIMSED_REDCOR al convertir a NON1ASED, no del formato NON1ASED en si -- cuando el peso ya era uniforme de origen, convertir a NON1ASED apenas cambia el resultado (diferencia consistente con ruido de una sola semilla, sqrt(214)~15 ~ 7% relativo)."
+    },
+    {
+      "class": "KN-BULLA-BNS-M2COMP (NON1ASED)",
+      "source_model": "NON1ASED (549 templates, misma sub-variante fisica BNS-M2-2COMP que SIMSED KN-BULLA19)",
+      "weight_method": "NON1A_KEYS uniforme 1/549 (bloque real del .INPUT)",
+      "dndz": "POWERLAW",
+      "host_av": "implementada (WV07 real, REWGT_EXPAV=0.5)",
+      "snana_detected": 279,
+      "lcl_detected": 144,
+      "ngentot_snana": 20000,
+      "ngentot_lcl": 2000,
+      "snana_pct": 1.395,
+      "lcl_pct": 7.2,
+      "ratio": 5.161,
+      "ratio_mean_5seeds": 5.161,
+      "ratio_std_5seeds": 0.0,
+      "ratio_min_5seeds": 5.161,
+      "ratio_max_5seeds": 5.161,
+      "note": "Fase 7: misma sub-variante fisica que KN-BULLA19 (SIMSED, fila de arriba, ratio 2.51x) pero GENRANGE_REDSHIFT real 0.011-0.5 (no 0.011-0.28 de KN-BULLA19) -- distinto rango, sin bake-off limpio posible sin correr tambien un 'KN-BULLA19-elastic'. Dos bugs reales de dato encontrados en los templates (549 de 550 son ZIP mal etiquetados como .gz, mismo patron que KN-BULLA19 en Fase 2B ronda 4; el archivo restante no tiene sufijo .gz en absoluto, texto plano) -- se uso copia local saneada. La validacion previa a pequena escala (300 objetos) habia dado 0/300 detectados en SNANA; la campana real completa (20000) SI tiene senal real (279 detectados, 1.4%). Corrida unica (seed_index=0)."
     },
     {
       "class": "SNIIn-MOSFIT",
@@ -275,6 +332,25 @@
       "ratio_min_5seeds": 5.378,
       "ratio_max_5seeds": 5.892,
       "note": "Clase mas tenue evaluada (37/2000 real). Fase 5: 5.61x +/- 0.18."
+    },
+    {
+      "class": "SNIax (NON1ASED)",
+      "source_model": "NON1ASED (1001 templates, mismos SED que SIMSED.SNIax)",
+      "weight_method": "NON1A_KEYS uniforme 1/1001 (bloque real del .INPUT)",
+      "dndz": "MD14",
+      "host_av": "implementada (mezcla exp+semi-Gauss real, GENTAU_AV/GENSIG_AV/GENRATIO_AV0)",
+      "snana_detected": 149,
+      "lcl_detected": 228,
+      "ngentot_snana": 10000,
+      "ngentot_lcl": 2000,
+      "snana_pct": 1.49,
+      "lcl_pct": 11.4,
+      "ratio": 7.651,
+      "ratio_mean_5seeds": 7.651,
+      "ratio_std_5seeds": 0.0,
+      "ratio_min_5seeds": 7.651,
+      "ratio_max_5seeds": 7.651,
+      "note": "Fase 7: bake-off de codificacion en clase de peso uniforme (SIMSED_GRIDONLY) -- ver nota de la fila SIMSED 'SNIax' de arriba para el resultado del bake-off (1.065x, mucho mas chico que el 1.15-1.23x de SNIa-91bg/SIMSED_REDCOR). El ratio de 7.65x vs SNANA aqui es alto principalmente porque el rango de z real de este .INPUT es 0.011-1.5 (vs 0.011-0.7 de la fila SIMSED SNIax), no por la codificacion en si -- mismo patron que SNIa-91bg (NON1ASED) en Fase 6. Mismos 1001 templates fisicos que SIMSED.SNIax (confirmado por listado de directorio), ~13.6 min de carga (medido, smoke job 11483743). Corrida unica (seed_index=0)."
     },
     {
       "class": "CaRT",
@@ -333,17 +409,35 @@
       "detections": "lcl_qc/SLSN-I/detections.png",
       "lightcurves": "lcl_qc/SLSN-I/lightcurves.png"
     },
+    "SLSN-I (NON1ASED)": {
+      "redshift": "lcl_qc/SLSN-I_NON1ASED/redshift.png",
+      "magnitudes": "lcl_qc/SLSN-I_NON1ASED/magnitudes.png",
+      "detections": "lcl_qc/SLSN-I_NON1ASED/detections.png",
+      "lightcurves": "lcl_qc/SLSN-I_NON1ASED/lightcurves.png"
+    },
     "SNIax": {
       "redshift": "lcl_qc/SNIax/redshift.png",
       "magnitudes": "lcl_qc/SNIax/magnitudes.png",
       "detections": "lcl_qc/SNIax/detections.png",
       "lightcurves": "lcl_qc/SNIax/lightcurves.png"
     },
+    "SNIax (NON1ASED)": {
+      "redshift": "lcl_qc/SNIax_NON1ASED/redshift.png",
+      "magnitudes": "lcl_qc/SNIax_NON1ASED/magnitudes.png",
+      "detections": "lcl_qc/SNIax_NON1ASED/detections.png",
+      "lightcurves": "lcl_qc/SNIax_NON1ASED/lightcurves.png"
+    },
     "TDE-MOSFIT": {
       "redshift": "lcl_qc/TDE-MOSFIT/redshift.png",
       "magnitudes": "lcl_qc/TDE-MOSFIT/magnitudes.png",
       "detections": "lcl_qc/TDE-MOSFIT/detections.png",
       "lightcurves": "lcl_qc/TDE-MOSFIT/lightcurves.png"
+    },
+    "TDE (NON1ASED)": {
+      "redshift": "lcl_qc/TDE_NON1ASED/redshift.png",
+      "magnitudes": "lcl_qc/TDE_NON1ASED/magnitudes.png",
+      "detections": "lcl_qc/TDE_NON1ASED/detections.png",
+      "lightcurves": "lcl_qc/TDE_NON1ASED/lightcurves.png"
     },
     "SNII-NMF": {
       "redshift": "lcl_qc/SNII-NMF/redshift.png",
@@ -374,6 +468,12 @@
       "magnitudes": "lcl_qc/KN-BULLA19/magnitudes.png",
       "detections": "lcl_qc/KN-BULLA19/detections.png",
       "lightcurves": "lcl_qc/KN-BULLA19/lightcurves.png"
+    },
+    "KN-BULLA-BNS-M2COMP (NON1ASED)": {
+      "redshift": "lcl_qc/KN-BULLA-BNS-M2COMP_NON1ASED/redshift.png",
+      "magnitudes": "lcl_qc/KN-BULLA-BNS-M2COMP_NON1ASED/magnitudes.png",
+      "detections": "lcl_qc/KN-BULLA-BNS-M2COMP_NON1ASED/detections.png",
+      "lightcurves": "lcl_qc/KN-BULLA-BNS-M2COMP_NON1ASED/lightcurves.png"
     },
     "PISN-STELLA-HECORE": {
       "redshift": "lcl_qc/PISN-STELLA-HECORE/redshift.png",

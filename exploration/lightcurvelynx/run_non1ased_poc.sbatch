@@ -5,17 +5,17 @@
 # Uso:
 #     cd ~/AUTOSIM
 #     sbatch exploration/lightcurvelynx/run_non1ased_poc.sbatch <clase>
-#     (clases: SNIa-91bg)
+#     (clases: SNIa-91bg, SNIax, TDE, SLSN-I, KN-BULLA-BNS-M2COMP)
 # ============================================================================
 #SBATCH -J lcl_non1ased_poc
 #SBATCH -p general
 #SBATCH -n 1
 #SBATCH -c 4
 #SBATCH --mem=16G
-#SBATCH -t 00:30:00
-# Nota: SNIa-91bg NON1ASED son los mismos 35 templates .SED que
-# SIMSED.SNIa-91bg (~0.5s/template, ver run_simsed_poc.sbatch) -- carga
-# rapida, tiempo generoso por las dudas.
+#SBATCH -t 02:00:00
+# Nota (Fase 7): SNIa-91bg/TDE/SLSN-I cargan rapido (35 templates o 1 solo),
+# pero SNIax tiene 1001 templates (~13.6 min medido, smoke job 11483743) y
+# KN-BULLA-BNS-M2COMP 550 -- mismo margen generoso que run_simsed_poc.sbatch.
 #SBATCH -o logs/lcl_non1ased_poc_%j.out
 #SBATCH -e logs/lcl_non1ased_poc_%j.err
 #SBATCH --mail-type=END,FAIL

@@ -1923,3 +1923,238 @@ semillas para `SNIa-91bg-elastic` (solo 1 corrida hasta ahora, necesario para ac
 codificación en una clase `SIMSED_GRIDONLY` (peso uniforme), ya que su conversión NON1ASED usa
 la misma familia física de templates que su entrada SIMSED ya existente, y así ver si el efecto
 de codificación es específico de clases con `SIMSED_REDCOR` o más general.
+
+# Fase 7 -- bake-off en clase de peso uniforme, cobertura NON1ASED completa, comparación directa de brillo sin ruido
+
+## Motivación
+
+Tres tareas del usuario, en orden: (1) repetir el bake-off de codificación de Fase 6 en `SNIax`
+(peso uniforme nativo, a diferencia de `SNIa-91bg`) para saber si el efecto de ~1.15x es
+específico de `SIMSED_REDCOR` o más general; (2) extender la cobertura NON1ASED a las 4 clases
+restantes ya convertidas por SNANA (`TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP`); (3) atacar la
+pregunta que todas las fases anteriores dejaron abierta -- la causa raíz del residuo sistémico --
+con un ángulo nunca probado: comparar el brillo simulado directamente, no solo los conteos de
+detección posteriores a SEARCHEFF.
+
+## Bake-off en `SNIax`: confirma que el efecto de codificación es específico de `SIMSED_REDCOR`
+
+Se agregó `SNIax-elastic` a `run_simsed_poc.py::CLASS_CONFIGS` -- mismos 1001 templates físicos
+que la entrada `SNIax` ya publicada (confirmado por listado de directorio), mismos parámetros
+reales de extinción de host (`GENTAU_AV=1.7`/`GENSIG_AV=0.6`/`GENRATIO_AV0=4.0`, idénticos entre
+el `.INPUT` elastic y no-elastic), pero con el `GENRANGE_REDSHIFT` real del `.INPUT` elastic
+(0.011-1.5, el mismo que se convirtió a NON1ASED) en vez del 0.011-0.7 ya publicado. Igual que
+`SNIa-91bg-elastic`, no tiene corrida SNANA real propia (el elastic solo se usó como fuente para
+la conversión a NON1ASED).
+
+Corrida completa (`NGENTOT_LC=2000`, ~14 min de carga por los 1001 templates, confirmado por
+smoke test previo de N=20 antes de comprometerse a la corrida completa):
+
+    SIMSED-elastic (peso uniforme nativo, SIMSED_GRIDONLY):  214/2000 = 10.70%
+    NON1ASED       (NON1A_KEYS uniforme 1/1001):             228/2000 = 11.40%
+
+**Solo ~1.065x de diferencia** -- muchísimo más chico que el ~1.15-1.23x de `SNIa-91bg`
+(`SIMSED_REDCOR`), y del orden de lo esperable por ruido puro de una sola semilla
+(`sqrt(214)≈15`, ~7% relativo). **Confirma la hipótesis dejada abierta en Fase 6**: el efecto de
+codificación viene principalmente de perder la ponderación `SIMSED_REDCOR` (que favorece
+templates "típicos" cerca del pico de la población real) al convertir a NON1ASED, no del formato
+NON1ASED en sí -- cuando el peso SIMSED de origen ya era uniforme, convertir a NON1ASED apenas
+cambia el resultado.
+
+## Cobertura NON1ASED extendida a las 4 clases restantes
+
+Generalizado `run_non1ased_poc.py`: agregado el bloque de extinción de host (3 variantes,
+idéntico al de `run_simsed_poc.py`) y soporte para `DNDZ: MD14`/`DNDZ: TDE` (antes solo
+`POWERLAW`), necesarios para las clases nuevas. Cada clase se investigó por separado contra su
+propio `.INPUT` real en NLHPC -- **no se asumió que reusar los parámetros de la clase SIMSED
+equivalente fuera correcto**, y esa cautela encontró varias discrepancias reales:
+
+- **`SLSN-I` (NON1ASED)**: directorio real `NON1ASED.SLSN-I-BBFIT` -- familia física *distinta*
+  de `SIMSED.SLSN-I-MOSFIT` (la ya evaluada), confirmado que `PATH_NON1ASED` no apunta a una
+  conversión de esa SIMSED. **Un solo template** (no un ensemble): fit de blackbody a un evento
+  real específico, SLSN-I 2016apd (Yan+2017/Kangas+2017/Guillochon+2017, fit por Kaustav Das,
+  Caltech), confirmado leyendo `NON1A.LIST` real. `GENRANGE_REDSHIFT` real 0.02-2.95 (NO 0.02-9.7
+  como la entrada SIMSED -- comentario real en el `.INPUT`: *"stay within hostlib range"*),
+  `SNTYPE` real 41 (no 40, confirmado en el bloque `NON1A_KEYS` real).
+- **`TDE` (NON1ASED)**: mismo patrón -- directorio real `NON1ASED.TDE-BBFIT`, familia física
+  distinta de `SIMSED.TDE-MOSFIT`. También **un solo template**: fit de blackbody al TDE real
+  2019qiz (Nicholl+2020/Hung+2021, fit por Kaustav Das). A diferencia de SLSN-I,
+  `GENRANGE_REDSHIFT`/`DNDZ`/extinción de host del `.INPUT` real resultaron **idénticos** a los
+  ya usados para `TDE-MOSFIT` (mismo `GENTAU_AV=0.4`, `GENAV_WV07` comentado/deshabilitado).
+- **`KN-BULLA-BNS-M2COMP`**: misma sub-variante física (`BNS-M2-2COMP`) que ya usa la entrada
+  SIMSED `KN-BULLA19`, pero con nombre de directorio/`.INPUT` real inconsistente con las otras
+  dos clases -- `NON1ASED.BULLA-BNS-M2-2COMP` (sin prefijo `KN-`) y
+  `SIMGEN_INCLUDE_BULLA-BNS-M2-2COMP.INPUT` (sin sufijo `_NON1ASED`), confirmado por listado real
+  de directorio, no una suposición. `GENRANGE_REDSHIFT` real 0.011-0.5 (NO 0.011-0.28 como
+  `KN-BULLA19`), `SNTYPE` real 62 (no 52).
+
+### Dos bugs de dato reales más encontrados (mismo patrón de Fase 1/2B/2B-ronda-4)
+
+**`TDE-BBFIT`**: `2019qiz.sed.gz` tiene una segunda línea de encabezado
+(`phase wavelength flux`) sin el prefijo `#` -- confirmado comparando línea por línea contra el
+archivo hermano `SLSN-I-BBFIT/2016apd.sed.gz`, que sí lo tiene. Typo real de un solo carácter en
+el archivo de referencia, mismo patrón que el `$`/`#` de `SNIa-91bg` en Fase 2B. Fix: copia local
+saneada (`setup_tdebbfit_local.py`, mismo patrón que `setup_simsed_91bg_local.py`).
+
+**`KN-BULLA-BNS-M2COMP`**: mismo problema real ya visto en Fase 2B ronda 4 para `KN-BULLA19`
+(549 de los 550 archivos `*.txt.gz` son en realidad ZIP mal etiquetados, firma `PK`) **más un
+segundo bug nunca visto antes**: exactamente 1 de los 550 archivos
+(`sed_cos_theta_0.0_mej_0.010_phi_15.txt`) no tiene sufijo `.gz` en absoluto -- está en texto
+plano, mientras que `NON1A.LIST` lo referencia igual como `...phi_15.txt.gz`. El fallback
+automático de `_read_simsed_data_file()` (agrega `.gz` si el archivo base no existe) no cubre
+este caso porque es al revés: el archivo base *sin* `.gz` es el que existe genuinamente sin
+comprimir. Fix: `setup_bullansed_local.py` (mismo patrón que `setup_knbulla19_local.py`,
+extendido para también comprimir por primera vez el archivo plano).
+
+### Resultados (`NGENTOT_LC=2000`, corrida única cada una, sbatch, sin fallos tras los fixes)
+
+| Clase | SNANA real (NGENTOT/detectados/%) | LCL (%) | Razón |
+|---|---|---:|---:|
+| `TDE` (NON1ASED) | 10000 / 2311 / 23.11% | 49.20% | 2.129x |
+| `SLSN-I` (NON1ASED) | 20000 / 11004 / 55.02% | 90.45% | 1.644x |
+| `KN-BULLA-BNS-M2COMP` (NON1ASED) | 20000 / 279 / 1.395% | 7.20% | 5.161x |
+| `SNIax` (NON1ASED) | 10000 / 149 / 1.49% | 11.40% | 7.651x |
+
+Los 4 caen dentro del rango ya visto en el catálogo (1.42x-10.83x) -- nada indica un bug nuevo
+por sí solo. `KN-BULLA-BNS-M2COMP`: la validación previa a pequeña escala (300 objetos,
+NEXT_SESSION.md) había dado 0/300 detectados en SNANA, sugiriendo una clase "demasiado incierta"
+-- la campaña real completa (20000 objetos) sí muestra señal real (279 detectados, 1.4%),
+confirmando que era un efecto de tamaño de muestra pequeño, no que la clase no tenga detecciones.
+`SNIax` (NON1ASED) tiene el ratio más alto del grupo (7.65x) principalmente por el rango de z más
+ancho de su `.INPUT` real (0.011-1.5 vs. 0.011-0.7 de la entrada SIMSED), no por la codificación
+en sí -- mismo patrón que `SNIa-91bg` en Fase 6, confirmado por el bake-off de arriba (~1.07x de
+efecto de codificación puro en esta clase).
+
+## El hallazgo mayor de esta fase: comparación directa de brillo simulado, sin ruido
+
+Todas las fases anteriores (Fase 3, 4, 6) investigaron el lado de la *detección*: extinción,
+trigger de época, SEARCHEFF, codificación de pesos. Ninguna tocó la pregunta más directa: ¿el
+brillo que cada simulador le asigna al mismo objeto físico (misma clase, mismo redshift) es
+siquiera el mismo, antes de que entre en juego cualquier lógica de detección?
+
+### El dato real de SNANA: `PEAKMAG_u/g/r/i/z/Y` en el `.DUMP`
+
+El archivo `.DUMP` real de cada campaña SNANA (`SELECTION: NONE (write every generated event)`,
+confirmado en su propio encabezado -- es la población COMPLETA generada, no solo los detectados)
+trae una columna `PEAKMAG_<filtro>` por objeto: la magnitud de pico **teórica/sin ruido** del
+modelo simulado, no una estadística derivada de las observaciones ruidosas. Confirmado leyendo el
+`.DUMP` real de `SNIa-91bg_DDF_baseline_v5.3.1_10yrs` (2000 filas, columnas
+`VARNAMES: CID LIBID ... PEAKMAG_u PEAKMAG_g PEAKMAG_r ... SNRMAX ... stretch color`).
+
+### Primer intento (con ruido): resultado dramático pero, se descubrió, un artefacto metodológico
+
+Un primer script (`compare_brightness.py`) comparó `PEAKMAG_r` real de SNANA contra el **mínimo**
+de `MAG` (columna ya ruidosa, `FLUXCAL`/`FLUXCALERR` con ruido real de SNANA inyectado) por
+objeto en el `phot_df.parquet` ya persistido de la corrida SIMSED `SNIa-91bg` (Fase 2B/5, mismo
+rango de z 0.011-0.6). Resultado, binned por redshift:
+
+    z=[0.03,0.11): LCL-SNANA = +0.06 mag (similar)
+    z=[0.44,0.52): LCL-SNANA = -0.71 mag (LCL mas brillante)
+    z=[0.52,0.60): LCL-SNANA = -1.43 mag (LCL MUCHO mas brillante)
+
+Un patrón dramático, creciente con z -- a primera vista, una explicación perfecta para el
+sobre-conteo sistémico (objetos más brillantes cruzan el umbral de detección más fácil,
+especialmente a alto z donde el SNR es marginal). Pero el `std` global de SNANA (4.324 mag) era
+sospechosamente alto comparado con LCL (0.909 mag), señal de que algo no estaba limpio.
+
+### Verificación antes de confiar en el resultado: `SIMSEDModel.from_dir()` real, `PEAKMAG` real de SNANA es sin ruido
+
+Investigando qué es realmente `PEAKMAG_r` (leyendo el código fuente instalado de LightCurveLynx,
+`inspect.getsource(lightcurvelynx.simulate)`), se encontró que `simulate_lightcurves()` ya
+calcula internamente un flujo **sin ruido** por observación
+(`object_nested_dict["flux_perfect"].append(bandfluxes_perfect)`, columna `flux_perfect` en el
+DataFrame `lightcurve` de cada objeto) -- nunca extraído por ningún script anterior (todos
+descartaban `flux_perfect` al aplanar, quedándose solo con `flux`/`fluxerr` ruidosos). SNANA
+`PEAKMAG_r` es la magnitud de pico teórica del modelo, no una estadística de las observaciones
+ruidosas -- comparar eso contra el **mínimo** de N observaciones ruidosas introduce un sesgo tipo
+Eddington real: el mínimo de una muestra ruidosa es sistemáticamente más brillante que el valor
+verdadero, y el sesgo crece cuanto menor es el SNR (es decir, más fuerte exactamente a alto z,
+donde el patrón "dramático" de arriba aparecía). Esto significaba que el primer resultado podía
+ser, total o parcialmente, un artefacto de la métrica usada, no una diferencia real entre
+simuladores.
+
+### Segunda pasada (sin ruido): el patrón se invierte
+
+Se escribió `compare_brightness_truth.py`, que reconstruye el mismo `source_model` real de
+`SNIa-91bg` SIMSED (mismos parámetros, `SIMSED_REDCOR`, extinción MW) pero extrae
+`flux_perfect` en vez de descartarlo -- verificado primero con un smoke test de N=10 (confirmó
+que la columna existe: `['mjd', 'filter', 'flux', 'fluxerr', 'flux_perfect', 'survey_idx',
+'obs_idx', 'is_saturated']`) antes de comprometerse a la corrida completa (`NGENTOT=2000`, sbatch,
+~2.5 min). Magnitud de pico real = `max(flux_perfect)` en banda r por objeto (el máximo de flujo
+sin ruido, no un mínimo de magnitud ruidosa -- sin sesgo de Eddington). Comparado contra el mismo
+`PEAKMAG_r` real de SNANA, binned por los mismos 7 bins de redshift:
+
+| z_bin | N SNANA | mediana SNANA | N LCL | mediana LCL | delta (LCL-SNANA) |
+|---|---:|---:|---:|---:|---:|
+| [0.011,0.095) | 9 | 19.122 | 8 | 19.564 | +0.442 |
+| [0.095,0.179) | 57 | 21.072 | 45 | 21.245 | +0.173 |
+| [0.179,0.263) | 129 | 22.151 | 131 | 22.440 | +0.289 |
+| [0.263,0.348) | 201 | 23.188 | 234 | 23.415 | +0.227 |
+| [0.348,0.432) | 336 | 24.022 | 361 | 24.464 | +0.442 |
+| [0.432,0.516) | 496 | 24.782 | 502 | 25.343 | +0.561 |
+| [0.516,0.600) | 677 | 25.694 | 669 | 26.092 | +0.398 |
+
+**El signo se invirtió por completo.** LightCurveLynx resulta **~0.2-0.6 mag más tenue** que
+SNANA en todos los bins de redshift -- lo opuesto exacto al primer resultado (con ruido), y lo
+opuesto a la hipótesis obvia que hubiera explicado el sobre-conteo ("LCL simula objetos
+demasiado brillantes"). El global también cambia de forma reveladora: mediana SNANA 24.787,
+mediana LCL (sin ruido) 25.351 -- LCL más tenue en mediana, con un `std` mucho más ajustado
+(2.003 vs. 4.324 de SNANA) que sugiere que la población de SNANA tiene una cola real más ancha
+hacia el extremo tenue (posiblemente ligada a cómo `SIMSED_REDCOR` real de SNANA muestrea las
+esquinas de la grilla stretch/color de 91bg-tenues, un detalle no investigado a fondo aquí).
+
+### Por qué esto importa: descarta una hipótesis obvia y redirige la búsqueda de la causa raíz
+
+Si LightCurveLynx simulara objetos sistemáticamente *más brillantes* que SNANA, eso explicaría
+directamente el sobre-conteo (~1.4x-11x más detecciones en todo el catálogo, Fase 0-6). El
+resultado real es lo contrario -- LightCurveLynx es *más tenue*, no más brillante -- lo que
+significa que el brillo/flujo simulado en sí **no** es la causa del sobre-conteo (si acaso, un
+efecto opuesto y más chico que debería sub-detectar, no sobre-detectar). Esto descarta con
+evidencia real una hipótesis nunca antes probada explícitamente, y redirige la búsqueda de la
+causa raíz del residuo sistémico -- que sigue sin resolverse tras Fase 3 (extinción, refutada),
+Fase 4 (trigger de época, refutada), Fase 6 (SEARCHEFF/encoding, refutada para el catálogo
+general) -- hacia dos candidatos que quedan sin descartar: el cálculo de ruido/SNR en sí (más
+allá de las columnas de ruido ya inyectadas en Fase 2A), o la forma/duración de la curva de luz
+cerca del pico (que afecta cuántas épocas reales cruzan el umbral de SEARCHEFF incluso con un
+pico de brillo similar o más tenue).
+
+## Archivos de esta fase
+
+- `run_simsed_poc.py` -- nueva entrada `SNIax-elastic` en `CLASS_CONFIGS` (diagnóstico, sin
+  contraparte SNANA real).
+- `run_non1ased_poc.py` -- generalizado: bloque de extinción de host (3 variantes, igual que
+  `run_simsed_poc.py`), soporte `DNDZ: MD14`/`DNDZ: TDE`; 4 entradas nuevas en `CLASS_CONFIGS`
+  (`SNIax`, `TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP`).
+- `run_non1ased_poc.sbatch` -- límite de tiempo subido a 2h (antes 30 min, insuficiente para
+  clases de cientos/miles de templates).
+- `setup_tdebbfit_local.py` (nuevo) -- fix de encabezado sin comentar en `2019qiz.sed.gz`;
+  `tdebbfit_local/` (no versionado).
+- `setup_bullansed_local.py` (nuevo) -- fix de ZIP mal etiquetado + archivo plano sin `.gz`;
+  `bullansed_local/` (no versionado).
+- `compare_brightness.py` (nuevo, exploratorio) -- primera comparación (con ruido, luego
+  revisada).
+- `compare_brightness_truth.py` (nuevo) -- comparación real (sin ruido, `flux_perfect`).
+- `compare_brightness_truth_binned.py` (nuevo) -- agrupa por bin de redshift la salida de
+  `compare_brightness_truth.py` contra el `.DUMP` real de SNANA; produce la tabla reportada
+  arriba.
+- `docs/lcl_qc/lcl_qc_index.json` -- 4 filas nuevas (`TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP`,
+  `SNIax`, todas NON1ASED); nota de `SNIax` (SIMSED) actualizada con el resultado del bake-off.
+- `docs/index.html` -- Fase 7 documentada en la sección 06, dos tarjetas de diagnóstico nuevas
+  (bake-off confirmado + comparación de brillo).
+
+## Recomendación final (Fase 7)
+
+**Sigue GO condicional.** Cobertura NON1ASED ahora completa (5/5 clases convertidas por SNANA
+evaluadas). El bake-off de `SNIax` cierra la pregunta abierta en Fase 6 con una respuesta clara:
+el efecto de codificación (~1.15-1.23x en `SNIa-91bg`) es específico de clases con
+`SIMSED_REDCOR`, no una propiedad general de NON1ASED (~1.07x en `SNIax`, peso ya uniforme). El
+hallazgo más importante de la fase -- y posiblemente de toda la evaluación hasta ahora -- es la
+comparación directa de brillo sin ruido: LightCurveLynx simula objetos más tenues que SNANA, no
+más brillantes, lo que descarta con evidencia real la hipótesis más obvia para el sobre-conteo
+sistémico y estrecha genuinamente el espacio de causas restantes (ruido/SNR o forma de curva de
+luz, no calibración de brillo). La causa raíz exacta del residuo sistémico multiplicativo sigue
+sin identificarse -- pero después de Fase 3, 4, 6 y 7, la lista de sospechosos descartados con
+evidencia real es larga, y la dirección de la búsqueda futura es más concreta que en cualquier
+fase anterior. Trabajo futuro: extender la comparación de brillo sin ruido a más clases del
+catálogo (un solo caso hasta ahora); investigar el cálculo de ruido/SNR más a fondo; comparar
+directamente la forma temporal de la curva de luz (no solo el pico) entre ambos simuladores;
+barrido de 5 semillas para las 4 clases NON1ASED nuevas y para `SNIax-elastic`.

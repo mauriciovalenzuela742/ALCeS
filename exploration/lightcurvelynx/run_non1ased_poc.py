@@ -8,36 +8,32 @@ via non1ased.load_non1ased_model() en vez de SIMSEDModel.from_dir(), porque
 los directorios NON1ASED reales no traen SED.INFO (confirmado via ssh
 nlhpc, ver non1ased.py).
 
-Primera clase: SNIa-91bg. De las 5 clases NON1ASED ya convertidas y
-validadas del lado SNANA (NEXT_SESSION.md, 2026-08-06: SNIax, SNIa-91bg,
-TDE, SLSN-I, KN-BULLA-BNS-M2COMP), es la unica candidata solida para un PoC
-inicial: SNIax tiene 1001 templates (carga estimada en horas, ver
-run_simsed_poc.sbatch); TDE_NON1ASED/SLSN-I_NON1ASED resultaron ser una
-familia de template FISICAMENTE distinta (*-BBFIT) de la ya cubierta en
-LCL via SIMSED (*-MOSFIT), asi que no sirven para un diagnostico
-"mismos templates, distinta codificacion"; KN-BULLA-BNS-M2COMP dio 0/300
-detecciones en su validacion SNANA -- objetivo demasiado incierto. SNIa-91bg
-tiene solo 35 templates (los mismos archivos .SED que SIMSED.SNIa-91bg,
-confirmado por diff de listado de directorio via ssh nlhpc) y detecciones
-SNANA no triviales.
+Primera clase (Fase 6 original): SNIa-91bg, 35 templates, elegida por ser
+la mas chica de las 5 clases NON1ASED ya convertidas y validadas del lado
+SNANA (NEXT_SESSION.md, 2026-08-06: SNIax, SNIa-91bg, TDE, SLSN-I,
+KN-BULLA-BNS-M2COMP). Ratio con SNANA: 2.254x +/- 0.081 (5 semillas).
 
-Nota real descubierta al preparar este PoC (no asumir el mismo rango que
-la clase SIMSED.SNIa-91bg ya corrida en Fase 2B/4): el .INPUT real
-NON1ASED (elastic/model_config/SIMGEN_INCLUDE_SNIa-91bg_NON1ASED.INPUT)
-usa GENRANGE_REDSHIFT 0.011-1.2, DISTINTO del 0.011-0.6 que CLASS_CONFIGS
-de run_simsed_poc.py usa para SNIa-91bg. Investigado: existen dos
-generaciones de config SIMSED.SNIa-91bg en NLHPC --
-`run_SNANA/model_config/` (0.011-0.6, la que uso el PoC SIMSED ya corrido)
-y `run_SNANA/elastic/model_config/` (0.011-1.2, la que se convirtio a
-NON1ASED) -- mismos templates fisicos, .INPUT de campana distinto. Este
-PoC usa el rango real de SU PROPIO .INPUT NON1ASED (0.011-1.2), asi que su
-ratio vs SNANA es valido comparado contra la corrida SNANA real de
-SNIa-91bg_NON1ASED (build/full_v5.3_10yrs/postproc/SNIa-91bg_NON1ASED_*) --
-pero NO es directamente comparable al ratio ya publicado de la clase
-SIMSED.SNIa-91bg (rango de z distinto), por lo que el diagnostico "misma
-fisica, distinta codificacion" limpio requeriria ademas re-correr SIMSED
-con el rango elastic (0.011-1.2) -- no se hizo aqui, queda como trabajo
-futuro documentado, no una comparacion invalida que se paso por alto.
+Nota real descubierta al preparar ese PoC (no asumir el mismo rango que la
+clase SIMSED equivalente ya corrida en Fase 2B/4): el .INPUT real NON1ASED
+de cada clase (elastic/model_config/SIMGEN_INCLUDE_<clase>_NON1ASED.INPUT)
+casi siempre usa un GENRANGE_REDSHIFT mas ancho que el que usa la entrada
+SIMSED ya corrida de la misma clase en run_simsed_poc.py -- confirmado que
+son dos generaciones de config distintas en NLHPC (`run_SNANA/model_config/`
+vs `run_SNANA/elastic/model_config/`), mismos templates fisicos, .INPUT de
+campana distinto. Este PoC siempre usa el rango real de SU PROPIO .INPUT
+NON1ASED, asi que su ratio vs SNANA es valido comparado contra la corrida
+SNANA real de esa misma campana NON1ASED -- pero no es directamente
+comparable al ratio ya publicado de la clase SIMSED equivalente sin un
+bake-off explicito al mismo rango (ver `SNIa-91bg-elastic`/`SNIax-elastic`
+en run_simsed_poc.py, Fase 6/7).
+
+Fase 7 agrego `SNIax` (1001 templates, misma familia fisica que su SIMSED
+ya cubierto -- bake-off de codificacion en clase de peso uniforme) y
+extendio cobertura a `TDE`, `SLSN-I` (familia fisica *-BBFIT, DISTINTA de
+la *-MOSFIT ya cubierta via SIMSED -- sin comparacion SIMSED previa
+posible, params reales tomados de su propio .INPUT NON1ASED) y
+`KN-BULLA-BNS-M2COMP` (misma sub-variante fisica que ya usa la entrada
+SIMSED `KN-BULLA19`).
 
 Uso (dentro de un job sbatch, nunca en el login node):
     python3 run_non1ased_poc.py <clave_clase>
@@ -62,7 +58,11 @@ from lightcurvelynx.simulate import simulate_lightcurves
 from lightcurvelynx.survey_info import SurveyInfo
 
 from non1ased import load_non1ased_model
-from snana_params import build_dndz_powerlaw2_cdf, make_dndz_sampler, SizeAwareFunctionNode, ClippedExtinctionEffect
+from snana_params import (
+    build_dndz_powerlaw2_cdf, build_dndz_md14_cdf, build_dndz_tde_cdf, make_dndz_sampler,
+    make_exp_av_sampler, make_exp_halfgauss_av_sampler, make_wv07_av_sampler,
+    SizeAwareFunctionNode, ClippedExtinctionEffect,
+)
 from searcheff import (
     parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency, object_level_detected,
 )
@@ -96,6 +96,90 @@ CLASS_CONFIGS = {
         sntype=13,
         # sin extincion de host en el .INPUT real (mismo que la variante
         # SIMSED) -- no se agrega ClippedExtinctionEffect de host aqui.
+    ),
+    # Fase 7: bake-off de codificacion en clase de peso uniforme
+    # (SIMSED_GRIDONLY) -- a diferencia de SNIa-91bg (SIMSED_REDCOR), para
+    # ver si el efecto de codificacion (~1.15x en SNIa-91bg) es especifico
+    # de clases con pesos correlacionados o mas general. Mismos templates
+    # fisicos que la entrada SIMSED "SNIax" ya corrida (confirmado por
+    # listado de directorio), mismos parametros reales de host extinction
+    # (GENTAU_AV=1.7/GENSIG_AV=0.6/GENRATIO_AV0=4.0, identicos en el
+    # .INPUT elastic SIMSED y elastic NON1ASED) -- solo cambia el rango de
+    # z real de este .INPUT (0.011-1.5, vs 0.011-0.7 de la entrada SIMSED
+    # ya publicada) y el esquema de peso (NON1A_KEYS uniforme 1/1001 vs
+    # peso uniforme nativo de SIMSED_GRIDONLY -- en este caso ambos son
+    # uniformes, la comparacion real es contra "SNIax-elastic" en
+    # run_simsed_poc.py, no contra la entrada SIMSED original).
+    "SNIax": dict(
+        non1ased_dir=SNANA_HOME / "run_SNANA/elastic/model_libs_updates/NON1ASED.SNIax",
+        input_path=SNANA_HOME / "run_SNANA/elastic/model_config/SIMGEN_INCLUDE_SNIax_NON1ASED.INPUT",
+        genrange_redshift=(0.011, 1.5),
+        dndz=("md14", 6.0e-6),
+        sntype=12,
+        host_av=dict(kind="exp_halfgauss", tau=1.7, sig=0.6, ratio=4.0,
+                      av_range=(0.001, 3.0), r_v=3.1),
+    ),
+    # Fase 7: cobertura nueva -- familia fisica *-BBFIT, DISTINTA de la
+    # *-MOSFIT que ya cubre la entrada SIMSED "TDE-MOSFIT" (confirmado:
+    # PATH_NON1ASED real apunta a NON1ASED.TDE-BBFIT, no a una conversion
+    # de SIMSED.TDE-MOSFIT) -- sin bake-off de codificacion posible aqui
+    # (no hay contraparte SIMSED de la misma familia fisica ya corrida).
+    # Confirmado via ssh nlhpc (NON1A.LIST + .INPUT real): un SOLO template
+    # -- fit de blackbody a un evento real especifico (2019qiz, Nicholl+2020/
+    # Hung+2021), no un ensemble como TDE-MOSFIT. GENRANGE_REDSHIFT/DNDZ/
+    # host_av del .INPUT real resultaron identicos a los ya usados para
+    # TDE-MOSFIT (mismo GENTAU_AV=0.4, GENAV_WV07 comentado/deshabilitado).
+    # Bug real de dato encontrado (ver setup_tdebbfit_local.py): la segunda
+    # linea del .sed real ("phase wavelength flux") le falta el prefijo "#"
+    # -- typo de un solo caracter, confirmado comparando contra el archivo
+    # hermano de SLSN-I-BBFIT que SI lo tiene. Se usa copia local saneada.
+    "TDE": dict(
+        non1ased_dir=HERE / "tdebbfit_local",
+        input_path=SNANA_HOME / "run_SNANA/elastic/model_config/SIMGEN_INCLUDE_TDE_NON1ASED.INPUT",
+        genrange_redshift=(0.01, 2.9),
+        dndz=("tde", 1.0e-6),
+        sntype=51,
+        host_av=dict(kind="exp", tau=0.4, av_max=3.0, r_v=3.1),
+    ),
+    # Fase 7: idem TDE -- familia fisica *-BBFIT distinta de la *-MOSFIT ya
+    # cubierta via SIMSED "SLSN-I". Tambien un SOLO template real (fit de
+    # blackbody a 2016apd, Yan+2017/Kangas+2017/Guillochon+2017), confirmado
+    # via ssh nlhpc. GENRANGE_REDSHIFT real 0.02-2.95 (NO 0.02-9.7 como la
+    # entrada SIMSED "SLSN-I" -- comentario real en el .INPUT: "stay within
+    # hostlib range"), SNTYPE real 41 (no 40, confirmado en el bloque
+    # NON1A_KEYS real, distinto del SNTYPE=40 que usa la entrada SIMSED).
+    "SLSN-I": dict(
+        non1ased_dir=SNANA_HOME / "run_SNANA/elastic/model_libs_updates/NON1ASED.SLSN-I-BBFIT",
+        input_path=SNANA_HOME / "run_SNANA/elastic/model_config/SIMGEN_INCLUDE_SLSN-I_NON1ASED.INPUT",
+        genrange_redshift=(0.02, 2.95),
+        dndz=("md14", 2.0e-8),
+        sntype=41,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
+    ),
+    # Fase 7: misma sub-variante fisica (BNS-M2-2COMP) que ya usa la
+    # entrada SIMSED "KN-BULLA19" -- candidata a bake-off de codificacion
+    # si SNANA muestra detecciones no triviales en la campana real (la
+    # validacion previa de 300 objetos dio 0 detectados, ver NOTES.md;
+    # confirmar con el NGENLC_WRITE real de la campana completa antes de
+    # sacar conclusiones). Directorio/nombre de .INPUT real confirmados via
+    # ssh nlhpc: "BULLA-BNS-M2-2COMP", sin prefijo "KN-" ni sufijo
+    # "_NON1ASED" en el nombre de archivo (inconsistente con TDE/SLSN-I,
+    # pero GENMODEL: NON1ASED confirma que es la variante correcta).
+    # GENRANGE_REDSHIFT real 0.011-0.5 (NO 0.011-0.28 como KN-BULLA19
+    # SIMSED), SNTYPE real 62 (no 52, confirmado en NON1A_KEYS real), 549
+    # templates (vs. 550 nominales de KN-BULLA19 SIMSED -- diferencia de 1,
+    # sin investigar, no bloquea la corrida). Mismo bug real de Fase 2B
+    # ronda 4 (setup_knbulla19_local.py): los *.txt.gz reales son ZIP mal
+    # etiquetados (firma PK), heredado del mismo dato fisico que
+    # KN-BULLA19 SIMSED. Se usa copia local saneada (ver
+    # setup_bullansed_local.py).
+    "KN-BULLA-BNS-M2COMP": dict(
+        non1ased_dir=HERE / "bullansed_local",
+        input_path=SNANA_HOME / "run_SNANA/elastic/model_config/SIMGEN_INCLUDE_BULLA-BNS-M2-2COMP.INPUT",
+        genrange_redshift=(0.011, 0.5),
+        dndz=("powerlaw", [(320e-9, 0.0, 0.011, 0.5)]),
+        sntype=62,
+        host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=0.5, r_v=3.1),
     ),
 }
 
@@ -136,6 +220,10 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     dndz_kind, dndz_params = cfg["dndz"]
     if dndz_kind == "powerlaw":
         z_grid, cdf = build_dndz_powerlaw2_cdf(segments=dndz_params, z_min=z_min, z_max=z_max)
+    elif dndz_kind == "md14":
+        z_grid, cdf = build_dndz_md14_cdf(rate0=dndz_params, z_min=z_min, z_max=z_max)
+    elif dndz_kind == "tde":
+        z_grid, cdf = build_dndz_tde_cdf(rate0=dndz_params, z_min=z_min, z_max=z_max)
     else:
         raise ValueError(f"dndz_kind desconocido: {dndz_kind}")
     redshift_func = SizeAwareFunctionNode(make_dndz_sampler(z_grid, cdf, seed=seed_base + 1), node_label="redshift")
@@ -178,6 +266,40 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     # que la seleccion de template sea reproducible.
     source_model._sampler_node.set_seed(seed_base + 9)
     source_model.add_effect(mw_extinction)
+
+    if "host_av" in cfg:
+        # extincion de host real -- mismas 3 variantes que run_simsed_poc.py
+        # (ver comentarios alli, verificadas linea por linea contra
+        # snlc_sim.c): "exp" = exponencial pura, "exp_halfgauss" = mezcla
+        # exponencial+semi-Gaussiana (GENPROFILE_AV), "wv07" = ESSENCE-WV07 real.
+        hp = cfg["host_av"]
+        kind = hp.get("kind", "exp")
+        if kind == "exp_halfgauss":
+            av_sampler_fn = make_exp_halfgauss_av_sampler(
+                tau=hp["tau"], sig=hp["sig"], ratio=hp["ratio"],
+                av_range=hp["av_range"], seed=seed_base + 8,
+            )
+            av_desc = f"GENTAU_AV={hp['tau']}"
+        elif kind == "wv07":
+            av_sampler_fn = make_wv07_av_sampler(
+                av_range=hp["av_range"], rewgt_expav=hp.get("rewgt_expav"), seed=seed_base + 8,
+            )
+            av_desc = f"WV07_REWGT_EXPAV={hp.get('rewgt_expav')}"
+        else:
+            av_sampler_fn = make_exp_av_sampler(tau=hp["tau"], av_max=hp["av_max"], seed=seed_base + 8)
+            av_desc = f"GENTAU_AV={hp['tau']}"
+        av_func = SizeAwareFunctionNode(av_sampler_fn, node_label="host_av")
+
+        def _av_to_ebv(size=None, host_av=None, **_kwargs):
+            return np.asarray(host_av) / hp["r_v"]
+
+        host_ebv_func = SizeAwareFunctionNode(_av_to_ebv, node_label="host_ebv", host_av=av_func)
+        host_extinction = ClippedExtinctionEffect(
+            extinction_model="CCM89", ebv=host_ebv_func, r_v=hp["r_v"], frame="rest", backend="dust_extinction",
+        )
+        source_model.add_effect(host_extinction)
+        print(f"[{time.time()-t_start:.1f}s] extincion de host real aplicada "
+              f"(kind={kind}, {av_desc}, R_V={hp['r_v']})")
 
     print(f"[{time.time()-t_start:.1f}s] NON1ASED cargado ({len(source_model)} templates, "
           f"pesos reales de NON1A_KEYS)")

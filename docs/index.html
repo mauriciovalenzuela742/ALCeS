@@ -1027,10 +1027,15 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       clase <code>NON1ASED</code> (<code>SNIa-91bg</code>, 2.25x ± 0.08 con 5 semillas) y un hallazgo nuevo —
       la propia codificación del modelo en SNANA (SIMSED con pesos correlacionados vs. NON1ASED con pesos
       uniformes) cambia el resultado ~1.15–1.23x sobre los mismos templates físicos y el mismo rango de
-      redshift.</p>
+      redshift. Fase 7 confirmó que ese efecto es específico de clases con <code>SIMSED_REDCOR</code> (en una
+      clase de peso ya uniforme el efecto cae a ~1.07x), extendió <code>NON1ASED</code> a 4 clases más, y
+      encontró el hallazgo más contraintuitivo de toda la evaluación: comparando el brillo simulado real (sin
+      ruido) contra SNANA, LightCurveLynx resulta <strong>más tenue</strong>, no más brillante — lo que descarta
+      "plantillas demasiado brillantes" como explicación del sobre-conteo y deja la causa raíz en el lado del
+      ruido/SNR o la forma de la curva de luz, no en el flujo simulado en sí.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Ocho fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Nueve fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1078,6 +1083,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <span class="step-n">6</span>
         <div class="step-body">
           <p><strong>Primera clase <code>NON1ASED</code></strong> — las 14 clases previas son todas <code>SIMSED</code>/<code>SALT2</code>; <code>NON1ASED</code> no tiene <code>SED.INFO</code>, así que se construyó un loader nuevo que lee <code>NON1A.LIST</code> + el bloque real <code>NON1A_KEYS</code> del <code>.INPUT</code> y arma el mismo <code>SIMSEDModel</code> vía su constructor directo (verificado leyendo el código fuente instalado en NLHPC). Primer resultado (<code>SNIa-91bg</code>, 35 templates, 5 semillas independientes): 2.25x ± 0.08 (semilla 0, la única usada al principio, resultó ser la más alta de las 5 — 2.41x). Un bake-off directo LCL-vs-LCL con los mismos templates y el mismo rango de redshift (variando solo el esquema de pesos) aisló que parte de esa razón viene de la codificación misma — <code>SIMSED_REDCOR</code> pesa cada template por cercanía a la población real (stretch/color), mientras que la conversión oficial de SNANA a <code>NON1ASED</code> asigna peso uniforme — ~1.15x usando la media de 5 semillas del lado NON1ASED (el lado SIMSED-elastic todavía es de una sola corrida). Una diferencia real entre ambas codificaciones de SNANA, no un bug de LightCurveLynx.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">7</span>
+        <div class="step-body">
+          <p><strong>Bake-off en clase de peso uniforme, cobertura extendida, y comparación directa de brillo</strong> — tres resultados en una fase. (1) Repetir el bake-off de codificación en <code>SNIax</code> (peso ya uniforme nativo, <code>SIMSED_GRIDONLY</code>, a diferencia de <code>SNIa-91bg</code>): la diferencia cayó a ~1.07x, confirmando que el efecto de Fase 6 viene de perder <code>SIMSED_REDCOR</code>, no del formato <code>NON1ASED</code> en sí. (2) Cobertura extendida a <code>TDE</code> (2.13x) y <code>SLSN-I</code> (1.64x) — familia física <code>*-BBFIT</code> distinta de la <code>*-MOSFIT</code> ya evaluada, un solo template real cada una (fit de blackbody a un evento observado específico) — y <code>KN-BULLA-BNS-M2COMP</code> (5.16x); se encontraron y corrigieron 3 bugs de dato más (encabezado sin comentar en <code>TDE-BBFIT</code>, 549/550 templates ZIP mal etiquetados en <code>KN-BULLA</code> más 1 archivo sin comprimir en absoluto). (3) El hallazgo más importante: usando el flujo <em>sin ruido</em> que <code>simulate_lightcurves()</code> ya calcula internamente (<code>flux_perfect</code>, nunca antes extraído) en vez del mínimo de observaciones ruidosas, se comparó el brillo de pico real contra el <code>PEAKMAG</code> real del <code>.DUMP</code> de SNANA — LightCurveLynx resultó <strong>~0.2–0.6 mag más tenue</strong> que SNANA en todo el rango de redshift, lo opuesto a la hipótesis obvia. La comparación ruidosa ingenua (antes de esta corrección) había sugerido lo contrario por un sesgo tipo Eddington (el mínimo de N observaciones ruidosas es sistemáticamente más brillante que el pico real, más fuerte a bajo SNR/alto z) — un artefacto metodológico, no una propiedad real de los simuladores.</p>
         </div>
       </li>
     </ol>
@@ -1138,8 +1149,8 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         jitter sin corregir.</p>
       </div>
       <div class="cause-card confirmed">
-        <p class="cause-label">Hallazgo nuevo (Fase 6, un solo caso) — la codificación del modelo importa</p>
-        <h3>SIMSED_REDCOR vs. NON1ASED: mismos templates, ~1.23x de diferencia</h3>
+        <p class="cause-label">Hallazgo nuevo (Fase 6-7) — la codificación del modelo importa, pero solo cuando hay pesos correlacionados que perder</p>
+        <h3>SIMSED_REDCOR vs. NON1ASED: mismos templates, ~1.15x de diferencia (en SNIa-91bg)</h3>
         <p>Bake-off LCL-vs-LCL con <code>SNIa-91bg</code>: los mismos 35 templates físicos, al mismo
         <code>GENRANGE_REDSHIFT</code> (0.011–1.2), dan 289/2000 (14.45%) detectados vía
         <code>SIMSED_REDCOR</code> (población correlacionada real stretch/color, una sola corrida) contra un
@@ -1147,10 +1158,32 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         la herramienta oficial <code>convert_SIMSED_to_NON1ASED.py</code> de SNANA) — ~1.15x de diferencia solo
         por la codificación. La semilla 0 sola (17.75%) daba 1.23x, pero resultó ser la más alta de las 5, no
         la típica. No es un bug de LightCurveLynx — es una diferencia real de población simulada entre dos
-        codificaciones de SNANA para la misma clase física. Un solo caso hasta ahora, y el lado SIMSED-elastic
-        todavía no tiene su propio barrido de 5 semillas; no se sabe si aplica igual a clases SIMSED con peso
-        uniforme (<code>SIMSED_GRIDONLY</code>), donde no habría <code>SIMSED_REDCOR</code> que perder al
-        convertir.</p>
+        codificaciones de SNANA para la misma clase física. Fase 7 repitió el mismo bake-off en
+        <code>SNIax</code>, cuyo peso SIMSED ya es uniforme nativo (<code>SIMSED_GRIDONLY</code>, sin
+        <code>SIMSED_REDCOR</code> que perder): 214/2000 (10.7%) vs. 228/2000 (11.4%) — solo ~1.07x, consistente
+        con ruido de una sola semilla. Confirma la hipótesis: el efecto viene de perder la ponderación
+        correlacionada real al convertir, no del formato <code>NON1ASED</code> en sí.</p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Hallazgo mayor (Fase 7) — comparación directa de brillo, sin ruido, contradice la hipótesis obvia</p>
+        <h3>LightCurveLynx simula objetos más tenues que SNANA, no más brillantes</h3>
+        <p><code>simulate_lightcurves()</code> ya calcula internamente un flujo <em>sin ruido</em>
+        (<code>flux_perfect</code>) que ningún script anterior había extraído — todo el pipeline hasta ahora
+        comparaba solo conteos de detección, nunca el brillo simulado subyacente. Extrayéndolo y comparando el
+        pico real (sin ruido) de <code>SNIa-91bg</code> contra <code>PEAKMAG_r</code> del <code>.DUMP</code> real
+        de SNANA (ambos con la población COMPLETA generada, no solo detectados), LightCurveLynx resulta
+        <strong>~0.2–0.6 mag más tenue</strong> que SNANA en cada bin de redshift (0.011–0.6) — lo opuesto a lo
+        que predeciría "LightCurveLynx sobre-detecta porque simula objetos demasiado brillantes". Un primer
+        intento usando el mínimo de magnitud <em>observada con ruido</em> por objeto había sugerido lo contrario
+        (hasta 1.4 mag más brillante a alto z) — pero SNANA <code>PEAKMAG</code> es una magnitud de pico teórica
+        sin ruido, y compararla contra un mínimo ruidoso introduce un sesgo tipo Eddington (el mínimo de N
+        observaciones ruidosas es sistemáticamente más brillante que el pico real, más fuerte a bajo SNR/alto z)
+        — un artefacto metodológico de la primera comparación, confirmado y corregido en la misma fase, no una
+        propiedad real de los simuladores. Consecuencia real: la causa del sobre-conteo sistémico no está en el
+        flujo/template simulado en sí (si acaso, ese factor apunta en la dirección contraria) — hay que buscarla
+        en el ruido/SNR o en la forma/duración de la curva de luz cerca del pico, no en la calibración de brillo.
+        Un solo caso hasta ahora (<code>SNIa-91bg</code>, rango 0.011–0.6); extender a otras clases queda
+        pendiente.</p>
       </div>
     </div>
 
@@ -1161,7 +1194,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
           <li><strong>Ingesta de OpSim</strong> — exacta, mismo schema que el simulador oficial de Rubin.</li>
           <li><strong>Extinción MW</strong> — completa, más flexible que SNANA hoy.</li>
           <li><strong>SIMSED nativo</strong> — 14 clases, 5 modelos DNDZ reales, 2 esquemas de peso.</li>
-          <li><strong><code>NON1ASED</code> (Fase 6)</strong> — loader nuevo (sin <code>SED.INFO</code>), 1/5 clases convertidas por SNANA evaluada hasta ahora.</li>
+          <li><strong><code>NON1ASED</code> (Fase 6-7)</strong> — loader nuevo (sin <code>SED.INFO</code>), 5/5 clases convertidas por SNANA evaluadas.</li>
           <li><strong>SEARCHEFF real</strong> — mismo criterio de detección en ambos lados de la comparación.</li>
           <li><strong>Rendimiento</strong> — ~150x más rápido en throughput crudo, confirmado en cada corrida.</li>
           <li><strong>Orquestación</strong> — <code>dask.LocalCluster</code>, 3.16x de speedup, sin tocar el login node.</li>
@@ -1177,7 +1210,8 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
           re-corrió retroactivamente el catálogo completo con el código viejo.</li>
           <li><strong>Más de un baseline</strong> — todo contra la única campaña real disponible (v8).</li>
           <li><strong>Integración de pipeline</strong> — nada toca Capa 3 ni ningún archivo de producción.</li>
-          <li><strong><code>NON1ASED</code> a escala completa</strong> — solo <code>SNIa-91bg</code> corrida (5 semillas ya); <code>SNIax</code>, <code>TDE</code>, <code>SLSN-I</code>, <code>KN-BULLA-BNS-M2COMP</code> quedan pendientes.</li>
+          <li><strong>5 semillas por clase <code>NON1ASED</code></strong> — solo <code>SNIa-91bg</code> tiene barrido completo; <code>SNIax</code>, <code>TDE</code>, <code>SLSN-I</code>, <code>KN-BULLA-BNS-M2COMP</code> son de una sola corrida.</li>
+          <li><strong>Comparación de brillo sin ruido</strong> — un solo caso (<code>SNIa-91bg</code>, Fase 7); extender a más clases y confirmar si el residuo de ~0.2–0.6 mag es consistente en todo el catálogo queda pendiente.</li>
         </ul>
       </div>
     </div>
@@ -1195,8 +1229,15 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       corrida única de Fase 4 heredaba un sesgo de emparejamiento de posición ya corregido. <code>CaRT</code>
       queda confirmado como el peor caso real (10.83x ± 0.69), no un artefacto de semilla. Descartar causas
       reales con evidencia real, y ahora con bandas de incertidumbre reales en vez de corridas únicas, es
-      progreso científico genuino — la causa raíz del residuo sistémico multiplicativo sigue siendo la prioridad
-      para cualquier trabajo futuro.</p>
+      progreso científico genuino. Fase 6-7 verificó SEARCHEFF contra los archivos reales de NLHPC (descartado
+      de nuevo, ahora contra el dato de producción), investigó la hipótesis de "detecciones basura" a alto z del
+      profesor del usuario (real pero ausente de ambos simuladores, no explica la brecha), y sumó el hallazgo más
+      importante hasta ahora: comparando brillo simulado <em>sin ruido</em> (nunca hecho antes — todo el trabajo
+      previo comparaba solo conteos post-SEARCHEFF), LightCurveLynx resulta más tenue que SNANA, no más
+      brillante — lo que descarta la calibración de flujo/template como causa y deja el ruido/SNR o la forma de
+      la curva de luz como los candidatos más probables que quedan sin investigar. La causa raíz del residuo
+      sistémico multiplicativo sigue siendo la prioridad para cualquier trabajo futuro, ahora con una hipótesis
+      menos en la lista y una dirección más concreta hacia dónde mirar.</p>
     </div>
 
     <p class="section-sub" style="margin-top:30px;">Mismos 4 gráficos de control que la sección 03, generados por el PoC de cada clase.</p>

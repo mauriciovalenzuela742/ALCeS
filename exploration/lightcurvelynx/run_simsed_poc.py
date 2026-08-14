@@ -173,6 +173,23 @@ CLASS_CONFIGS = {
         host_av=dict(kind="exp_halfgauss", tau=1.7, sig=0.6, ratio=4.0,
                       av_range=(0.001, 3.0), r_v=3.1),
     ),
+    # Fase 7: bake-off de codificacion en clase de peso uniforme
+    # (SIMSED_GRIDONLY), contraparte diagnostica de "SNIax" al rango de z
+    # real del .INPUT elastic (0.011-1.5, el mismo que se convirtio a
+    # NON1ASED) -- ver run_non1ased_poc.py CLASS_CONFIGS["SNIax"]. Mismos
+    # 1001 templates fisicos (confirmado por listado de directorio), mismos
+    # parametros reales de host extinction (GENTAU_AV/GENSIG_AV/GENRATIO_AV0
+    # identicos entre el .INPUT elastic y no-elastic). Sin corrida SNANA real
+    # de este .INPUT SIMSED-elastic (el elastic solo se uso como fuente para
+    # la conversion a NON1ASED) -- misma logica que SNIa-91bg-elastic.
+    "SNIax-elastic": dict(
+        simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNIax",
+        genrange_redshift=(0.011, 1.5),
+        dndz=("md14", 6.0e-6),
+        sntype=12,
+        host_av=dict(kind="exp_halfgauss", tau=1.7, sig=0.6, ratio=4.0,
+                      av_range=(0.001, 3.0), r_v=3.1),
+    ),
     "TDE-MOSFIT": dict(
         # SED.INFO real trae una linea suelta invalida ("tde_384.json",
         # sin prefijo "SED:" ni ':') que rompe el parser YAML de
