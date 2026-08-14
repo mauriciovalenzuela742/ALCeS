@@ -2246,3 +2246,19 @@ vale la pena considerar, como trabajo futuro real (no solo para esta clase), com
 las tablas crudas de corridas ya completamente resumidas en el dashboard, en vez de acumularlas
 indefinidamente. Trabajo futuro inmediato: liberar espacio adicional y completar el barrido de 5
 semillas de `SNIax` (NON1ASED).
+
+## Addendum -- panel QC de curvas de luz: objetos mas brillantes, no muestra aleatoria
+
+`pipeline/postproc/qc.py::sample_lightcurves()` elegía 6 SNID al azar (`rng.choice`, `seed=42`
+fijo) para el panel "Curvas de luz" de los 4 gráficos de control -- útil para verificar que el
+pipeline no está roto, pero no para juzgar visualmente qué tan brillante/creíble es la población
+simulada de una clase. Cambiado a elegir los 6 objetos con el `FLUXCAL` pico más alto (máximo de
+la observación individual más brillante de cada objeto, sobre todas sus bandas) -- sin parámetro
+`seed` (ya no hay aleatoriedad que fijar). Esta función es compartida entre el QC de producción
+real de SNANA (sección 03, Capa 4, `postprocess.py`) y el QC de todos los PoC de LightCurveLynx
+(sección 06) -- el cambio aplica a ambos lados por diseño, pero **solo se regeneraron los 19
+`lightcurves.png` del dashboard de LightCurveLynx** (desde los `head_df.parquet`/
+`phot_df.parquet` ya persistidos, sin re-simular nada, vía `regen_lightcurves_qc.py`, exploratorio
+y no versionado). Las imágenes de producción de la sección 03 (351 archivos, generadas desde FITS
+reales de la campaña) no se tocaron -- quedan con el panel de muestra aleatoria hasta que se
+vuelva a correr Capa 4 sobre la campaña real.

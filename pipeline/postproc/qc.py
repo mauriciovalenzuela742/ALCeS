@@ -7,7 +7,7 @@ Usa matplotlib con el tema nocturno LSST y los colores de banda ugrizY.
     1. redshift_distribution    — z simulado vs z detectado, por clase
     2. magnitude_histograms     — histograma de mag A-B por banda
     3. detection_distribution   — nro de detecciones por objeto
-    4. sample_lightcurves       — muestra aleatoria de curvas de luz
+    4. sample_lightcurves       — curvas de luz de los objetos mas brillantes (FLUXCAL pico mas alto)
 
 Ademas:
     5. run_all_qc               — corre los 4 y devuelve las rutas
@@ -262,9 +262,12 @@ def sample_lightcurves(
     band_col: str = "FLT",
     photflag_col: str = "PHOTFLAG",
     detected_flags: tuple[int, ...] = (4096, 6144),
-    seed: int = 42,
 ) -> Path:
-    """Muestra aleatoria de curvas de luz (flujo vs MJD, multibanda)."""
+    """Curvas de luz de los objetos mas brillantes (flujo vs MJD, multibanda).
+
+    Selecciona los `n_samples` objetos con el FLUXCAL pico mas alto (la
+    observacion individual mas brillante que alcanza cada objeto, sobre
+    todas sus bandas) -- no una muestra aleatoria."""
     _setup_style()
     import matplotlib.pyplot as plt
 
@@ -277,10 +280,9 @@ def sample_lightcurves(
         fig.savefig(out_path); plt.close(fig); return out_path
     phot_df = valid
 
-    rng = np.random.default_rng(seed)
-    all_snids = phot_df[snid_col].unique()
-    n = min(n_samples, len(all_snids))
-    chosen = rng.choice(all_snids, size=n, replace=False)
+    peak_flux = phot_df.groupby(snid_col)[flux_col].max().sort_values(ascending=False)
+    n = min(n_samples, len(peak_flux))
+    chosen = peak_flux.head(n).index.to_numpy()
 
     ncols = min(3, n)
     nrows = max(1, (n + ncols - 1) // ncols)
@@ -321,7 +323,7 @@ def sample_lightcurves(
 
     for idx in range(n, nrows * ncols):
         axes[idx // ncols][idx % ncols].set_visible(False)
-    fig.suptitle("Curvas de luz de muestra", color=_ACCENT, fontsize=13, y=1.02)
+    fig.suptitle("Curvas de luz mas brillantes", color=_ACCENT, fontsize=13, y=1.02)
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
