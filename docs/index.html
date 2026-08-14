@@ -1024,9 +1024,10 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       dominante. Fase 5 además encontró y corrigió 3 bugs de reproducibilidad en la propia librería
       (selección de posición/pointing y ruido fotométrico nunca sembrados) — la causa raíz del residuo
       sistémico real sigue sin identificarse. Fase 6 amplió la cobertura más allá de SIMSED/SALT2: primera
-      clase <code>NON1ASED</code> (<code>SNIa-91bg</code>, 2.41x) y un hallazgo nuevo — la propia codificación
-      del modelo en SNANA (SIMSED con pesos correlacionados vs. NON1ASED con pesos uniformes) cambia el
-      resultado ~1.23x sobre los mismos templates físicos y el mismo rango de redshift.</p>
+      clase <code>NON1ASED</code> (<code>SNIa-91bg</code>, 2.25x ± 0.08 con 5 semillas) y un hallazgo nuevo —
+      la propia codificación del modelo en SNANA (SIMSED con pesos correlacionados vs. NON1ASED con pesos
+      uniformes) cambia el resultado ~1.15–1.23x sobre los mismos templates físicos y el mismo rango de
+      redshift.</p>
     </div>
 
     <h3 style="margin:26px 0 12px; font-size:1rem;">Ocho fases, cada una con una decisión real</h3>
@@ -1076,7 +1077,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <li>
         <span class="step-n">6</span>
         <div class="step-body">
-          <p><strong>Primera clase <code>NON1ASED</code></strong> — las 14 clases previas son todas <code>SIMSED</code>/<code>SALT2</code>; <code>NON1ASED</code> no tiene <code>SED.INFO</code>, así que se construyó un loader nuevo que lee <code>NON1A.LIST</code> + el bloque real <code>NON1A_KEYS</code> del <code>.INPUT</code> y arma el mismo <code>SIMSEDModel</code> vía su constructor directo (verificado leyendo el código fuente instalado en NLHPC). Primer resultado (<code>SNIa-91bg</code>, 35 templates): 2.41x. Un bake-off directo LCL-vs-LCL con los mismos templates y el mismo rango de redshift (variando solo el esquema de pesos) aisló que ~1.23x de esa razón viene de la codificación misma — <code>SIMSED_REDCOR</code> pesa cada template por cercanía a la población real (stretch/color), mientras que la conversión oficial de SNANA a <code>NON1ASED</code> asigna peso uniforme — una diferencia real entre ambas codificaciones de SNANA, no un bug de LightCurveLynx.</p>
+          <p><strong>Primera clase <code>NON1ASED</code></strong> — las 14 clases previas son todas <code>SIMSED</code>/<code>SALT2</code>; <code>NON1ASED</code> no tiene <code>SED.INFO</code>, así que se construyó un loader nuevo que lee <code>NON1A.LIST</code> + el bloque real <code>NON1A_KEYS</code> del <code>.INPUT</code> y arma el mismo <code>SIMSEDModel</code> vía su constructor directo (verificado leyendo el código fuente instalado en NLHPC). Primer resultado (<code>SNIa-91bg</code>, 35 templates, 5 semillas independientes): 2.25x ± 0.08 (semilla 0, la única usada al principio, resultó ser la más alta de las 5 — 2.41x). Un bake-off directo LCL-vs-LCL con los mismos templates y el mismo rango de redshift (variando solo el esquema de pesos) aisló que parte de esa razón viene de la codificación misma — <code>SIMSED_REDCOR</code> pesa cada template por cercanía a la población real (stretch/color), mientras que la conversión oficial de SNANA a <code>NON1ASED</code> asigna peso uniforme — ~1.15x usando la media de 5 semillas del lado NON1ASED (el lado SIMSED-elastic todavía es de una sola corrida). Una diferencia real entre ambas codificaciones de SNANA, no un bug de LightCurveLynx.</p>
         </div>
       </li>
     </ol>
@@ -1140,13 +1141,16 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <p class="cause-label">Hallazgo nuevo (Fase 6, un solo caso) — la codificación del modelo importa</p>
         <h3>SIMSED_REDCOR vs. NON1ASED: mismos templates, ~1.23x de diferencia</h3>
         <p>Bake-off LCL-vs-LCL con <code>SNIa-91bg</code>: los mismos 35 templates físicos, al mismo
-        <code>GENRANGE_REDSHIFT</code> (0.011–1.2), dan 289/2000 detectados vía <code>SIMSED_REDCOR</code>
-        (población correlacionada real stretch/color) contra 355/2000 vía <code>NON1ASED</code> (peso uniforme
-        1/35, el que asigna la herramienta oficial <code>convert_SIMSED_to_NON1ASED.py</code> de SNANA). No es
-        un bug de LightCurveLynx — es una diferencia real de población simulada entre dos codificaciones de
-        SNANA para la misma clase física. Un solo caso hasta ahora; no se sabe si aplica igual a clases SIMSED
-        con peso uniforme (<code>SIMSED_GRIDONLY</code>), donde no habría <code>SIMSED_REDCOR</code> que perder
-        al convertir.</p>
+        <code>GENRANGE_REDSHIFT</code> (0.011–1.2), dan 289/2000 (14.45%) detectados vía
+        <code>SIMSED_REDCOR</code> (población correlacionada real stretch/color, una sola corrida) contra un
+        promedio de 331/2000 (16.57%, 5 semillas) vía <code>NON1ASED</code> (peso uniforme 1/35, el que asigna
+        la herramienta oficial <code>convert_SIMSED_to_NON1ASED.py</code> de SNANA) — ~1.15x de diferencia solo
+        por la codificación. La semilla 0 sola (17.75%) daba 1.23x, pero resultó ser la más alta de las 5, no
+        la típica. No es un bug de LightCurveLynx — es una diferencia real de población simulada entre dos
+        codificaciones de SNANA para la misma clase física. Un solo caso hasta ahora, y el lado SIMSED-elastic
+        todavía no tiene su propio barrido de 5 semillas; no se sabe si aplica igual a clases SIMSED con peso
+        uniforme (<code>SIMSED_GRIDONLY</code>), donde no habría <code>SIMSED_REDCOR</code> que perder al
+        convertir.</p>
       </div>
     </div>
 
@@ -1173,7 +1177,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
           re-corrió retroactivamente el catálogo completo con el código viejo.</li>
           <li><strong>Más de un baseline</strong> — todo contra la única campaña real disponible (v8).</li>
           <li><strong>Integración de pipeline</strong> — nada toca Capa 3 ni ningún archivo de producción.</li>
-          <li><strong><code>NON1ASED</code> a escala completa</strong> — solo <code>SNIa-91bg</code> corrida (una semilla, sin barrido de 5); <code>SNIax</code>, <code>TDE</code>, <code>SLSN-I</code>, <code>KN-BULLA-BNS-M2COMP</code> quedan pendientes.</li>
+          <li><strong><code>NON1ASED</code> a escala completa</strong> — solo <code>SNIa-91bg</code> corrida (5 semillas ya); <code>SNIax</code>, <code>TDE</code>, <code>SLSN-I</code>, <code>KN-BULLA-BNS-M2COMP</code> quedan pendientes.</li>
         </ul>
       </div>
     </div>

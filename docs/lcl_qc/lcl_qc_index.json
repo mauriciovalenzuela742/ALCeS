@@ -162,6 +162,26 @@
       "note": "Fase 1/2A -- baseline SALT2. Fase 5 (5 semillas, codigo reproducible): 1.93x +/- 0.05, sube desde 1.81x de Fase 4 (corrida unica, no reproducible)."
     },
     {
+      "class": "SNIa-91bg (NON1ASED)",
+      "source_model": "NON1ASED (35 templates, mismos SED que SIMSED.SNIa-91bg)",
+      "weight_method": "NON1A_KEYS uniforme 1/35 (bloque real del .INPUT)",
+      "dndz": "POWERLAW",
+      "host_av": "no declarada",
+      "snana_detected": 1470,
+      "lcl_detected": 355,
+      "lcl_detected_mean_5seeds": 331,
+      "ngentot_snana": 20000,
+      "ngentot_lcl": 2000,
+      "snana_pct": 7.35,
+      "lcl_pct": 17.75,
+      "ratio": 2.41,
+      "ratio_mean_5seeds": 2.254,
+      "ratio_std_5seeds": 0.081,
+      "ratio_min_5seeds": 2.204,
+      "ratio_max_5seeds": 2.415,
+      "note": "Fase 6: primera clase NON1ASED en LCL (no SIMSED/SALT2). Mismos 35 templates fisicos que SIMSED.SNIa-91bg, pesos leidos del bloque NON1A_KEYS real (uniforme) en vez de SIMSED_REDCOR. GENRANGE_REDSHIFT real de este .INPUT es 0.011-1.2 (NGENTOT_LC=20000), distinto del 0.011-0.6 (NGENTOT_LC=2000) de la fila SIMSED.SNIa-91bg de arriba -- son dos generaciones de config distintas en NLHPC (model_config/ vs elastic/model_config/). 5 semillas (seed_index 0-4): 2.254x +/- 0.081 (rango 2.204-2.415x); semilla 0 (2.415x) resulto ser la mas alta de las 5, no la tipica. Bake-off directo LCL-vs-LCL al mismo rango 0.011-1.2 (clase auxiliar SNIa-91bg-elastic en run_simsed_poc.py, sin contraparte SNANA real, no listada en esta tabla, solo 1 semilla corrida): SIMSED_REDCOR da 289/2000=14.45%, NON1A_KEYS uniforme da 355/2000=17.75% en semilla 0 (1.23x), pero usando la media real de 5 semillas de NON1ASED (16.57%) contra esa misma corrida unica de SIMSED-elastic, el efecto de codificacion baja a ~1.15x -- mas confiable que el 1.23x original de una sola semilla, aunque el lado SIMSED-elastic todavia no tiene su propio barrido de 5 semillas para acotar bien la incertidumbre de esa cifra. Se debe a que SIMSED_REDCOR pesa cada template segun su distancia al pico de la normal bivariada real (stretch=0.975,color=0.557), mientras que la conversion oficial de SNANA a NON1ASED (convert_SIMSED_to_NON1ASED.py) asigna peso uniforme 1/35 -- una diferencia real de poblacion simulada entre ambas codificaciones de SNANA, no un bug de LCL."
+    },
+    {
       "class": "ILOT-MOSFIT",
       "source_model": "SIMSED (385 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
@@ -179,25 +199,6 @@
       "ratio_min_5seeds": 2.068,
       "ratio_max_5seeds": 2.466,
       "note": "Fase 5: 2.28x +/- 0.13."
-    },
-    {
-      "class": "SNIa-91bg (NON1ASED)",
-      "source_model": "NON1ASED (35 templates, mismos SED que SIMSED.SNIa-91bg)",
-      "weight_method": "NON1A_KEYS uniforme 1/35 (bloque real del .INPUT)",
-      "dndz": "POWERLAW",
-      "host_av": "no declarada",
-      "snana_detected": 1470,
-      "lcl_detected": 355,
-      "ngentot_snana": 20000,
-      "ngentot_lcl": 2000,
-      "snana_pct": 7.35,
-      "lcl_pct": 17.75,
-      "ratio": 2.41,
-      "ratio_mean_5seeds": 2.41,
-      "ratio_std_5seeds": 0.0,
-      "ratio_min_5seeds": 2.41,
-      "ratio_max_5seeds": 2.41,
-      "note": "Fase 6: primera clase NON1ASED en LCL (no SIMSED/SALT2). Mismos 35 templates fisicos que SIMSED.SNIa-91bg, pesos leidos del bloque NON1A_KEYS real (uniforme) en vez de SIMSED_REDCOR. GENRANGE_REDSHIFT real de este .INPUT es 0.011-1.2 (NGENTOT_LC=20000), distinto del 0.011-0.6 (NGENTOT_LC=2000) de la fila SIMSED.SNIa-91bg de arriba -- son dos generaciones de config distintas en NLHPC (model_config/ vs elastic/model_config/). Bake-off directo LCL-vs-LCL al mismo rango 0.011-1.2 (clase auxiliar SNIa-91bg-elastic en run_simsed_poc.py, sin contraparte SNANA real, no listada en esta tabla): SIMSED_REDCOR da 289/2000=14.45%, NON1A_KEYS uniforme da 355/2000=17.75% -- 1.23x de diferencia solo por la codificacion de pesos, con z y templates identicos. Se debe a que SIMSED_REDCOR pesa cada template segun su distancia al pico de la normal bivariada real (stretch=0.975,color=0.557), mientras que la conversion oficial de SNANA a NON1ASED (convert_SIMSED_to_NON1ASED.py) asigna peso uniforme 1/35 -- una diferencia real de poblacion simulada entre ambas codificaciones de SNANA, no un bug de LCL. El ratio 2.41x de esta fila combina ese efecto de codificacion (~1.23x) con el efecto del rango de z mas ancho (resto)."
     },
     {
       "class": "KN-BULLA19",

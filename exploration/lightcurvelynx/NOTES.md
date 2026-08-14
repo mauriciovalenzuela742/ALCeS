@@ -1860,6 +1860,38 @@ aplica igual a clases SIMSED de peso uniforme (`SIMSED_GRIDONLY`, la mayoría de
 que el efecto de codificación por sí solo podría ser mucho menor o nulo. Queda como pregunta
 abierta para las próximas clases NON1ASED.
 
+## Barrido de 5 semillas: `SNIa-91bg` NON1ASED (mismo patrón de Fase 5)
+
+Todo lo anterior en esta fase usó una sola corrida (`seed_index=0`) -- mismo riesgo
+metodológico que Fase 5 corrigió para el catálogo SIMSED/SALT2 (una sola semilla no distingue
+señal real de ruido de semilla). Se corrieron las 4 semillas restantes
+(`sbatch run_non1ased_poc.sbatch SNIa-91bg <1..4>`, mismo patrón de `seed_base` que
+`run_simsed_poc.py`), las 4 completaron sin fallos (6-7 min cada una).
+
+| Semilla | Detectados/2000 | % | Razón vs. SNANA (7.35%) |
+|---|---:|---:|---:|
+| 0 | 355 | 17.75% | 2.415x |
+| 1 | 326 | 16.30% | 2.218x |
+| 2 | 327 | 16.35% | 2.224x |
+| 3 | 324 | 16.20% | 2.204x |
+| 4 | 325 | 16.25% | 2.211x |
+
+**Media de 5 semillas: 2.254x ± 0.081 (rango 2.204x-2.415x)** -- la semilla 0, la única
+disponible cuando se calculó el 2.41x reportado más arriba, resultó ser la más alta de las 5,
+no la típica (las otras 4 caen apretadas entre 2.20x-2.22x). Mismo patrón cualitativo que varias
+clases de Fase 5 (KN-K17, CaRT): una sola corrida sin banda de incertidumbre puede sobre-reportar
+el caso real. El promedio de 5 semillas (2.254x) es el número más confiable, no el 2.41x de la
+corrida única original.
+
+**Esto también revisa el bake-off de codificación de la sección anterior**: la corrida
+`SIMSED-elastic` (289/2000=14.45%) sigue siendo de una sola semilla (no se corrió su propio
+barrido de 5), pero comparándola contra la media de 5 semillas de NON1ASED (16.57%, no el 17.75%
+de la semilla 0 sola) el efecto de codificación baja de ~1.23x a **~1.15x**
+(16.57/14.45 = 1.147). Sigue siendo un efecto real y en la misma dirección (NON1ASED detecta
+más), pero más chico de lo que sugería la comparación semilla-a-semilla original. Para acotar
+bien la incertidumbre de esta cifra haría falta además un barrido de 5 semillas del lado
+`SIMSED-elastic` -- no se hizo en esta ronda.
+
 ## Archivos de esta fase
 
 - `exploration/lightcurvelynx/non1ased.py` (nuevo) -- loader NON1ASED.
@@ -1867,9 +1899,10 @@ abierta para las próximas clases NON1ASED.
 - `exploration/lightcurvelynx/run_non1ased_poc.sbatch` (nuevo).
 - `run_simsed_poc.py` -- nueva entrada `SNIa-91bg-elastic` en `CLASS_CONFIGS` (diagnóstico, sin
   contraparte SNANA real).
-- `docs/lcl_qc/lcl_qc_index.json` -- nueva fila `SNIa-91bg (NON1ASED)`; `docs/index.html` --
-  Fase 6 documentada en la sección 06, nueva tarjeta de diagnóstico, tabla ajustada para mostrar
-  `NGENTOT` real por lado (SNANA 20000 vs. LCL 2000, primera fila donde no coinciden).
+- `docs/lcl_qc/lcl_qc_index.json` -- nueva fila `SNIa-91bg (NON1ASED)` con media/std/rango real
+  de 5 semillas; `docs/index.html` -- Fase 6 documentada en la sección 06, nueva tarjeta de
+  diagnóstico, tabla ajustada para mostrar `NGENTOT` real por lado (SNANA 20000 vs. LCL 2000,
+  primera fila donde no coinciden).
 
 ## Recomendación final (Fase 6)
 
@@ -1878,12 +1911,15 @@ de lectura de grid de flujo, mismo constructor subyacente) -- el bloqueador real
 formato de metadata (`SED.INFO` vs. `NON1A.LIST`+`NON1A_KEYS`), no de física ni de rendimiento.
 El hallazgo nuevo y genuino de esta fase es que **la codificación del modelo en SNANA (no solo
 la física que representa) puede cambiar el resultado simulado en una cantidad no trivial
-(~1.23x en este caso)** -- un hallazgo sobre SNANA mismo, no sobre LightCurveLynx, que hay que
-tener presente al comparar clases NON1ASED contra sus equivalentes SIMSED de aquí en adelante.
-La verificación de SEARCHEFF contra los archivos reales de NLHPC y la investigación de
-"detecciones basura" a alto z confirman ambas, con evidencia real, que ninguna es la causa del
-residuo sistémico abierto desde Fase 4/5 -- ese sigue siendo el ítem de mayor prioridad. Trabajo
-futuro concreto: barrido de 5 semillas para `SNIa-91bg` NON1ASED (solo 1 corrida hasta ahora);
-las 4 clases NON1ASED restantes (`SNIax`, `TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP`); repetir el
-bake-off de codificación en una clase `SIMSED_GRIDONLY` (peso uniforme) para ver si el efecto de
-~1.23x es específico de clases con `SIMSED_REDCOR` o más general.
+(~1.15x-1.23x según se use la media de 5 semillas o la semilla única, en este caso)** -- un
+hallazgo sobre SNANA mismo, no sobre LightCurveLynx, que hay que tener presente al comparar
+clases NON1ASED contra sus equivalentes SIMSED de aquí en adelante. La verificación de SEARCHEFF
+contra los archivos reales de NLHPC y la investigación de "detecciones basura" a alto z
+confirman ambas, con evidencia real, que ninguna es la causa del residuo sistémico abierto desde
+Fase 4/5 -- ese sigue siendo el ítem de mayor prioridad. Trabajo futuro concreto: barrido de 5
+semillas para `SNIa-91bg-elastic` (solo 1 corrida hasta ahora, necesario para acotar bien el
+~1.15x de arriba); las 4 clases NON1ASED restantes (`SNIax`, `TDE`, `SLSN-I`,
+`KN-BULLA-BNS-M2COMP`) -- `SNIax` es el candidato natural para repetir el bake-off de
+codificación en una clase `SIMSED_GRIDONLY` (peso uniforme), ya que su conversión NON1ASED usa
+la misma familia física de templates que su entrada SIMSED ya existente, y así ver si el efecto
+de codificación es específico de clases con `SIMSED_REDCOR` o más general.
