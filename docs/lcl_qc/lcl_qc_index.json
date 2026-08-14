@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-14T10:30:00+00:00",
+  "generated_at": "2026-08-14T14:00:00+00:00",
   "campaign_ref": "full_v5.3_10yrs (baselines DDF reales)",
-  "phase": "Fase 5 -- 5 semillas independientes por clase SIMSED/SALT2 (seed_index 0-4), codigo con 3 bugs de reproducibilidad de LightCurveLynx corregidos. Fase 6 -- primera clase NON1ASED (SNIa-91bg, 5 semillas) + verificacion SEARCHEFF + bake-off de codificacion. Fase 7 -- SNIax bake-off (confirma que el efecto de codificacion es especifico de SIMSED_REDCOR), cobertura NON1ASED extendida a TDE/SLSN-I/KN-BULLA-BNS-M2COMP, comparacion directa de brillo simulado (sin ruido) vs. SNANA real",
+  "phase": "Fase 5 -- 5 semillas independientes por clase SIMSED/SALT2 (seed_index 0-4), codigo con 3 bugs de reproducibilidad de LightCurveLynx corregidos. Fase 6 -- primera clase NON1ASED (SNIa-91bg, 5 semillas) + verificacion SEARCHEFF + bake-off de codificacion. Fase 7 -- SNIax bake-off (confirma que el efecto de codificacion es especifico de SIMSED_REDCOR), cobertura NON1ASED extendida a TDE/SLSN-I/KN-BULLA-BNS-M2COMP, comparacion directa de brillo simulado (sin ruido) vs. SNANA real. Fase 8 -- 5 semillas para TDE/SLSN-I/KN-BULLA-BNS-M2COMP (SNIax pendiente, bloqueada por cuota de disco real en NLHPC)",
   "kinds": [
     "redshift",
     "magnitudes",
@@ -112,16 +112,17 @@
       "host_av": "implementada (WV07 real)",
       "snana_detected": 11004,
       "lcl_detected": 1809,
+      "lcl_detected_mean_5seeds": 1812,
       "ngentot_snana": 20000,
       "ngentot_lcl": 2000,
       "snana_pct": 55.02,
       "lcl_pct": 90.45,
       "ratio": 1.644,
-      "ratio_mean_5seeds": 1.644,
-      "ratio_std_5seeds": 0.0,
-      "ratio_min_5seeds": 1.644,
-      "ratio_max_5seeds": 1.644,
-      "note": "Fase 7: familia fisica *-BBFIT, DISTINTA de la *-MOSFIT de la fila SLSN-I de arriba (fit de blackbody a un evento real unico, no un ensemble de modelos) -- sin comparacion directa posible contra esa fila. GENRANGE_REDSHIFT real 0.02-2.95 (no 0.02-9.7 como *-MOSFIT). Bug real de dato en el .SED original (segunda linea de encabezado sin '#', confirmado comparando contra el archivo hermano de TDE-BBFIT) -- se uso copia local saneada. Corrida unica (seed_index=0)."
+      "ratio_mean_5seeds": 1.647,
+      "ratio_std_5seeds": 0.009,
+      "ratio_min_5seeds": 1.636,
+      "ratio_max_5seeds": 1.659,
+      "note": "Fase 7: familia fisica *-BBFIT, DISTINTA de la *-MOSFIT de la fila SLSN-I de arriba (fit de blackbody a un evento real unico, no un ensemble de modelos) -- sin comparacion directa posible contra esa fila. GENRANGE_REDSHIFT real 0.02-2.95 (no 0.02-9.7 como *-MOSFIT). Bug real de dato en el .SED original (segunda linea de encabezado sin '#', confirmado comparando contra el archivo hermano de TDE-BBFIT) -- se uso copia local saneada. 5 semillas (seed_index 0-4): 1.647x +/- 0.009 (rango 1.636-1.659x), el std relativo mas bajo del catalogo (0.5%) -- clase con recall muy alto (~90%) y poca varianza de semilla. Semilla 1 se recupero sin re-simular (la simulacion y SEARCHEFF ya habian corrido y persistido head_df/phot_df.parquet completos antes de un OSError de cuota de disco al escribir el summary.json -- se recalcularon las metricas desde las tablas ya guardadas, ver recover_slsni_seed1.py)."
     },
     {
       "class": "TDE-MOSFIT",
@@ -188,16 +189,17 @@
       "host_av": "implementada (exponencial pura, GENTAU_AV=0.4)",
       "snana_detected": 2311,
       "lcl_detected": 984,
+      "lcl_detected_mean_5seeds": 958,
       "ngentot_snana": 10000,
       "ngentot_lcl": 2000,
       "snana_pct": 23.11,
       "lcl_pct": 49.2,
       "ratio": 2.129,
-      "ratio_mean_5seeds": 2.129,
-      "ratio_std_5seeds": 0.0,
-      "ratio_min_5seeds": 2.129,
+      "ratio_mean_5seeds": 2.074,
+      "ratio_std_5seeds": 0.031,
+      "ratio_min_5seeds": 2.038,
       "ratio_max_5seeds": 2.129,
-      "note": "Fase 7: familia fisica *-BBFIT, DISTINTA de la *-MOSFIT de la fila TDE-MOSFIT de arriba -- sin comparacion directa posible. GENRANGE_REDSHIFT/DNDZ/host_av del .INPUT real resultaron identicos a los de TDE-MOSFIT pese a ser una familia de template distinta. Bug real de dato en el .SED original (segunda linea de encabezado sin '#', typo de un caracter) -- se uso copia local saneada. Corrida unica (seed_index=0)."
+      "note": "Fase 7: familia fisica *-BBFIT, DISTINTA de la *-MOSFIT de la fila TDE-MOSFIT de arriba -- sin comparacion directa posible. GENRANGE_REDSHIFT/DNDZ/host_av del .INPUT real resultaron identicos a los de TDE-MOSFIT pese a ser una familia de template distinta. Bug real de dato en el .SED original (segunda linea de encabezado sin '#', typo de un caracter) -- se uso copia local saneada. 5 semillas (seed_index 0-4): 2.074x +/- 0.031 (rango 2.038-2.129x); semilla 0 (2.129x) resulto ser la mas alta de las 5."
     },
     {
       "class": "SNIa-91bg (NON1ASED)",
@@ -303,16 +305,17 @@
       "host_av": "implementada (WV07 real, REWGT_EXPAV=0.5)",
       "snana_detected": 279,
       "lcl_detected": 144,
+      "lcl_detected_mean_5seeds": 132,
       "ngentot_snana": 20000,
       "ngentot_lcl": 2000,
       "snana_pct": 1.395,
       "lcl_pct": 7.2,
       "ratio": 5.161,
-      "ratio_mean_5seeds": 5.161,
-      "ratio_std_5seeds": 0.0,
-      "ratio_min_5seeds": 5.161,
+      "ratio_mean_5seeds": 4.746,
+      "ratio_std_5seeds": 0.325,
+      "ratio_min_5seeds": 4.265,
       "ratio_max_5seeds": 5.161,
-      "note": "Fase 7: misma sub-variante fisica que KN-BULLA19 (SIMSED, fila de arriba, ratio 2.51x) pero GENRANGE_REDSHIFT real 0.011-0.5 (no 0.011-0.28 de KN-BULLA19) -- distinto rango, sin bake-off limpio posible sin correr tambien un 'KN-BULLA19-elastic'. Dos bugs reales de dato encontrados en los templates (549 de 550 son ZIP mal etiquetados como .gz, mismo patron que KN-BULLA19 en Fase 2B ronda 4; el archivo restante no tiene sufijo .gz en absoluto, texto plano) -- se uso copia local saneada. La validacion previa a pequena escala (300 objetos) habia dado 0/300 detectados en SNANA; la campana real completa (20000) SI tiene senal real (279 detectados, 1.4%). Corrida unica (seed_index=0)."
+      "note": "Fase 7: misma sub-variante fisica que KN-BULLA19 (SIMSED, fila de arriba, ratio 2.51x) pero GENRANGE_REDSHIFT real 0.011-0.5 (no 0.011-0.28 de KN-BULLA19) -- distinto rango, sin bake-off limpio posible sin correr tambien un 'KN-BULLA19-elastic'. Dos bugs reales de dato encontrados en los templates (549 de 550 son ZIP mal etiquetados como .gz, mismo patron que KN-BULLA19 en Fase 2B ronda 4; el archivo restante no tiene sufijo .gz en absoluto, texto plano) -- se uso copia local saneada. La validacion previa a pequena escala (300 objetos) habia dado 0/300 detectados en SNANA; la campana real completa (20000) SI tiene senal real (279 detectados, 1.4%). 5 semillas (seed_index 0-4): 4.746x +/- 0.325 (rango 4.265-5.161x, std relativo 6.8% -- el mas alto de las clases NON1ASED, conteo SNANA bajo como denominador, mismo patron que KN-K17/CaRT en Fase 5); semilla 0 (5.161x) fue la mas alta de las 5."
     },
     {
       "class": "SNIIn-MOSFIT",

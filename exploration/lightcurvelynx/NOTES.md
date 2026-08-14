@@ -2158,3 +2158,91 @@ fase anterior. Trabajo futuro: extender la comparación de brillo sin ruido a m�
 catálogo (un solo caso hasta ahora); investigar el cálculo de ruido/SNR más a fondo; comparar
 directamente la forma temporal de la curva de luz (no solo el pico) entre ambos simuladores;
 barrido de 5 semillas para las 4 clases NON1ASED nuevas y para `SNIax-elastic`.
+
+# Fase 8 -- barrido de 5 semillas para las 4 clases NON1ASED nuevas, incidente real de cuota de disco
+
+## Motivación
+
+Fase 7 dejó las 4 clases NON1ASED nuevas (`TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP`, `SNIax`) con
+una sola corrida cada una -- mismo riesgo metodológico que ya se corrigió para el catálogo
+SIMSED/SALT2 en Fase 5 y para `SNIa-91bg` NON1ASED en Fase 6. Se lanzaron las 4 semillas
+restantes (`seed_index=1..4`) para las 4 clases -- 16 jobs en total.
+
+## Incidente real: cuota de disco de NLHPC agotada a mitad del barrido
+
+11/16 corridas terminaron sin fallos. 5 fallaron con el mismo error real:
+`OSError: [Errno 122] Disk quota exceeded`. No es un bug de código -- confirmado leyendo el
+traceback completo: en los 5 casos, la simulación y SEARCHEFF ya habían corrido correctamente
+(en el caso de `SLSN-I` seed 1, incluso ya se habían persistido `head_df.parquet`/
+`phot_df.parquet` completos, con `PHOTFLAG`/`DETECTED` ya calculados) -- el fallo ocurría recién
+al intentar escribir el `summary.json` final (unos pocos cientos de bytes) o las imágenes QC,
+porque la cuota de disco de la cuenta ya estaba agotada por la acumulación de `phot_df.parquet`
+de todas las rondas anteriores (Fase 5: 70 corridas × hasta 1.4GB cada una para
+`PISN-STELLA-HYDROGENIC`; Fase 6-7: más corridas NON1ASED de cientos de MB cada una) --
+`exploration/lightcurvelynx/` sola sumaba 18GB, la cuenta completa ~200GB.
+
+Los 4 `SNIax` (seeds 1-4) fallaron completos (ninguno alcanzó a persistir sus tablas -- corrida
+más larga, ~1001 templates, más probabilidad de coincidir con el pico de uso simultáneo de las
+16 corridas paralelas). `SLSN-I` seed 1 sí alcanzó a persistir sus tablas antes de fallar.
+
+## Limpieza mínima, sin borrar de más
+
+Verificado el headroom real disponible con escrituras de prueba (`dd`) antes de tocar cualquier
+archivo real -- confirmó que la cuota estaba prácticamente en cero (una escritura de 2GB falló a
+los ~65MB). Se eliminó **un solo archivo** (`poc_output_knk17_seed3/phot_df.parquet`, ~61MB) --
+una clase de Fase 5 ya completamente reportada en el dashboard/NOTES.md (`summary.json` y las 4
+imágenes QC verificados intactos antes de borrar), dejando la tabla cruda (reproducible desde el
+script sembrado si hiciera falta) fuera. Suficiente para restaurar ~100MB de headroom.
+
+## Recuperación de `SLSN-I` seed 1 sin re-simular
+
+En vez de volver a correr la simulación completa (que hubiera vuelto a escribir un
+`phot_df.parquet` de ~160MB con la cuota todavía ajustada, arriesgando fallar de nuevo),
+`recover_slsni_seed1.py` (nuevo, no versionado -- exploratorio de un solo uso) leyó
+directamente `head_df.parquet`/`phot_df.parquet` ya persistidos (que ya traían `DETECTED` y
+`PHOTFLAG` calculados, guardados antes del `OSError`), recalculó las métricas agregadas y corrió
+QC sobre esas tablas -- sin volver a simular ni a escribir ningún archivo grande nuevo. Resultado
+idéntico al que hubiera dado una corrida completa: 1826/2000 detectados (91.3%).
+
+## Resultados: 5 semillas completas para 3/4 clases; `SNIax` sigue en 1 semilla
+
+| Clase | Semillas | Razón media (5 semillas) | ±std | min-max |
+|---|---|---:|---:|---:|
+| `TDE` (NON1ASED) | 5/5 | 2.074x | 0.031 | 2.038-2.129x |
+| `SLSN-I` (NON1ASED) | 5/5 | 1.647x | 0.009 | 1.636-1.659x |
+| `KN-BULLA-BNS-M2COMP` (NON1ASED) | 5/5 | 4.746x | 0.325 | 4.265-5.161x |
+| `SNIax` (NON1ASED) | 1/5 | -- (solo 7.651x de la semilla 0) | -- | -- |
+
+`SLSN-I` tiene el std relativo más bajo del catálogo completo (0.5%) -- clase de recall muy alto
+(~90%) con poca varianza de semilla. `KN-BULLA-BNS-M2COMP` tiene el std relativo más alto de las
+clases NON1ASED (6.8%), mismo patrón que `KN-K17`/`CaRT` en Fase 5 -- conteo SNANA bajo como
+denominador (279/20000) amplifica el ruido de Poisson. En los 3 casos la semilla 0 (la única
+usada al reportar por primera vez en Fase 7) resultó ser una de las más altas de las 5, mismo
+patrón ya visto repetidamente desde Fase 5 -- otra confirmación de por qué reportar solo una
+semilla sistemáticamente sobre-representa el caso real.
+
+`SNIax` queda pendiente -- las 4 corridas fallaron por la cuota antes de persistir nada,
+así que no hay tablas parciales que recuperar como con `SLSN-I`. Requiere más limpieza de disco
+(headroom actual insuficiente para el `phot_df.parquet` de ~150-200MB que genera esta clase) antes
+de reintentar. Decisión explícita del usuario: limpiar solo lo mínimo necesario cada vez y
+confirmar antes de seguir, en vez de un barrido de limpieza masivo de una sola vez.
+
+## Archivos de esta fase
+
+- `recover_slsni_seed1.py` (nuevo, exploratorio, no versionado) -- recupera métricas/QC desde
+  tablas ya persistidas sin re-simular.
+- `docs/lcl_qc/lcl_qc_index.json` -- `TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP` (NON1ASED) actualizadas
+  con media/std/rango real de 5 semillas; `SNIax` (NON1ASED) sin cambios (sigue en 1 semilla).
+- Un archivo borrado en NLHPC: `poc_output_knk17_seed3/phot_df.parquet` (clase ya reportada
+  completa, solo se borró la tabla cruda redundante).
+
+## Recomendación final (Fase 8)
+
+**Sigue GO condicional**, sin cambios cualitativos. 3 de las 4 clases NON1ASED nuevas de Fase 7
+ya tienen bandas de incertidumbre reales de 5 semillas, consistente con el resto del catálogo.
+El incidente de cuota de disco es un recordatorio real y concreto del costo de almacenamiento de
+`phot_df.parquet` sin comprimir a esta escala (decenas de GB acumulados solo para diagnóstico) --
+vale la pena considerar, como trabajo futuro real (no solo para esta clase), comprimir o rotar
+las tablas crudas de corridas ya completamente resumidas en el dashboard, en vez de acumularlas
+indefinidamente. Trabajo futuro inmediato: liberar espacio adicional y completar el barrido de 5
+semillas de `SNIax` (NON1ASED).
