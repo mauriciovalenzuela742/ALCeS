@@ -2211,7 +2211,7 @@ idéntico al que hubiera dado una corrida completa: 1826/2000 detectados (91.3%)
 | `TDE` (NON1ASED) | 5/5 | 2.074x | 0.031 | 2.038-2.129x |
 | `SLSN-I` (NON1ASED) | 5/5 | 1.647x | 0.009 | 1.636-1.659x |
 | `KN-BULLA-BNS-M2COMP` (NON1ASED) | 5/5 | 4.746x | 0.325 | 4.265-5.161x |
-| `SNIax` (NON1ASED) | 1/5 | -- (solo 7.651x de la semilla 0) | -- | -- |
+| `SNIax` (NON1ASED) | 1/5 (completado despues, ver abajo) | -- (solo 7.651x de la semilla 0) | -- | -- |
 
 `SLSN-I` tiene el std relativo más bajo del catálogo completo (0.5%) -- clase de recall muy alto
 (~90%) con poca varianza de semilla. `KN-BULLA-BNS-M2COMP` tiene el std relativo más alto de las
@@ -2221,31 +2221,54 @@ usada al reportar por primera vez en Fase 7) resultó ser una de las más altas 
 patrón ya visto repetidamente desde Fase 5 -- otra confirmación de por qué reportar solo una
 semilla sistemáticamente sobre-representa el caso real.
 
-`SNIax` queda pendiente -- las 4 corridas fallaron por la cuota antes de persistir nada,
-así que no hay tablas parciales que recuperar como con `SLSN-I`. Requiere más limpieza de disco
-(headroom actual insuficiente para el `phot_df.parquet` de ~150-200MB que genera esta clase) antes
-de reintentar. Decisión explícita del usuario: limpiar solo lo mínimo necesario cada vez y
-confirmar antes de seguir, en vez de un barrido de limpieza masivo de una sola vez.
+`SNIax` quedó pendiente en la primera pasada -- las 4 corridas fallaron por la cuota antes de
+persistir nada, así que no había tablas parciales que recuperar como con `SLSN-I`. Completado en
+una segunda ronda inmediatamente después (mismo día): verificado el headroom real con una
+escritura de prueba antes de tocar nada (~117MB, apenas alcanzaba para 1 de las 4 semillas
+faltantes, cada una necesita ~116MB de `phot_df.parquet`) -- en vez de borrar varios archivos
+chicos como la primera vez, se liberó un solo archivo grande ya completamente resumido en el
+dashboard (`poc_output_pisnstellahydrogenic_seed4/phot_df.parquet`, ~1.3GB, verificado
+`summary.json`+QC intactos antes de borrar), dejando ~800MB de headroom -- suficiente margen para
+las 4 semillas en paralelo (~464MB de pico esperado). Las 4 corrieron limpias (~20 min cada una,
+sin fallos).
+
+| Semilla | Detectados/2000 | % | Razón vs. SNANA (1.49%) |
+|---|---:|---:|---:|
+| 0 | 228 | 11.40% | 7.651x |
+| 1 | 202 | 10.10% | 6.779x |
+| 2 | 211 | 10.55% | 7.081x |
+| 3 | 202 | 10.10% | 6.779x |
+| 4 | 209 | 10.45% | 7.013x |
+
+**Media de 5 semillas: 7.060x ± 0.320 (rango 6.779x-7.651x)** -- la semilla 0, la única disponible
+cuando se publicó por primera vez en Fase 7, volvió a ser la más alta de las 5, exactamente el
+mismo patrón que `SNIa-91bg` (NON1ASED, Fase 6), `TDE`, `KN-BULLA-BNS-M2COMP` (ambas arriba en
+esta misma fase) y varias clases SIMSED de Fase 5. Con esto, las 5 clases NON1ASED del catálogo
+(`SNIa-91bg`, `TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP`, `SNIax`) tienen banda de incertidumbre real
+de 5 semillas -- cobertura NON1ASED completa y reproducible, no solo mecánicamente funcional.
 
 ## Archivos de esta fase
 
 - `recover_slsni_seed1.py` (nuevo, exploratorio, no versionado) -- recupera métricas/QC desde
   tablas ya persistidas sin re-simular.
-- `docs/lcl_qc/lcl_qc_index.json` -- `TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP` (NON1ASED) actualizadas
-  con media/std/rango real de 5 semillas; `SNIax` (NON1ASED) sin cambios (sigue en 1 semilla).
-- Un archivo borrado en NLHPC: `poc_output_knk17_seed3/phot_df.parquet` (clase ya reportada
-  completa, solo se borró la tabla cruda redundante).
+- `docs/lcl_qc/lcl_qc_index.json` -- `TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP`, `SNIax` (las 4 NON1ASED
+  nuevas de Fase 7) actualizadas con media/std/rango real de 5 semillas.
+- Dos archivos borrados en NLHPC (ninguno versionado, ambos ya completamente resumidos en el
+  dashboard antes de borrar): `poc_output_knk17_seed3/phot_df.parquet` (~61MB) y
+  `poc_output_pisnstellahydrogenic_seed4/phot_df.parquet` (~1.3GB).
 
 ## Recomendación final (Fase 8)
 
-**Sigue GO condicional**, sin cambios cualitativos. 3 de las 4 clases NON1ASED nuevas de Fase 7
-ya tienen bandas de incertidumbre reales de 5 semillas, consistente con el resto del catálogo.
-El incidente de cuota de disco es un recordatorio real y concreto del costo de almacenamiento de
-`phot_df.parquet` sin comprimir a esta escala (decenas de GB acumulados solo para diagnóstico) --
-vale la pena considerar, como trabajo futuro real (no solo para esta clase), comprimir o rotar
-las tablas crudas de corridas ya completamente resumidas en el dashboard, en vez de acumularlas
-indefinidamente. Trabajo futuro inmediato: liberar espacio adicional y completar el barrido de 5
-semillas de `SNIax` (NON1ASED).
+**Sigue GO condicional**, sin cambios cualitativos. Las 5 clases NON1ASED del catálogo ya tienen
+bandas de incertidumbre reales de 5 semillas, consistente con el resto del catálogo -- cobertura
+NON1ASED completa (Fase 7) y reproducible (Fase 8). El incidente de cuota de disco es un
+recordatorio real y concreto del costo de almacenamiento de `phot_df.parquet` sin comprimir a esta
+escala (decenas de GB acumulados solo para diagnóstico) -- vale la pena considerar, como trabajo
+futuro real, comprimir o rotar las tablas crudas de corridas ya completamente resumidas en el
+dashboard, en vez de acumularlas indefinidamente hasta el próximo incidente de cuota. Trabajo
+futuro: barrido de 5 semillas para las 2 clases auxiliares diagnósticas (`SNIa-91bg-elastic`,
+`SNIax-elastic`) para acotar mejor la incertidumbre del efecto de codificación reportado en
+Fase 6-7 (~1.15x / ~1.07x, cada uno de una sola corrida todavía).
 
 ## Addendum -- panel QC de curvas de luz: objetos mas brillantes, no muestra aleatoria
 

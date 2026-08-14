@@ -1035,7 +1035,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       ruido/SNR o la forma de la curva de luz, no en el flujo simulado en sí.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Diez fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Once fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1095,6 +1095,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <span class="step-n">8</span>
         <div class="step-body">
           <p><strong>5 semillas para las clases nuevas, e incidente real de cuota de disco</strong> — 16 corridas lanzadas (4 clases × 4 semillas), 11 terminaron limpio. 5 fallaron con <code>OSError: Disk quota exceeded</code> real, no un bug de código — la cuenta de NLHPC ya acumulaba ~18GB solo en <code>phot_df.parquet</code> de rondas anteriores. Limpieza mínima y verificada (una escritura de prueba confirmó que el headroom real estaba en ~65MB antes de tocar nada): se borró un solo archivo ya completamente resumido en el dashboard. <code>SLSN-I</code> semilla 1 se recuperó sin volver a simular — la simulación y SEARCHEFF ya habían corrido y persistido sus tablas antes de fallar solo al escribir el resumen final, así que las métricas se recalcularon directo desde esas tablas. Resultado: <code>TDE</code>, <code>SLSN-I</code> y <code>KN-BULLA-BNS-M2COMP</code> ya tienen 5 semillas completas; <code>SNIax</code> (la corrida más pesada, ~1001 templates) sigue en 1 sola — sus 4 intentos fallaron antes de persistir nada, sin tablas parciales que recuperar.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">9</span>
+        <div class="step-body">
+          <p><strong><code>SNIax</code> completa el catálogo de 5 semillas</strong> — headroom real verificado antes de tocar nada (~117MB, apenas alcanzaba para 1 de las 4 semillas que faltaban): se liberó un solo archivo grande ya completamente resumido en el dashboard (<code>PISN-STELLA-HYDROGENIC</code> semilla 4, ~1.3GB) en vez de varios chicos — una sola operación, mismo criterio de "solo lo ya documentado" que la limpieza anterior. Las 4 semillas corrieron limpias esta vez (~20 min cada una). Resultado: 7.06x ± 0.32 (rango 6.78-7.65x) — la semilla 0 (7.65x), la única disponible cuando se publicó por primera vez en Fase 7, volvió a ser la más alta de las 5, mismo patrón que absolutamente todas las demás clases del catálogo. Con esto, las 19 clases del catálogo (excepto las 4 auxiliares <code>*-elastic</code>/diagnósticas, que no tienen contraparte SNANA real) tienen banda de incertidumbre real de 5 semillas.</p>
         </div>
       </li>
     </ol>
@@ -1216,7 +1222,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
           re-corrió retroactivamente el catálogo completo con el código viejo.</li>
           <li><strong>Más de un baseline</strong> — todo contra la única campaña real disponible (v8).</li>
           <li><strong>Integración de pipeline</strong> — nada toca Capa 3 ni ningún archivo de producción.</li>
-          <li><strong>5 semillas por clase <code>NON1ASED</code></strong> — <code>SNIa-91bg</code>, <code>TDE</code>, <code>SLSN-I</code>, <code>KN-BULLA-BNS-M2COMP</code> ya tienen barrido completo; <code>SNIax</code> sigue en una sola corrida (sus 4 semillas restantes fallaron por cuota de disco, Fase 8, pendiente reintentar).</li>
+          <li><strong>Barrido de 5 semillas <code>SIMSED-elastic</code>/<code>SNIa-91bg-elastic</code></strong> — las 2 clases auxiliares diagnósticas del bake-off de codificación (Fase 6-7) siguen en 1 sola corrida cada una; no tienen contraparte SNANA real, así que no afectan ningún ratio publicado, pero acotarían mejor el ~1.15x/~1.07x de efecto de codificación reportado.</li>
           <li><strong>Comparación de brillo sin ruido</strong> — un solo caso (<code>SNIa-91bg</code>, Fase 7); extender a más clases y confirmar si el residuo de ~0.2–0.6 mag es consistente en todo el catálogo queda pendiente.</li>
         </ul>
       </div>

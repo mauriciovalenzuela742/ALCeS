@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-14T14:00:00+00:00",
+  "generated_at": "2026-08-14T16:10:00+00:00",
   "campaign_ref": "full_v5.3_10yrs (baselines DDF reales)",
-  "phase": "Fase 5 -- 5 semillas independientes por clase SIMSED/SALT2 (seed_index 0-4), codigo con 3 bugs de reproducibilidad de LightCurveLynx corregidos. Fase 6 -- primera clase NON1ASED (SNIa-91bg, 5 semillas) + verificacion SEARCHEFF + bake-off de codificacion. Fase 7 -- SNIax bake-off (confirma que el efecto de codificacion es especifico de SIMSED_REDCOR), cobertura NON1ASED extendida a TDE/SLSN-I/KN-BULLA-BNS-M2COMP, comparacion directa de brillo simulado (sin ruido) vs. SNANA real. Fase 8 -- 5 semillas para TDE/SLSN-I/KN-BULLA-BNS-M2COMP (SNIax pendiente, bloqueada por cuota de disco real en NLHPC)",
+  "phase": "Fase 5 -- 5 semillas independientes por clase SIMSED/SALT2 (seed_index 0-4), codigo con 3 bugs de reproducibilidad de LightCurveLynx corregidos. Fase 6 -- primera clase NON1ASED (SNIa-91bg, 5 semillas) + verificacion SEARCHEFF + bake-off de codificacion. Fase 7 -- SNIax bake-off (confirma que el efecto de codificacion es especifico de SIMSED_REDCOR), cobertura NON1ASED extendida a TDE/SLSN-I/KN-BULLA-BNS-M2COMP, comparacion directa de brillo simulado (sin ruido) vs. SNANA real. Fase 8 -- 5 semillas completas para las 5 clases NON1ASED (TDE/SLSN-I/KN-BULLA-BNS-M2COMP/SNIax), catalogo con 19 clases todas con barrido de 5 semillas salvo las 4 SIMSED-elastic/SNIa-91bg-elastic diagnosticas",
   "kinds": [
     "redshift",
     "magnitudes",
@@ -344,16 +344,17 @@
       "host_av": "implementada (mezcla exp+semi-Gauss real, GENTAU_AV/GENSIG_AV/GENRATIO_AV0)",
       "snana_detected": 149,
       "lcl_detected": 228,
+      "lcl_detected_mean_5seeds": 210,
       "ngentot_snana": 10000,
       "ngentot_lcl": 2000,
       "snana_pct": 1.49,
       "lcl_pct": 11.4,
       "ratio": 7.651,
-      "ratio_mean_5seeds": 7.651,
-      "ratio_std_5seeds": 0.0,
-      "ratio_min_5seeds": 7.651,
+      "ratio_mean_5seeds": 7.06,
+      "ratio_std_5seeds": 0.32,
+      "ratio_min_5seeds": 6.779,
       "ratio_max_5seeds": 7.651,
-      "note": "Fase 7: bake-off de codificacion en clase de peso uniforme (SIMSED_GRIDONLY) -- ver nota de la fila SIMSED 'SNIax' de arriba para el resultado del bake-off (1.065x, mucho mas chico que el 1.15-1.23x de SNIa-91bg/SIMSED_REDCOR). El ratio de 7.65x vs SNANA aqui es alto principalmente porque el rango de z real de este .INPUT es 0.011-1.5 (vs 0.011-0.7 de la fila SIMSED SNIax), no por la codificacion en si -- mismo patron que SNIa-91bg (NON1ASED) en Fase 6. Mismos 1001 templates fisicos que SIMSED.SNIax (confirmado por listado de directorio), ~13.6 min de carga (medido, smoke job 11483743). Corrida unica (seed_index=0)."
+      "note": "Fase 7: bake-off de codificacion en clase de peso uniforme (SIMSED_GRIDONLY) -- ver nota de la fila SIMSED 'SNIax' de arriba para el resultado del bake-off (1.065x, mucho mas chico que el 1.15-1.23x de SNIa-91bg/SIMSED_REDCOR). El ratio vs SNANA aqui es alto principalmente porque el rango de z real de este .INPUT es 0.011-1.5 (vs 0.011-0.7 de la fila SIMSED SNIax), no por la codificacion en si -- mismo patron que SNIa-91bg (NON1ASED) en Fase 6. Mismos 1001 templates fisicos que SIMSED.SNIax (confirmado por listado de directorio), ~14-20 min de carga por semilla. Fase 8: 5 semillas completas (seed_index 0-4, las 4 restantes bloqueadas por cuota de disco real de NLHPC hasta liberar espacio) -- 7.06x +/- 0.32 (rango 6.78-7.65x); semilla 0 (7.65x) volvio a ser la mas alta de las 5, mismo patron que todas las demas clases de este catalogo."
     },
     {
       "class": "CaRT",
