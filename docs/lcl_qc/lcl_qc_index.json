@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-13T18:00:00+00:00",
+  "generated_at": "2026-08-14T06:07:18+00:00",
   "campaign_ref": "full_v5.3_10yrs (baselines DDF reales)",
-  "phase": "Fase 5 -- 5 semillas independientes por clase (seed_index 0-4), codigo con 3 bugs de reproducibilidad de LightCurveLynx corregidos",
+  "phase": "Fase 5 -- 5 semillas independientes por clase SIMSED/SALT2 (seed_index 0-4), codigo con 3 bugs de reproducibilidad de LightCurveLynx corregidos. Fase 6 -- primera clase NON1ASED (SNIa-91bg, corrida unica seed_index=0)",
   "kinds": [
     "redshift",
     "magnitudes",
@@ -181,6 +181,25 @@
       "note": "Fase 5: 2.28x +/- 0.13."
     },
     {
+      "class": "SNIa-91bg (NON1ASED)",
+      "source_model": "NON1ASED (35 templates, mismos SED que SIMSED.SNIa-91bg)",
+      "weight_method": "NON1A_KEYS uniforme 1/35 (bloque real del .INPUT)",
+      "dndz": "POWERLAW",
+      "host_av": "no declarada",
+      "snana_detected": 1470,
+      "lcl_detected": 355,
+      "ngentot_snana": 20000,
+      "ngentot_lcl": 2000,
+      "snana_pct": 7.35,
+      "lcl_pct": 17.75,
+      "ratio": 2.41,
+      "ratio_mean_5seeds": 2.41,
+      "ratio_std_5seeds": 0.0,
+      "ratio_min_5seeds": 2.41,
+      "ratio_max_5seeds": 2.41,
+      "note": "Fase 6: primera clase NON1ASED en LCL (no SIMSED/SALT2). Mismos 35 templates fisicos que SIMSED.SNIa-91bg, pesos leidos del bloque NON1A_KEYS real (uniforme) en vez de SIMSED_REDCOR. GENRANGE_REDSHIFT real de este .INPUT es 0.011-1.2 (NGENTOT_LC=20000), distinto del 0.011-0.6 (NGENTOT_LC=2000) de la fila SIMSED.SNIa-91bg de arriba -- son dos generaciones de config distintas en NLHPC (model_config/ vs elastic/model_config/), asi que esta fila NO es una comparacion limpia \"misma fisica, distinta codificacion\" contra esa (el rango de z mas ancho ya explica buena parte del ratio mas alto por si solo, ver Fase 5). Corrida unica (seed_index=0, sin barrido de 5 semillas todavia) -- ratio_std=0 refleja eso, no varianza medida."
+    },
+    {
       "class": "KN-BULLA19",
       "source_model": "SIMSED (550 templates)",
       "weight_method": "uniforme (SIMSED_GRIDONLY)",
@@ -288,6 +307,12 @@
       "magnitudes": "lcl_qc/SNIa-91bg/magnitudes.png",
       "detections": "lcl_qc/SNIa-91bg/detections.png",
       "lightcurves": "lcl_qc/SNIa-91bg/lightcurves.png"
+    },
+    "SNIa-91bg (NON1ASED)": {
+      "redshift": "lcl_qc/SNIa-91bg_NON1ASED/redshift.png",
+      "magnitudes": "lcl_qc/SNIa-91bg_NON1ASED/magnitudes.png",
+      "detections": "lcl_qc/SNIa-91bg_NON1ASED/detections.png",
+      "lightcurves": "lcl_qc/SNIa-91bg_NON1ASED/lightcurves.png"
     },
     "KN-K17": {
       "redshift": "lcl_qc/KN-K17/redshift.png",

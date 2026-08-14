@@ -1461,7 +1461,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     const worst = records[records.length - 1];
     const statsEl = document.getElementById("lcl-stats");
     statsEl.innerHTML = [
-      [`${n}`, "clases SIMSED/SALT2 evaluadas (catálogo completo)"],
+      [`${n}`, "clases evaluadas (SIMSED/SALT2/NON1ASED)"],
       [`${avg.toFixed(2)}x`, "razón promedio LCL/SNANA (media de 5 semillas)"],
       [`${best.ratio_mean_5seeds.toFixed(2)}x`, `mejor caso (${best.class})`],
       [`${worst.ratio_mean_5seeds.toFixed(2)}x ± ${worst.ratio_std_5seeds.toFixed(2)}`, `peor caso (${worst.class})`],
@@ -1476,8 +1476,8 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <td class="model">${r.class}</td>
         <td>${r.source_model}<br><span class="strategy-chip">${r.dndz}</span></td>
         <td class="host-av">${r.host_av}</td>
-        <td class="ngen">${r.snana_detected}/${r.ngentot} (${r.snana_pct}%)</td>
-        <td class="ngen">${r.lcl_detected}/${r.ngentot} (${r.lcl_pct}%) <span class="strategy-chip">semilla 0</span></td>
+        <td class="ngen">${r.snana_detected}/${r.ngentot_snana ?? r.ngentot} (${r.snana_pct}%)</td>
+        <td class="ngen">${r.lcl_detected}/${r.ngentot_lcl ?? r.ngentot} (${r.lcl_pct}%) <span class="strategy-chip">semilla 0</span></td>
         <td><span class="ratio-chip ${ratioBand(r.ratio_mean_5seeds)}">${r.ratio_mean_5seeds.toFixed(2)}x ± ${r.ratio_std_5seeds.toFixed(2)}</span></td>
         <td class="lcl-note">${r.note || "—"}</td>
       </tr>`).join("");
