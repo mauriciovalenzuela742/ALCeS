@@ -2259,6 +2259,28 @@ real de SNANA (sección 03, Capa 4, `postprocess.py`) y el QC de todos los PoC d
 (sección 06) -- el cambio aplica a ambos lados por diseño, pero **solo se regeneraron los 19
 `lightcurves.png` del dashboard de LightCurveLynx** (desde los `head_df.parquet`/
 `phot_df.parquet` ya persistidos, sin re-simular nada, vía `regen_lightcurves_qc.py`, exploratorio
-y no versionado). Las imágenes de producción de la sección 03 (351 archivos, generadas desde FITS
-reales de la campaña) no se tocaron -- quedan con el panel de muestra aleatoria hasta que se
-vuelva a correr Capa 4 sobre la campaña real.
+y no versionado).
+
+**Intento de regenerar también la sección 03 (producción real) reveló un problema real e
+independiente**: `python -m pipeline.postprocess --campaign build/full_v5.3_10yrs` (el comando
+oficial, corrido vía `sbatch slurm/run_pipeline_step.sbatch`, job 11492352) encontró que **78 de
+los 80 GENVERSION del manifiesto de campaña ya no existen en `$SNDATA_ROOT/SIM`** -- el FITS crudo
+fue limpiado del disco de NLHPC (mismo tipo de presión de espacio que el incidente de cuota de
+Fase 8, aunque esta limpieza específica no la hizo esta sesión). Solo `SNIa_WFD_baseline_v5.3.1_10yrs`
+y `SNII_WFD_baseline_v5.3.1_10yrs` seguían presentes, y ambos fallaron ademas con un
+`UnicodeDecodeError` real en `converter.py` (bug preexistente, no relacionado a este cambio, no
+investigado a fondo). **No es posible regenerar las 351 imágenes de producción desde FITS real en
+su estado actual.**
+
+Decisión del usuario, explícita, tras confirmar que entendía la implicancia: sustituir el panel
+`lightcurves.png` de las 19 clases de producción (solo DDF) que sí tienen contraparte de datos ya
+persistidos de LightCurveLynx (`exploration/lightcurvelynx/poc_output_*`), usando esos datos en
+vez de FITS real que ya no existe. **El título del gráfico deja explícito que la fuente es
+LightCurveLynx, no SNANA real** (`sample_lightcurves()` ahora acepta un parámetro `title` para
+esto, ver `regen_production_lightcurves_lcl_substitute.py`, exploratorio y no versionado) -- para
+no hacer pasar datos de un simulador distinto como si fueran la salida de producción real. Solo se
+tocó el panel de curvas de luz de esas 19 (no los otros 3, que siguen siendo el `redshift`/
+`magnitudes`/`detections` real ya generado antes de que el FITS se limpiara). Las versiones WFD de
+esas mismas 19 clases, y las ~57 clases restantes sin ninguna corrida de LightCurveLynx
+(LCLIB de variables, NON1A adicionales, etc.), quedan con el panel de muestra aleatoria -- no
+hay ningún dato real ni sustituto disponible para esas todavía.

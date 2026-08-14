@@ -262,12 +262,16 @@ def sample_lightcurves(
     band_col: str = "FLT",
     photflag_col: str = "PHOTFLAG",
     detected_flags: tuple[int, ...] = (4096, 6144),
+    title: str = "Curvas de luz mas brillantes",
 ) -> Path:
     """Curvas de luz de los objetos mas brillantes (flujo vs MJD, multibanda).
 
     Selecciona los `n_samples` objetos con el FLUXCAL pico mas alto (la
     observacion individual mas brillante que alcanza cada objeto, sobre
-    todas sus bandas) -- no una muestra aleatoria."""
+    todas sus bandas) -- no una muestra aleatoria. `title` permite marcar
+    explicitamente la fuente de los datos (p.ej. si vienen de LightCurveLynx
+    en vez de SNANA real) -- nunca dejar el titulo generico si la fuente no
+    es la real esperada para ese slot."""
     _setup_style()
     import matplotlib.pyplot as plt
 
@@ -323,7 +327,7 @@ def sample_lightcurves(
 
     for idx in range(n, nrows * ncols):
         axes[idx // ncols][idx % ncols].set_visible(False)
-    fig.suptitle("Curvas de luz mas brillantes", color=_ACCENT, fontsize=13, y=1.02)
+    fig.suptitle(title, color=_ACCENT, fontsize=13, y=1.02)
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
