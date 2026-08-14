@@ -112,6 +112,30 @@ CLASS_CONFIGS = {
             redcor={("stretch", "color"): -0.656},
         ),
     ),
+    # Fase 6: mismos 35 templates fisicos que "SNIa-91bg" de arriba
+    # (simsed_91bg_local -- confirmado por diff de listado de directorio
+    # que run_SNANA/elastic/model_libs_updates/SIMSED.SNIa-91bg/ trae los
+    # mismos archivos .SED que plasticc_models/SIMSED.SNIa-91bg/, mas
+    # NON1A.LIST/SED.BINARY), pero con GENRANGE_REDSHIFT del .INPUT real
+    # "elastic" (0.011-1.2, run_SNANA/elastic/model_config/
+    # SIMGEN_INCLUDE_SNIa-91bg.INPUT) -- el mismo .INPUT del que se
+    # convirtio SNIa-91bg_NON1ASED. No hay corrida SNANA de este .INPUT
+    # SIMSED-elastic en la campana real (solo se uso como fuente para la
+    # conversion a NON1ASED) -- esta clase no tiene ratio propio vs SNANA,
+    # es solo para comparar LCL-SIMSED vs LCL-NON1ASED al mismo rango de z
+    # y aislar si la codificacion del modelo (no la fisica ni el rango)
+    # afecta el resultado (ver run_non1ased_poc.py).
+    "SNIa-91bg-elastic": dict(
+        simsed_dir=HERE / "simsed_91bg_local",
+        genrange_redshift=(0.011, 1.2),
+        dndz=("powerlaw", [(3.0e-6, 1.5, 0.011, 1.2)]),
+        sntype=13,
+        redcor_params=dict(
+            peaks=dict(stretch=0.975, color=0.557),
+            sigmas=dict(stretch=0.096, color=0.175),
+            redcor={("stretch", "color"): -0.656},
+        ),
+    ),
     "KN-K17": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.KN-K17",
         genrange_redshift=(0.011, 0.28),

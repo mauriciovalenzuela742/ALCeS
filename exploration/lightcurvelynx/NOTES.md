@@ -1680,3 +1680,210 @@ semilla. La causa raíz del residuo sistémico multiplicativo (ni la extinción 
 ni el trigger de época de Fase 4 la explican) sigue abierta como el ítem de mayor prioridad
 para cualquier trabajo futuro — ahora con una base de comparación honesta y reproducible sobre
 la cual construir esa investigación.
+
+# Fase 6 — SEARCHEFF verificado contra NLHPC, "detecciones basura" a alto z, primera clase NON1ASED
+
+## Motivación
+
+Tres preguntas del usuario, conectadas: (1) verificar el archivo real de SEARCHEFF de SNANA en
+NLHPC contra el puerto de LightCurveLynx, para confirmar (o descartar de una vez por todas) que
+no es la causa del residuo abierto desde Fase 4/5; (2) un comentario del profesor del usuario --
+en la práctica, las "detecciones" a redshift muy alto suelen ser basura (ruido, imágenes malas),
+no transitorios reales -- investigar si eso está modelado (o falta) en esta comparación; (3)
+planificar la extensión de cobertura a `GENMODEL: NON1ASED`, la clase de modelo de SNANA que
+todavía no tiene ningún soporte en LightCurveLynx (las 14 clases de Fase 0-5 son todas SIMSED o
+SALT2).
+
+## SEARCHEFF verificado contra los archivos reales (no solo contra el código)
+
+Se leyeron directamente ambos archivos reales desde NLHPC (`ssh nlhpc`, alias ya configurado en
+`~/.ssh/config`, solo lectura):
+
+- `LSST_SEARCHEFF_PIPELINE.DAT`: curva nominal PLASTICC (Kessler 2019), derivada de DES --
+  eficiencia de detección **real** (no falsa alarma) vs. SNR por filtro, `EFF=0` para `SNR<3`,
+  u≡g y z≡Y comparten curva.
+- `LSST_PIPELINE_LOGIC.DAT`: `LSST: 2 u+g+r+i+z+Y` -- trigger exige ≥2 épocas (cualquier
+  filtro), agrupadas por `NEWMJD_DIF=0.007d` (default real de `snlc_sim.c`, no sobreescrito en
+  esta campaña).
+
+Comparado línea por línea contra `searcheff.py`: es un puerto fiel (mismo parseo, misma
+interpolación SNR→eficiencia, mismo Monte Carlo, mismo agrupamiento de épocas, mismo trigger,
+misma constante `PHOTFLAG_DETECT=4096`). Ya se había descartado como causa del residuo en Fase 4
+por lectura de código -- esta sesión lo reconfirma contra los archivos reales de producción, no
+solo contra su documentación inferida. **Sin cambios de código.**
+
+## "Detecciones basura" a alto z: un hueco real, pero en ambos simuladores, no una explicación del residuo
+
+El archivo SEARCHEFF de SNANA (y por lo tanto su puerto en LightCurveLynx) solo modela
+**recall**: P(un transitorio real simulado es recuperado | SNR). No existe en ningún lado de
+este proyecto (ni en la config SNANA real, ni en LightCurveLynx, confirmado grep de
+`FAKE`/`bogus`/`DIFFIMG`/`artifact` en todo el repo -- solo *placeholders* de test) un mecanismo
+de tasa de falsos positivos/detecciones espurias (artefactos de resta de imágenes, rayos
+cósmicos). En pipelines reales tipo DES/LSST, la curva de eficiencia empírica se construye
+inyectando SNe falsas en imágenes reales y corriéndolas por un clasificador real/bogus (p.ej.
+AutoScan de DES, Goldstein et al. 2015) -- pero esa curva solo captura el recall sobre las
+fuentes reales inyectadas, no la tasa de falsa alarma del clasificador sobre candidatos que no
+son transitorios. Tanto SNANA (tal como está configurado aquí) como LightCurveLynx generan
+únicamente catálogos "limpios" de objetos ya sabidos reales -- ninguno de los dos alucina nunca
+un candidato espurio. El fenómeno que describe el profesor es real, pero está ausente
+estructuralmente de **ambos** lados de la comparación -- no explica la brecha LCL vs. SNANA.
+
+Dato adicional que refuerza esto: la razón por clase (tabla de Fase 5) no correlaciona limpio
+con el alcance en redshift -- `CaRT` es el peor caso (10.83x) con `z_max=1.4`, mientras que
+`SLSN-I` llega a `z=9.7` con uno de los mejores ratios (1.60x). El residuo correlaciona más con
+la rareza/tenuidad intrínseca de cada clase (`CaRT` es la clase con menor detección real de
+SNANA, 0.8%) que con el rango de redshift en sí. **No se tomó acción aquí** -- se documenta como
+un hueco de modelado real pero separado, candidato a una fase futura si se decide perseguirlo
+(agregar una capa empírica de tasa de falsos positivos vs. magnitud a ambos simuladores).
+
+## Primera clase NON1ASED: `non1ased.py`, nuevo loader
+
+Las 14 clases de Fase 0-5 son todas SIMSED o SALT2. `GENMODEL: NON1ASED` es la clase de modelo
+que usa SNANA para librerías de templates convertidas desde SIMSED vía la herramienta oficial
+`convert_SIMSED_to_NON1ASED.py` -- 5 clases ya convertidas y validadas del lado SNANA
+(`SNIax`, `SNIa-91bg`, `TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP`, ver `NEXT_SESSION.md`
+2026-08-06), ninguna con soporte del lado LightCurveLynx (confirmado: `grep -ri NON1A` en los
+18 archivos de `exploration/lightcurvelynx/` no encontraba nada antes de esta fase).
+
+**Bloqueador real**: `SIMSEDModel.from_dir()` (lo que usa `run_simsed_poc.py`) exige un
+`SED.INFO` (`yaml.safe_load()` sobre el archivo completo). Confirmado vía `ssh nlhpc` que los
+directorios NON1ASED reales **no lo tienen** --
+`run_SNANA/elastic/model_libs_updates/NON1ASED.SNIa-91bg/` solo trae `*.SED.gz` +
+`NON1A.LIST`. Leyendo el código fuente real instalado en el venv de NLHPC
+(`lightcurvelynx==0.5.2`, `inspect.getsource()`), se confirmó que `SIMSEDModel.from_dir()`
+internamente solo hace: parsear `SED.INFO` → construir una lista de `SEDTemplate` vía
+`SIMSEDModel._read_simsed_data_file()` (un staticmethod, ya usado directamente en
+`run_simsed_poc.py` para otra cosa) → `cls(templates, flux_scale=flux_scale, **kwargs)`, que es
+el constructor heredado de `MultiSEDTemplateModel.__init__(templates, *, weights=None,
+**kwargs)`. Es decir, `from_dir()` es solo un parser de `SED.INFO` sobre un constructor genérico
+que no exige ese formato -- se puede saltar el parser y llamar al constructor directo.
+
+`non1ased.py` (nuevo) hace exactamente eso, leyendo el formato real de NON1ASED en su lugar:
+
+- `parse_non1a_list()`: `NON1A.LIST` real (`NON1A: <index> <name> <filename>`, mismo formato
+  que ya parseaba parcialmente `pipeline/tools/generate_non1a_block.py` del lado SNANA, extendido
+  aquí para devolver también el nombre de archivo).
+- `parse_flux_scale()`: la línea suelta `FLUX_SCALE: <valor>` de `NON1A.LIST` (no es YAML, a
+  diferencia del `FLUX_SCALE` de `SED.INFO`).
+- `parse_non1a_weights_from_input()`: el bloque real `NON1A_KEYS:`/`NON1A: <idx> <WGT> <MAGOFF>
+  <MAGSMEAR> <SNTYPE>` ya escrito en el `.INPUT` real -- se usan esos pesos reales tal cual, no
+  se re-derivan como `1/N`. `MAGOFF`/`MAGSMEAR` != 0 lanza `NotImplementedError` explícito (no
+  hay precedente de calibración, ni hook equivalente en `SIMSEDModel`, para esas 5 clases).
+- `load_non1ased_model()`: arma `templates` con `SIMSEDModel._read_simsed_data_file()` (el mismo
+  staticmethod, sin reimplementar el parseo del grid de flujo) y llama al constructor directo
+  `SIMSEDModel(templates, flux_scale=..., weights=..., **kwargs)`.
+
+Verificado también (leyendo `GivenValueSampler.__init__`) que los pesos no necesitan sumar 1 --
+se normalizan internamente (`self._weights /= weight_sum`), así que pasar los pesos reales del
+`.INPUT` sin normalizar es seguro.
+
+`run_non1ased_poc.py` (nuevo) es un espejo casi exacto de `run_simsed_poc.py` -- mismo ruido
+real inyectado, extinción MW, SEARCHEFF, `simulate_lightcurves()`, QC -- solo cambia la
+construcción del `source_model` (`non1ased.load_non1ased_model()` en vez de
+`SIMSEDModel.from_dir()`). Mismo bug de Fase 4 aplica igual aquí (`GivenValueSampler` interno
+sin semilla) -- mismo fix (`source_model._sampler_node.set_seed(...)`).
+
+**Primera clase: `SNIa-91bg`** (35 templates -- el conjunto más chico de las 5 clases NON1ASED
+ya convertidas, para iterar rápido; `SNIax` tiene 1001 templates, carga de horas). Confirmado
+por diff de listado de directorio que `NON1ASED.SNIa-91bg/` trae los mismos 35 archivos `.SED`
+que `SIMSED.SNIa-91bg/` (más `NON1A.LIST`/`SED.BINARY`) -- son los mismos templates físicos,
+solo re-encapsulados. `SLSN-I_NON1ASED`/`TDE_NON1ASED` quedan descartadas como candidatas para
+un diagnóstico "misma física, distinta codificación": sus directorios reales apuntan a una
+familia de templates físicamente distinta (`*-BBFIT`) de la ya evaluada en LCL vía SIMSED
+(`*-MOSFIT`). `KN-BULLA-BNS-M2COMP` dio 0/300 detecciones en su validación SNANA -- objetivo
+demasiado incierto para un primer PoC.
+
+**Smoke test** (`N=20`, sbatch corto): cargó los 35 templates, simuló 20 objetos, aplicó
+SEARCHEFF, generó QC -- sin errores, eficiencia por bin de z con forma razonable (pico en
+z bajo-medio, cae a alto z). **Corrida completa** (`NGENTOT_LC=2000`, sbatch job 11483111,
+6m51s, partición `largemem` reasignada automáticamente por el scheduler de NLHPC):
+
+    355/2000 detectados (17.75%)
+
+SNANA real (leído del `.README` de producción real,
+`DATASIM_LSST_1/DDF/SIMDv8/SNIa-91bg_NON1ASED_DDF_baseline_v5.3.1_10yrs/`, no un archivo
+inventado): `NGENTOT_LC: 20000`, `NGENLC_WRITE: 1470` → **7.35%**.
+
+**Razón LCL/SNANA = 2.41x** -- cae dentro del rango ya visto en el catálogo de 14 clases
+(1.42x-10.83x), entre `ILOT-MOSFIT` (2.28x) y `KN-BULLA19` (2.51x). Nada indica un bug nuevo por
+sí solo.
+
+## Discrepancia real encontrada al preparar el PoC: dos generaciones de config SIMSED.SNIa-91bg en NLHPC
+
+El `.INPUT` real NON1ASED (`run_SNANA/elastic/model_config/
+SIMGEN_INCLUDE_SNIa-91bg_NON1ASED.INPUT`) declara `GENRANGE_REDSHIFT: 0.011 1.2`, distinto del
+`0.011 0.6` que usa la entrada `SNIa-91bg` de `CLASS_CONFIGS` en `run_simsed_poc.py` (la que ya
+tiene 5 semillas reportadas en Fase 5, ratio 1.42x). Investigado por qué: existen **dos
+generaciones distintas** del mismo `.INPUT` SIMSED en NLHPC --
+`run_SNANA/model_config/SIMGEN_INCLUDE_SNIa-91bg.INPUT` (z 0.011-0.6, la que se usó para el PoC
+SIMSED de Fase 2B/4/5) y `run_SNANA/elastic/model_config/SIMGEN_INCLUDE_SNIa-91bg.INPUT` (z
+0.011-1.2, la que realmente se convirtió a NON1ASED) -- mismos templates físicos
+(confirmado por diff de directorio), `.INPUT` de campaña distinto. El PoC NON1ASED usa el rango
+real de **su propio** `.INPUT` (0.011-1.2), así que su razón de 2.41x contra el `NGENLC_WRITE`
+real de esa misma campaña es válida en sí misma -- pero **no** es directamente comparable, sin
+más, contra la fila `SNIa-91bg` (SIMSED, z 0.011-0.6) ya publicada, porque el rango de z
+por sí solo ya explicaría parte de la diferencia (ver Fase 5: el residuo correlaciona con
+tenuidad/rareza, y un rango de z más ancho añade más objetos marginales).
+
+## Bake-off LCL-vs-LCL: aislando el efecto de la codificación del modelo
+
+Para aislar si la codificación SIMSED vs. NON1ASED en sí (no el rango de z) explica parte de la
+diferencia, se agregó una clase auxiliar a `run_simsed_poc.py`, `SNIa-91bg-elastic`: mismo
+directorio de templates que `SNIa-91bg` (`simsed_91bg_local`, los mismos 35 archivos físicos),
+pero con `GENRANGE_REDSHIFT=(0.011, 1.2)` -- el rango real "elastic", igual al de la clase
+NON1ASED. No existe una corrida SNANA real de este `.INPUT` SIMSED-elastic en la campaña de
+producción (el `.INPUT` elastic solo se usó como fuente para la conversión a NON1ASED, nunca se
+simuló como SIMSED por sí mismo) -- esta clase no tiene razón propia contra SNANA, sirve
+únicamente para comparar LCL-SIMSED contra LCL-NON1ASED al mismo rango de z y mismos templates.
+
+Corrida completa (`NGENTOT_LC=2000`, sbatch job 11483232, 6m57s):
+
+    SIMSED-elastic (SIMSED_REDCOR, stretch/color):    289/2000 = 14.45%
+    NON1ASED       (NON1A_KEYS uniforme 1/35):        355/2000 = 17.75%
+
+**~1.23x de diferencia solo por la codificación**, con templates y rango de z idénticos. La
+explicación mecanística es real, no un artefacto: `SIMSED_REDCOR` pesa cada template según su
+cercanía al pico de una normal bivariada real (`stretch=0.975, color=0.557`, correlación
+`-0.656`, los mismos parámetros reales que ya usa la entrada `SNIa-91bg` de Fase 2B) -- es
+decir, favorece los templates "típicos" de la población real de 91bg. La conversión oficial de
+SNANA a NON1ASED (`convert_SIMSED_to_NON1ASED.py`, confirmado leyendo
+`pipeline/tools/generate_non1a_block.py` y el bloque real `NON1A_KEYS` del `.INPUT`,
+`WGT=2.857143e-02` = 1/35 en las 35 filas) descarta esa información de población y pesa cada
+template por igual, incluyendo las esquinas físicamente raras de la grilla stretch/color. **Esto
+es una diferencia real entre dos codificaciones de SNANA para la misma clase física, no un bug
+de LightCurveLynx** -- el ratio 2.41x de la fila NON1ASED combina este efecto de codificación
+(~1.23x) con el efecto del rango de z más ancho (el resto).
+
+Alcance de este hallazgo: un solo caso (`SNIa-91bg`, que usa `SIMSED_REDCOR`). No se sabe si
+aplica igual a clases SIMSED de peso uniforme (`SIMSED_GRIDONLY`, la mayoría del catálogo de 14)
+-- ahí no habría información de `SIMSED_REDCOR` que perder al convertir a NON1ASED uniforme, así
+que el efecto de codificación por sí solo podría ser mucho menor o nulo. Queda como pregunta
+abierta para las próximas clases NON1ASED.
+
+## Archivos de esta fase
+
+- `exploration/lightcurvelynx/non1ased.py` (nuevo) -- loader NON1ASED.
+- `exploration/lightcurvelynx/run_non1ased_poc.py` (nuevo) -- PoC NON1ASED, clase `SNIa-91bg`.
+- `exploration/lightcurvelynx/run_non1ased_poc.sbatch` (nuevo).
+- `run_simsed_poc.py` -- nueva entrada `SNIa-91bg-elastic` en `CLASS_CONFIGS` (diagnóstico, sin
+  contraparte SNANA real).
+- `docs/lcl_qc/lcl_qc_index.json` -- nueva fila `SNIa-91bg (NON1ASED)`; `docs/index.html` --
+  Fase 6 documentada en la sección 06, nueva tarjeta de diagnóstico, tabla ajustada para mostrar
+  `NGENTOT` real por lado (SNANA 20000 vs. LCL 2000, primera fila donde no coinciden).
+
+## Recomendación final (Fase 6)
+
+**Sigue GO condicional.** NON1ASED funciona mecánicamente igual que SIMSED (mismo staticmethod
+de lectura de grid de flujo, mismo constructor subyacente) -- el bloqueador real era solo de
+formato de metadata (`SED.INFO` vs. `NON1A.LIST`+`NON1A_KEYS`), no de física ni de rendimiento.
+El hallazgo nuevo y genuino de esta fase es que **la codificación del modelo en SNANA (no solo
+la física que representa) puede cambiar el resultado simulado en una cantidad no trivial
+(~1.23x en este caso)** -- un hallazgo sobre SNANA mismo, no sobre LightCurveLynx, que hay que
+tener presente al comparar clases NON1ASED contra sus equivalentes SIMSED de aquí en adelante.
+La verificación de SEARCHEFF contra los archivos reales de NLHPC y la investigación de
+"detecciones basura" a alto z confirman ambas, con evidencia real, que ninguna es la causa del
+residuo sistémico abierto desde Fase 4/5 -- ese sigue siendo el ítem de mayor prioridad. Trabajo
+futuro concreto: barrido de 5 semillas para `SNIa-91bg` NON1ASED (solo 1 corrida hasta ahora);
+las 4 clases NON1ASED restantes (`SNIax`, `TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP`); repetir el
+bake-off de codificación en una clase `SIMSED_GRIDONLY` (peso uniforme) para ver si el efecto de
+~1.23x es específico de clases con `SIMSED_REDCOR` o más general.

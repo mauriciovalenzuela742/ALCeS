@@ -1023,10 +1023,13 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       de detección en Fase 4) se investigaron y corrigieron con rigor — ninguna de las dos explica la brecha
       dominante. Fase 5 además encontró y corrigió 3 bugs de reproducibilidad en la propia librería
       (selección de posición/pointing y ruido fotométrico nunca sembrados) — la causa raíz del residuo
-      sistémico real sigue sin identificarse.</p>
+      sistémico real sigue sin identificarse. Fase 6 amplió la cobertura más allá de SIMSED/SALT2: primera
+      clase <code>NON1ASED</code> (<code>SNIa-91bg</code>, 2.41x) y un hallazgo nuevo — la propia codificación
+      del modelo en SNANA (SIMSED con pesos correlacionados vs. NON1ASED con pesos uniformes) cambia el
+      resultado ~1.23x sobre los mismos templates físicos y el mismo rango de redshift.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Siete fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Ocho fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1068,6 +1071,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <span class="step-n">5</span>
         <div class="step-body">
           <p><strong>Cerrar la reproducibilidad, 5 semillas por clase</strong> — un smoke test cruzado entre procesos reveló que el fix de Fase 4 no bastaba: 3 bugs reales más en la librería (jitter de posición sub-FOV, selección de fila/pointing y ruido fotométrico, los tres sin semilla propagada) hacían que ni siquiera la misma semilla reprodujera resultados. Corregidos y verificados (misma semilla → resultado idéntico), se corrieron 70 simulaciones (14 clases × 5 semillas, sin fallos) — el promedio del catálogo subió de 2.56x a 2.83x, un movimiento real (no ruido: las 14 clases subieron), y <code>CaRT</code> quedó confirmado como el peor caso real (10.83x ± 0.69), no un artefacto de una corrida sin semilla.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">6</span>
+        <div class="step-body">
+          <p><strong>Primera clase <code>NON1ASED</code></strong> — las 14 clases previas son todas <code>SIMSED</code>/<code>SALT2</code>; <code>NON1ASED</code> no tiene <code>SED.INFO</code>, así que se construyó un loader nuevo que lee <code>NON1A.LIST</code> + el bloque real <code>NON1A_KEYS</code> del <code>.INPUT</code> y arma el mismo <code>SIMSEDModel</code> vía su constructor directo (verificado leyendo el código fuente instalado en NLHPC). Primer resultado (<code>SNIa-91bg</code>, 35 templates): 2.41x. Un bake-off directo LCL-vs-LCL con los mismos templates y el mismo rango de redshift (variando solo el esquema de pesos) aisló que ~1.23x de esa razón viene de la codificación misma — <code>SIMSED_REDCOR</code> pesa cada template por cercanía a la población real (stretch/color), mientras que la conversión oficial de SNANA a <code>NON1ASED</code> asigna peso uniforme — una diferencia real entre ambas codificaciones de SNANA, no un bug de LightCurveLynx.</p>
         </div>
       </li>
     </ol>
@@ -1127,6 +1136,18 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         unidireccional (las 14 clases subieron), no ruido: la corrida única de Fase 4 heredaba el sesgo del
         jitter sin corregir.</p>
       </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Hallazgo nuevo (Fase 6, un solo caso) — la codificación del modelo importa</p>
+        <h3>SIMSED_REDCOR vs. NON1ASED: mismos templates, ~1.23x de diferencia</h3>
+        <p>Bake-off LCL-vs-LCL con <code>SNIa-91bg</code>: los mismos 35 templates físicos, al mismo
+        <code>GENRANGE_REDSHIFT</code> (0.011–1.2), dan 289/2000 detectados vía <code>SIMSED_REDCOR</code>
+        (población correlacionada real stretch/color) contra 355/2000 vía <code>NON1ASED</code> (peso uniforme
+        1/35, el que asigna la herramienta oficial <code>convert_SIMSED_to_NON1ASED.py</code> de SNANA). No es
+        un bug de LightCurveLynx — es una diferencia real de población simulada entre dos codificaciones de
+        SNANA para la misma clase física. Un solo caso hasta ahora; no se sabe si aplica igual a clases SIMSED
+        con peso uniforme (<code>SIMSED_GRIDONLY</code>), donde no habría <code>SIMSED_REDCOR</code> que perder
+        al convertir.</p>
+      </div>
     </div>
 
     <div class="lcl-cols" style="margin-top:30px;">
@@ -1136,6 +1157,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
           <li><strong>Ingesta de OpSim</strong> — exacta, mismo schema que el simulador oficial de Rubin.</li>
           <li><strong>Extinción MW</strong> — completa, más flexible que SNANA hoy.</li>
           <li><strong>SIMSED nativo</strong> — 14 clases, 5 modelos DNDZ reales, 2 esquemas de peso.</li>
+          <li><strong><code>NON1ASED</code> (Fase 6)</strong> — loader nuevo (sin <code>SED.INFO</code>), 1/5 clases convertidas por SNANA evaluada hasta ahora.</li>
           <li><strong>SEARCHEFF real</strong> — mismo criterio de detección en ambos lados de la comparación.</li>
           <li><strong>Rendimiento</strong> — ~150x más rápido en throughput crudo, confirmado en cada corrida.</li>
           <li><strong>Orquestación</strong> — <code>dask.LocalCluster</code>, 3.16x de speedup, sin tocar el login node.</li>
@@ -1151,6 +1173,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
           re-corrió retroactivamente el catálogo completo con el código viejo.</li>
           <li><strong>Más de un baseline</strong> — todo contra la única campaña real disponible (v8).</li>
           <li><strong>Integración de pipeline</strong> — nada toca Capa 3 ni ningún archivo de producción.</li>
+          <li><strong><code>NON1ASED</code> a escala completa</strong> — solo <code>SNIa-91bg</code> corrida (una semilla, sin barrido de 5); <code>SNIax</code>, <code>TDE</code>, <code>SLSN-I</code>, <code>KN-BULLA-BNS-M2COMP</code> quedan pendientes.</li>
         </ul>
       </div>
     </div>
