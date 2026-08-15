@@ -61,6 +61,7 @@ from non1ased import load_non1ased_model
 from snana_params import (
     build_dndz_powerlaw2_cdf, build_dndz_md14_cdf, build_dndz_tde_cdf, make_dndz_sampler,
     make_exp_av_sampler, make_exp_halfgauss_av_sampler, make_wv07_av_sampler,
+    make_mwebv_ratio_scatter,
     SizeAwareFunctionNode, ClippedExtinctionEffect,
 )
 from searcheff import (
@@ -85,6 +86,7 @@ DDF_FIELD_EBV = {
     "edfs_b": 0.0152, "elaiss1": 0.0080, "xmm_lss": 0.0251,
 }
 MW_RV = 3.1
+GENSIGMA_MWEBV_RATIO = 0.16  # Fase 10: real, activo en toda la campana (templates.py)
 
 # --- config por clase, parametros reales del .INPUT NON1ASED real ---
 CLASS_CONFIGS = {
@@ -247,9 +249,16 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
 
     distance_func = SizeAwareFunctionNode(_luminosity_distance_pc, node_label="distance", redshift=redshift_func)
 
+    # Fase 10: GENSIGMA_MWEBV_RATIO=0.16 real y activo (ver snana_params.py
+    # make_mwebv_ratio_scatter para la formula, verificada linea por linea
+    # contra snlc_sim.c::gen_MWEBV()) -- antes de esta fase _field_to_ebv
+    # devolvia el EBV nominal por campo sin scatter alguno.
+    _mwebv_scatter = make_mwebv_ratio_scatter(GENSIGMA_MWEBV_RATIO, seed=seed_base + 10)
+
     def _field_to_ebv(size=None, field=None, **_kwargs):
         arr = np.asarray(field)
-        return np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+        nominal = np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+        return _mwebv_scatter(nominal)
 
     ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
     mw_extinction = ClippedExtinctionEffect(

@@ -1035,7 +1035,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       ruido/SNR o la forma de la curva de luz, no en el flujo simulado en sí.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Doce fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Trece fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1107,6 +1107,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <span class="step-n">10</span>
         <div class="step-body">
           <p><strong>Las 2 clases <code>*-elastic</code> completan su barrido, y el bake-off de codificación queda cerrado con evidencia sólida</strong> — headroom verificado de nuevo (~1GB, esta vez sin necesidad de liberar espacio), corridas en dos tandas (<code>SNIa-91bg-elastic</code> primero, <code>SNIax-elastic</code> después) para mantener el margen cómodo. Con ambos lados del bake-off ya con 5 semillas completas, los números se refinan: <code>SNIa-91bg</code> (<code>SIMSED_REDCOR</code>) pasa de la estimación intermedia de ~1.15x a <strong>~1.10x</strong> (15.06% ± 0.40% vs. 16.57% ± 0.59%, bandas que ya no se solapan — efecto real). <code>SNIax</code> (<code>SIMSED_GRIDONLY</code>, peso ya uniforme) pasa de ~1.07x a <strong>~0.98x, indistinguible de 1.0</strong> (10.78% ± 0.28% vs. 10.52% ± 0.48%, bandas que se solapan por completo). Confirma con la evidencia más sólida hasta ahora que el efecto de codificación es real pero específico de clases con <code>SIMSED_REDCOR</code> — no una propiedad general del formato <code>NON1ASED</code>.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">11</span>
+        <div class="step-body">
+          <p><strong>Plan de investigación absorbiendo documentación oficial, primer candidato probado y descartado</strong> — con el bake-off de codificación cerrado, se absorbió la documentación oficial de LightCurveLynx (readthedocs) y el manual de SNANA, cruzando cada mecanismo candidato contra los archivos reales de esta campaña en NLHPC para descartar 9 de ellos sin necesidad de correr nada (<code>FLUXERRMODEL</code>, corrección NEXPOSE/coadd, ruido Poisson de host, velocidad peculiar, bits zHOST de SEARCHEFF, <code>Om0</code>, <code>GENMAG_SMEAR</code> fuera de <code>SNIa-SALT2</code>, entre otros). El primer candidato con evidencia real de estar activo: <code>GENSIGMA_MWEBV_RATIO: 0.16</code> (dispersión gaussiana del 16% sobre el E(B-V) de Vía Láctea). Fórmula exacta confirmada leyendo <code>snlc_sim.c::gen_MWEBV()</code> directo del código fuente público de SNANA, portada y probada en <code>SNIa-91bg (NON1ASED)</code> (5 semillas nuevas) — resultado prácticamente idéntico a la línea base sin dispersión (2.254x ± 0.081 en ambos casos): los campos DDF de este proyecto tienen E(B-V) nominal demasiado bajo para que un 16% de dispersión mueva la aguja. Refuerza el hallazgo de Fase 3 (la extinción, de host o de Vía Láctea, no explica el residuo) y descarta el primer candidato del roadmap sin necesidad de escalar al resto del catálogo — la investigación continúa con la Fase 11 del plan (grilla precomputada SIMSED vs. integración en vivo).</p>
         </div>
       </li>
     </ol>
@@ -1204,6 +1210,18 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         Un solo caso hasta ahora (<code>SNIa-91bg</code>, rango 0.011–0.6); extender a otras clases queda
         pendiente.</p>
       </div>
+      <div class="cause-card refuted">
+        <p class="cause-label">Hipótesis descartada (Fase 10) — dispersión de E(B-V) de Vía Láctea</p>
+        <h3>GENSIGMA_MWEBV_RATIO=0.16 real y activo, pero de magnitud despreciable en estos campos DDF</h3>
+        <p>Fórmula exacta confirmada contra <code>snlc_sim.c::gen_MWEBV()</code> (código fuente público de
+        SNANA): <code>EBV_true = EBV_nominal × (1 + 0.16×Z)</code>, <code>Z~N(0,1)</code> recortado a
+        ±3σ — real y activa en toda la campaña, y no portada hasta ahora. Portada y probada en
+        <code>SNIa-91bg (NON1ASED)</code> (5 semillas nuevas): resultado prácticamente idéntico a la línea
+        base sin dispersión, <strong>2.254x ± 0.081 en ambos casos</strong>. Los campos DDF de este proyecto
+        se eligieron deliberadamente por su E(B-V) nominal bajo (0.006–0.025), así que incluso el máximo
+        recorte a 3σ mueve la extinción muy poco. Refuerza — no contradice — el hallazgo de Fase 3: ni la
+        extinción de host ni la de Vía Láctea explican el residuo sistémico.</p>
+      </div>
     </div>
 
     <div class="lcl-cols" style="margin-top:30px;">
@@ -1211,7 +1229,11 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <h3>Lo que funciona sin reservas</h3>
         <ul class="plain-list">
           <li><strong>Ingesta de OpSim</strong> — exacta, mismo schema que el simulador oficial de Rubin.</li>
-          <li><strong>Extinción MW</strong> — completa, más flexible que SNANA hoy.</li>
+          <li><strong>Extinción MW</strong> — flexible (cualquier modelo de <code>dust_extinction</code>), y desde
+          Fase 10 incluye la dispersión real <code>GENSIGMA_MWEBV_RATIO</code> de SNANA (efecto despreciable en
+          estos campos, pero ya no ausente). El valor nominal sigue siendo un promedio fijo por campo DDF, no el
+          mapa espacial real SFD98 que usa SNANA cuando su SIMLIB no trae E(B-V) — hallazgo colateral de Fase 10,
+          no portado (ver "Fase 10b" en <code>NOTES.md</code>).</li>
           <li><strong>SIMSED nativo</strong> — 14 clases, 5 modelos DNDZ reales, 2 esquemas de peso.</li>
           <li><strong><code>NON1ASED</code> (Fase 6-7)</strong> — loader nuevo (sin <code>SED.INFO</code>), 5/5 clases convertidas por SNANA evaluadas.</li>
           <li><strong>SEARCHEFF real</strong> — mismo criterio de detección en ambos lados de la comparación.</li>

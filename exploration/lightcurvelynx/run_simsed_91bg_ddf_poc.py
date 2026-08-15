@@ -48,7 +48,9 @@ from lightcurvelynx.simulate import simulate_lightcurves
 from lightcurvelynx.survey_info import SurveyInfo
 from lightcurvelynx.utils.extrapolate import LinearDecay, ZeroPadding
 
-from snana_params import build_dndz_powerlaw2_cdf, make_dndz_sampler, SizeAwareFunctionNode
+from snana_params import (
+    build_dndz_powerlaw2_cdf, make_dndz_sampler, make_mwebv_ratio_scatter, SizeAwareFunctionNode,
+)
 from searcheff import parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency
 
 sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
@@ -79,6 +81,7 @@ DDF_FIELD_EBV = {
     "edfs_b": 0.0152, "elaiss1": 0.0080, "xmm_lss": 0.0251,
 }
 MW_RV = 3.1
+GENSIGMA_MWEBV_RATIO = 0.16  # Fase 10: real, activo en toda la campana (templates.py)
 
 
 def snana_noise_columns(df_ddf: pd.DataFrame) -> pd.DataFrame:
@@ -167,9 +170,15 @@ def main():
         _luminosity_distance_pc, node_label="distance", redshift=redshift_func,
     )
 
+    # Fase 10: GENSIGMA_MWEBV_RATIO=0.16 real y activo (ver
+    # snana_params.make_mwebv_ratio_scatter para la formula, verificada
+    # contra snlc_sim.c::gen_MWEBV()).
+    _mwebv_scatter = make_mwebv_ratio_scatter(GENSIGMA_MWEBV_RATIO, seed=SEED_BASE + 10)
+
     def _field_to_ebv(size=None, field=None, **_kwargs):
         arr = np.asarray(field)
-        return np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+        nominal = np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+        return _mwebv_scatter(nominal)
 
     ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
     mw_extinction = ExtinctionEffect(

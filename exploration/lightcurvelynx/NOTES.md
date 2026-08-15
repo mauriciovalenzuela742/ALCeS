@@ -2365,6 +2365,128 @@ población por sí solo.
   con los ratios finales de 5 semillas por lado.
 - Sin archivos nuevos de código; sin incidentes de cuota (headroom suficiente desde el inicio).
 
+## Fase 10 — Dispersión `GENSIGMA_MWEBV_RATIO` (primer candidato del roadmap post-Fase-9)
+
+Tras cerrar el bake-off de codificación (Fase 9), el residuo sistémico multiplicativo (~1.1x-10.8x
+según clase) seguía sin causa raíz identificada. Se absorbió la documentación oficial de
+LightCurveLynx (readthedocs) y el manual de SNANA, y se cruzó cada mecanismo candidato encontrado
+contra los archivos reales de esta campaña en NLHPC (`pipeline/campaign/templates.py`, el
+`.INPUT` de survey real, el `.SIMLIB` real) -- ver plan de investigación aprobado para la tabla
+completa de candidatos descartados esta sesión (FLUXERRMODEL, NEXPOSE/coadd, ruido Poisson de host,
+velocidad peculiar, bits de SEARCHEFF zHOST, Om0, GENMAG_SMEAR fuera de SNIa-SALT2). El primer
+candidato con evidencia real de estar activo y sin portar: `GENSIGMA_MWEBV_RATIO: 0.16`, presente
+en el `include_survey_*.INPUT` real de las 19 clases.
+
+### Paso 1 -- fórmula exacta (confirmada contra el código fuente real de SNANA)
+
+Se descargó `snlc_sim.c` directo del repo público `RickKessler/SNANA` (rama `master`) y se leyó la
+función `gen_MWEBV()` completa (líneas ~13505-13620). Hallazgos:
+
+```c
+// siempre se quema un numero aleatorio para permanecer sincronizado
+MWXT_GaussRan = getRan_GaussClip(1, -3.0, 3.0);   // Z~N(0,1), recorte a +-3 sigma
+
+// GENLC.MWEBV = valor nominal (de SIMLIB o mapa SFD98, ver mas abajo)
+if ( INPUTS.OPT_MWEBV == OPT_MWEBV_FILE ) {
+    if ( INPUTS.MWEBV_SIGRATIO < 0.0 ) { /* error fatal: ratio sin definir */ }
+    ERR1 = INPUTS.MWEBV_SIG;                       // fijo, 0 en esta campaña
+    ERR2 = INPUTS.MWEBV_SIGRATIO * GENLC.MWEBV;     // 0.16 * EBV_nominal
+    GENLC.MWEBV_ERR = sqrt(ERR1*ERR1 + ERR2*ERR2);
+}
+
+GENLC.MWEBV_SMEAR = GENLC.MWEBV + GENLC.MWEBV_ERR*MWXT_GaussRan + INPUTS.MWEBV_SHIFT;
+GENLC.MWEBV_SMEAR *= INPUTS.MWEBV_SCALE;   // SHIFT=0, SCALE=1 en esta campaña (defaults)
+```
+
+Con `MWEBV_SIG=0`, `MWEBV_SHIFT=0`, `MWEBV_SCALE=1` (ninguno de los tres se toca en
+`templates.py`), la fórmula colapsa exactamente a:
+
+```
+EBV_true = EBV_nominal * (1 + 0.16 * Z),   Z ~ N(0,1) recortado a ±3σ
+```
+
+Como `0.16 * |Z| <= 0.48 < 1`, el resultado nunca es negativo -- no hace falta piso en 0.
+
+**Hallazgo colateral, no menor:** el bloque `gen_MWEBV()` primero intenta leer `GENLC.MWEBV` desde
+el `.SIMLIB` (columna `MWEBV:` del header de cada LIBID, opción `OPT_MWEBV_FILE`, que es el default
+de SNANA y también el default de este proyecto, `templates.py:76 opt_mwebv: int = 1`). Si ese valor
+es `<= 0.0`, SNANA cae automáticamente a `OPT_MWEBV_SFD98` -- el mapa real de polvo galáctico
+(Schlegel-Finkbeiner-Davis 1998) evaluado en el RA/DEC exacto de cada objeto. Se verificó el
+`.SIMLIB` real de la campaña (`DDF_baseline_v5.3.1_10yrs.SIMLIB`, escrito por
+`pipeline/simlib/writer.py::lib_header()`, que hardcodea `mwebv: float = 0.0` como default y nunca
+lo sobreescribe con un valor real) -- **el campo `MWEBV:` es `0.00` en cada uno de los LIBID
+inspeccionados**, sin excepción. Es decir: en la campaña real, el EBV nominal de MW que sufre la
+dispersión del 16% **no es un valor fijo por campo** -- es el mapa SFD98 real, con variación
+espacial continua dentro de cada pointing DDF. El diccionario `DDF_FIELD_EBV` de este proyecto usa
+un único valor fijo por campo (aparentemente un promedio SFD98 precalculado, sin documentar su
+origen). Este es un hallazgo relacionado pero *distinto* al de la dispersión del 16% -- deliberadamente
+no se prueba en la misma corrida (misma disciplina de aislar una variable a la vez que Fase 6/9);
+queda anotado como candidato "Fase 10b" si el resultado de abajo no cierra el residuo.
+
+### Paso 2 -- implementación
+
+Se agregó `make_mwebv_ratio_scatter(ratio, seed=...)` a `snana_params.py` (usa
+`scipy.stats.truncnorm(-3, 3)` para el recorte real de ±3σ, no un clip crudo del extremo) y se
+conectó en el `_field_to_ebv()` de los 5 scripts que lo definen (`run_non1ased_poc.py`,
+`run_simsed_poc.py`, `run_snia_ddf_poc.py`, `run_simsed_91bg_ddf_poc.py`,
+`compare_brightness_truth.py`), con `seed=seed_base + 10` (offset previamente libre en las 5
+firmas de seeding). Verificado en el venv real de NLHPC antes de correr nada: la fórmula produce
+valores con std ≈ 0.985 (esperado para N(0,1) recortado a ±3σ) y siempre positivos.
+
+### Paso 3 -- resultado empírico (clase de prueba: `SNIa-91bg` NON1ASED)
+
+Se eligió `SNIa-91bg (NON1ASED)` como clase de prueba -- rápida, y con la línea base de 5 semillas
+más reciente y confiable del catálogo (Fase 8/9): **ratio 2.254 ± 0.081**. Los directorios
+`poc_output_non1ased_snia91bg{,_seed1..4}` pre-existentes se renombraron a
+`*_prefase10_baseline` (sin gasto extra de cuota, cuota de cuenta ya en ~200G) antes de re-correr,
+para no perder los datos crudos de comparación. Se lanzaron 5 semillas nuevas (jobs 11518682-86)
+con la dispersión del 16% activa.
+
+Incidente de cuota durante el lanzamiento (mismo techo ~200G de siempre): las 5 corridas fallaron
+la primera vez, no por bug sino por `OSError: ... Disk quota exceeded` justo al escribir
+`phot_df.parquet` -- la simulación en sí llegó al 100% sin problema. Compresión in-situ resultó no
+ser viable como primer movimiento (`tar`/`gzip` necesitan espacio libre para escribir el archivo
+nuevo, y no quedaba ninguno: un intento de `dd` de 700MB confirmó solo ~130MB de margen real, y
+`gzip` sobre un `phot_df.parquet` de muestra solo comprime ~12% porque parquet ya viene comprimido
+con snappy). Se liberó espacio borrando los 5 directorios `*_prefase10_baseline` recién renombrados
+(su ratio agregado, 2.254 ± 0.081, ya estaba guardado de forma permanente en
+`docs/lcl_qc/lcl_qc_index.json`, así que no se perdió nada analíticamente necesario) y se
+relanzaron las 5 semillas (jobs 11518989-93), esta vez completas.
+
+**Resultado:**
+
+| semilla | `detection_efficiency_pct` (con dispersión MWEBV) | ratio (÷ `snana_pct`=7.35%) |
+|---|---|---|
+| 0 | 17.75% (355/2000) | 2.415 |
+| 1 | 16.30% (326/2000) | 2.218 |
+| 2 | 16.35% (327/2000) | 2.224 |
+| 3 | 16.20% (324/2000) | 2.204 |
+| 4 | 16.25% (325/2000) | 2.211 |
+| **media** | **16.57% ± 0.59%** | **2.254 ± 0.081** |
+
+**Prácticamente idéntico a la línea base sin dispersión** (2.254 ± 0.081, Fase 8/9) -- la media
+nueva coincide a 3 decimales y el std tampoco cambia. La semilla 0 incluso reprodujo exactamente
+el mismo conteo (355/2000, 17.75%) que la línea base, lo cual tiene sentido: los campos DDF de
+este proyecto ya tienen E(B-V) nominal muy bajo (`DDF_FIELD_EBV`: 0.006-0.025), y con
+`ratio=0.16` la dispersión máxima a 3σ es de solo `0.16*3=48%` sobre un valor ya pequeño --
+del orden de A_V~0.01-0.04 mag en el peor caso (`xmm_lss`), muy por debajo del ruido
+semilla-a-semilla que ya existía.
+
+### Conclusión Fase 10
+
+**`GENSIGMA_MWEBV_RATIO` queda descartado como causa del residuo.** El efecto es real (la fórmula
+está bien portada y verificada contra el código fuente de SNANA) pero su magnitud es despreciable
+en esta campaña específica, porque los campos DDF fueron elegidos deliberadamente por su E(B-V)
+bajo. Esto refuerza -- no contradice -- el hallazgo de Fase 3 (extinción de host tampoco explica
+el residuo): la extinción en general, ya sea de host o de MW, no parece ser el mecanismo detrás
+del residuo sistémico. Por la misma razón, el hallazgo colateral del Paso 1 (mapa SFD98 real vs.
+`DDF_FIELD_EBV` fijo por campo, "Fase 10b") se deprioriza -- ambos son formas de generar un EBV
+nominal de magnitud similarmente pequeña, así que es poco probable que ese cambio por sí solo
+mueva la aguja. El cambio queda en el código (aporta fidelidad real a la simulación,
+`seed_base + 10` en los 5 scripts) pero no se extiende al resto del catálogo -- exactamente la
+disciplina de "probar barato antes de escalar" que pide el plan. **Próximo paso: Fase 11**
+(grilla precomputada de SIMSED vs. integración en vivo de `PassbandGroup`).
+
 ## Recomendación final (Fase 9)
 
 **Sigue GO condicional.** El bake-off de codificación queda cerrado con evidencia sólida en ambas
@@ -2374,4 +2496,5 @@ incertidumbre real de 5 semillas; no queda ninguna comparación de este proyecto
 corrida sin cuantificar su varianza. La causa raíz del residuo sistémico multiplicativo (Fase 3-4,
 SEARCHEFF/encoding en Fase 6, brillo sin ruido en Fase 7) sigue siendo la prioridad para trabajo
 futuro -- ninguna de las fases de reproducibilidad (5, 8, 9) cambia esa conclusión, solo la hacen
-más confiable.
+más confiable. **Fase 10 (arriba) descarta la dispersión MW E(B-V) como candidato; la investigación
+continúa en Fase 11.**

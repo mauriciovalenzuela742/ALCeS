@@ -77,6 +77,7 @@ from pipeline.simlib.formatobs import format_obs  # noqa: E402
 
 from snana_params import (
     build_dndz_powerlaw2_cdf, make_dndz_sampler, make_bifurcated_normal_sampler,
+    make_mwebv_ratio_scatter,
     SizeAwareFunctionNode,
 )
 from searcheff import (
@@ -113,6 +114,7 @@ DDF_FIELD_EBV = {
     "edfs_b": 0.0152, "elaiss1": 0.0080, "xmm_lss": 0.0251,
 }
 MW_RV = 3.1  # promedio Galaxia estandar, misma familia que OPT_MWCOLORLAW de SNANA
+GENSIGMA_MWEBV_RATIO = 0.16  # Fase 10: real, activo en toda la campana (templates.py)
 PIXSIZE = 0.2  # arcsec/pixel, LSSTCam
 
 
@@ -209,9 +211,15 @@ def main(seed_index: int = 0):
         seed=seed_base + 6,
     )
 
+    # Fase 10: GENSIGMA_MWEBV_RATIO=0.16 real y activo (ver
+    # snana_params.make_mwebv_ratio_scatter para la formula, verificada
+    # contra snlc_sim.c::gen_MWEBV()).
+    _mwebv_scatter = make_mwebv_ratio_scatter(GENSIGMA_MWEBV_RATIO, seed=seed_base + 10)
+
     def _field_to_ebv(size=None, field=None, **_kwargs):
         arr = np.asarray(field)
-        return np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+        nominal = np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+        return _mwebv_scatter(nominal)
 
     ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
     mw_extinction = ExtinctionEffect(

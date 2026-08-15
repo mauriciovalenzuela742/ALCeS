@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import numpy as np
 from scipy.integrate import quad
+from scipy.stats import truncnorm
 from astropy.cosmology import FlatLambdaCDM
 
 from lightcurvelynx.base_models import FunctionNode
@@ -498,6 +499,46 @@ def make_correlated_normal_weights(
     d = np.stack([values[n] - peaks[n] for n in names], axis=1)  # (n_tmpl, n_par)
     exponent = -0.5 * np.einsum("ni,ij,nj->n", d, inv_cov, d)
     return np.exp(exponent)
+
+
+# ------------------------------------------------------------------ MWEBV scatter (Fase 10)
+def make_mwebv_ratio_scatter(ratio: float, *, seed: int | None = None):
+    """Replica GENSIGMA_MWEBV_RATIO de SNANA -- confirmado leyendo
+    snlc_sim.c::gen_MWEBV() (github.com/RickKessler/SNANA, funcion real,
+    lineas ~13526-13599):
+
+        MWXT_GaussRan = getRan_GaussClip(1, -3.0, 3.0)   # Z~N(0,1), recorte 3-sigma
+        MWEBV_ERR     = sqrt(MWEBV_SIG^2 + (MWEBV_SIGRATIO * MWEBV_nominal)^2)
+        MWEBV_SMEAR   = (MWEBV_nominal + MWEBV_ERR * MWXT_GaussRan + MWEBV_SHIFT) * MWEBV_SCALE
+
+    Esta campana solo fija GENSIGMA_MWEBV_RATIO=0.16 (MWEBV_SIG/SHIFT=0,
+    SCALE=1 son los defaults de SNANA, no se tocan en templates.py), asi que
+    la formula se reduce a:
+
+        EBV_true = EBV_nominal * (1 + ratio * Z),  Z ~ N(0,1) recortado a +-3sigma
+
+    Como ratio*|Z| <= 0.16*3 = 0.48 < 1, el resultado es siempre positivo sin
+    necesidad de un piso en 0 (a diferencia del C real, que si lo necesita
+    para el caso GENRANGE_MWEBV / EBV grande).
+
+    Nota aparte (no replicada aqui): en la campana real, el EBV *nominal* que
+    entra a esta formula no es un valor fijo por campo -- viene del mapa real
+    SFD98 evaluado en el RA/DEC exacto de cada objeto (el SIMLIB real escribe
+    MWEBV=0.00 en cada header LIBID, lo cual dispara el fallback de SNANA de
+    OPT_MWEBV_FILE a OPT_MWEBV_SFD98 dentro de gen_MWEBV()). El diccionario
+    DDF_FIELD_EBV de este proyecto usa un valor fijo por campo (promedio),
+    sin la variacion espacial continua del mapa real. Ese es un hallazgo
+    aparte, no probado aun -- ver NOTES.md Fase 10."""
+    dist = truncnorm(-3.0, 3.0)
+    rng = np.random.default_rng(seed)
+
+    def scatter(nominal):
+        nominal = np.asarray(nominal, dtype=float)
+        z = dist.rvs(size=nominal.shape, random_state=rng)
+        return nominal * (1.0 + ratio * z)
+
+    scatter.__name__ = "mwebv_ratio_scatter"
+    return scatter
 
 
 if __name__ == "__main__":

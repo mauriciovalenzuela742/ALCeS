@@ -37,6 +37,7 @@ import sys
 sys.path.insert(0, "/home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx")
 from snana_params import (
     build_dndz_powerlaw2_cdf, make_dndz_sampler, make_correlated_normal_weights,
+    make_mwebv_ratio_scatter,
     SizeAwareFunctionNode, ClippedExtinctionEffect,
 )
 from searcheff import parse_searcheff_pipeline  # noqa: F401 (unused here, kept for parity)
@@ -52,6 +53,7 @@ PIXSIZE = 0.2
 NGENTOT = 2000
 SEED_BASE = 20260815
 MW_RV = 3.1
+GENSIGMA_MWEBV_RATIO = 0.16  # Fase 10: real, activo en toda la campana (templates.py)
 DDF_FIELD_EBV = {
     "cosmos": 0.0182, "ecdfs": 0.0084, "edfs_a": 0.0062,
     "edfs_b": 0.0152, "elaiss1": 0.0080, "xmm_lss": 0.0251,
@@ -126,9 +128,15 @@ def main():
 
     distance_func = SizeAwareFunctionNode(_luminosity_distance_pc, node_label="distance", redshift=redshift_func)
 
+    # Fase 10: GENSIGMA_MWEBV_RATIO=0.16 real y activo (ver
+    # snana_params.make_mwebv_ratio_scatter para la formula, verificada
+    # contra snlc_sim.c::gen_MWEBV()).
+    _mwebv_scatter = make_mwebv_ratio_scatter(GENSIGMA_MWEBV_RATIO, seed=seed_base + 10)
+
     def _field_to_ebv(size=None, field=None, **_kwargs):
         arr = np.asarray(field)
-        return np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+        nominal = np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+        return _mwebv_scatter(nominal)
 
     ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
     mw_extinction = ClippedExtinctionEffect(
