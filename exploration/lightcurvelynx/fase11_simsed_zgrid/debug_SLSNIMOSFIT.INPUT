@@ -1,0 +1,11 @@
+# debug_SLSNIMOSFIT.INPUT -- Fase 11, harness de depuracion (scratch, no
+# producido por compile_campaign.py, no toca build/ ni model_config/).
+
+NGENTOT_LC: 3000
+
+GENVERSION: Fase11_zgrid_SLSNIMOSFIT_DDF
+
+RANSEED: 20260816
+
+INPUT_INCLUDE_FILE: /home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx/fase11_simsed_zgrid/debug_survey_include.INPUT
+INPUT_INCLUDE_FILE: /home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx/fase11_simsed_zgrid/debug_model_SLSNIMOSFIT.INPUT

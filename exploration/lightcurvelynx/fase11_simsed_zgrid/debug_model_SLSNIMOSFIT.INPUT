@@ -1,0 +1,22 @@
+# debug_model_SLSNIMOSFIT.INPUT -- Fase 11, clase de la hipotesis afilada
+# (LOGZBIN=0.1, 5x mas gruesa que el default 0.02, confirmada en
+# /home/mvalenzuela/run_SNANA/plasticc_models/SIMSED.SLSN-I-MOSFIT/SED.INFO).
+# Bloque copiado del .INPUT real
+# (/home/mvalenzuela/run_SNANA/model_config/SIMGEN_INCLUDE_SLSN-I-MOSFIT.INPUT),
+# GENRANGE_REDSHIFT/GENRANGE_TREST acotados para este harness, y
+# GENAV_WV07/GENRANGE_AV/GENPEAK_RV/GENRANGE_RV/GENSIGMA_RV deliberadamente
+# omitidos -- sin extincion de host, para no confundir la comparacion.
+
+GENMODEL: /home/mvalenzuela/run_SNANA/plasticc_models/SIMSED.SLSN-I-MOSFIT
+
+SIMSED_USE_BINARY:   0
+
+DNDZ: MD14  2.0E-8      # MD14 SFR(z), con 2E-8/yr/Mpc^3 en z=0
+
+# ancla = GENRANGE_REDSHIFT[0] real (0.02); ventana = 5 celdas de LOGZBIN=0.1
+# -> zmax = 0.02 * 10^(5*0.1) = 0.02 * 10^0.5 = 0.02 * 3.16228 = 0.063246
+GENRANGE_REDSHIFT:  0.02  0.063246
+
+GENRANGE_TREST:   -30.0  100.0
+
+SIMSED_GRIDONLY:  SLSN_INDEX

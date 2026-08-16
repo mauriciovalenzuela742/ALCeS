@@ -1,0 +1,70 @@
+# debug_survey_include.INPUT -- Fase 11: harness minimo para muestrear
+# densamente una ventana estrecha de redshift (3-5 celdas de la grilla
+# LOGZBIN de SNANA) y volcar PEAKMAG_r/ZCMB reales via SIMGEN_DUMPALL, sin
+# tocar ningun archivo de produccion (pipeline/campaign/, model_config/,
+# build/). Solo referencia archivos reales existentes (SIMLIB/KCOR/SEARCHEFF),
+# no los modifica.
+#
+# NOTA (pivote real, ver NOTES.md Fase 11): el intento original de usar
+# GENMODEL_MSKOPT: 512 para volcar el flujo crudo interpolado Sinterp
+# (job 11561825/11561826, 0 lineas de debug) resulto ser un camino muerto --
+# leyendo snlc_sim.c linea por linea (call site real en ~29249) se confirmo
+# que el modelo SIMSED usa INPUTS.OPTMASK_SIMSED (alimentado SOLO por
+# SIMSED_GRIDONLY/SIMSED_WGTMAP_FILE), no INPUTS.GENMODEL_MSKOPT -- el bit
+# de debug 512 de genmag_SIMSED() no es alcanzable desde ningun .INPUT
+# documentado sin recompilar SNANA. Este harness usa en cambio el mismo
+# patron ya probado de Fase 7 (PEAKMAG_r del .DUMP real, "SELECTION: NONE"),
+# con NGENTOT_LC grande y GENRANGE_REDSHIFT angosto para muestrear con
+# densidad suficiente una sola ventana de pocas celdas de grilla.
+
+GENSOURCE:  RANDOM
+
+SIMLIB_FILE: /home/mvalenzuela/AUTOSIM/data/simlib/baseline_v5.3.1_10yrs/DDF_baseline_v5.3.1_10yrs.SIMLIB
+SIMLIB_MAXRANSTART: 1000
+SIMLIB_MSKOPT:   128
+
+KCOR_FILE: /home/mvalenzuela/run_SNANA/kcor_LSST.fits
+SEARCHEFF_PIPELINE_FILE: /home/mvalenzuela/run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT
+SEARCHEFF_PIPELINE_LOGIC_FILE: /home/mvalenzuela/run_SNANA/LSST_PIPELINE_LOGIC.DAT
+APPLY_SEARCHEFF_OPT: 0        # SIMGEN_DUMPALL escribe TODO el generado, sin
+                               # importar el trigger -- un stream de RNG menos
+
+GENFILTERS:   r               # una sola banda basta para PEAKMAG_r
+SOLID_ANGLE:  0.0
+
+# ventana de 1 anho -- MJD completo de 10 anhos (61211-64860) hace que SNANA
+# lea TODA la cadencia acumulada de un LIBID antes de filtrar por
+# GENFILTERS; algunos LIBID de este SIMLIB acumulan 47210 obs en 10 anhos,
+# por encima del limite fijo MXOBS_SIMLIB=30000 (FATAL ERROR real, visto en
+# el primer intento, job 11561825, LIBID=250).
+GENRANGE_MJD:      61211 61576
+GENRANGE_PEAKMJD:  61161 61626
+GENSIGMA_SEARCH_PEAKMJD:  1.0
+
+# Fase 10: la columna MWEBV del SIMLIB real es 0.00 en cada LIBID -> con
+# OPT_MWEBV: 1 (lee del SIMLIB) esto da AV_MW=0 gratis, sin confundir la
+# comparacion con extincion.
+OPT_MWEBV: 1
+OPT_MWCOLORLAW: 99
+
+SMEARFLAG_FLUX:    0          # PEAKMAG ya es teorico/sin ruido por definicion
+SMEARFLAG_ZEROPT:  0          # (Fase 7); esto solo ahorra dos streams de RNG
+FORMAT_MASK:   32
+
+VEL_CMBAPEX: 0                # anula el margen VPEC/CMB en zmin/zmax
+                               # (snlc_sim.c ~linea 26775) -> ancla exacta de
+                               # la grilla en GENRANGE_REDSHIFT[0]
+
+# mismo bloque real que usa pipeline/campaign/templates.py, recortado a 30
+# variables -- PEAKMAG_u/g/i/z/Y quitadas porque GENFILTERS: r (arriba) solo
+# genera la banda r, y SNANA aborta ("Undefined SIMGEN_DUMP variable") si se
+# pide PEAKMAG de una banda no generada (visto en el intento anterior,
+# job 11561879). "SELECTION: NONE": escribe TODOS los eventos generados, no
+# solo los detectados (confirmado en Fase 7).
+SIMGEN_DUMPALL:  30
+   CID LIBID  SIM_SEARCHEFF_MASK  GENTYPE  NON1A_INDEX
+   ZCMB ZHELIO ZCMB_SMEAR RA DEC MWEBV
+   GALID GALZPHOT GALZPHOTERR  GALSNSEP GALSNDDLR  RV AV
+   MU LENSDMU PEAKMJD MJD_DETECT_FIRST MJD_DETECT_LAST DTSEASON_PEAK
+   PEAKMAG_r
+   SNRMAX SNRMAX2 SNRMAX3 NOBS NOBS_SATURATE

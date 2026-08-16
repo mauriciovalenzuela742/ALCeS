@@ -1,0 +1,29 @@
+# debug_model_SNIa91bg.INPUT -- Fase 11, clase de prueba para depurar el
+# harness (LOGZBIN=0.02, default, sin declarar -- no es la hipotesis afilada,
+# solo el cross-check nulo). Bloque copiado tal cual del .INPUT real
+# (/home/mvalenzuela/run_SNANA/model_config/SIMGEN_INCLUDE_SNIa-91bg.INPUT),
+# solo con GENRANGE_REDSHIFT/GENRANGE_TREST acotados para este harness.
+
+GENMODEL: /home/mvalenzuela/run_SNANA/plasticc_models/SIMSED.SNIa-91bg
+
+SIMSED_USE_BINARY:   0
+
+DNDZ:  POWERLAW 3.0E-6 1.5   # 3E-6/yr/Mpc^3 x (1+z)^1.5
+
+# ancla = GENRANGE_REDSHIFT[0] real (0.011); ventana = 5 celdas de
+# LOGZBIN=0.02 (default, SED.INFO de esta clase no lo declara) ->
+# zmax = 0.011 * 10^(5*0.02) = 0.011 * 10^0.10 = 0.011 * 1.25893 = 0.013848
+GENRANGE_REDSHIFT:  0.011  0.013848
+
+SIMSED_PARAM:  stretch
+GENPEAK_stretch:   0.975
+GENSIGMA_stretch:  0.096 0.096
+GENRANGE_stretch:  0.65  1.25
+GENRANGE_TREST:   -30.0  100.0
+
+SIMSED_PARAM:  color
+GENPEAK_color:   0.557
+GENSIGMA_color:  0.175 0.175
+GENRANGE_color:  0.0 1.0
+
+SIMSED_REDCOR(stretch,color):  -0.656

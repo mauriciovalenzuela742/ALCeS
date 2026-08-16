@@ -2498,3 +2498,114 @@ SEARCHEFF/encoding en Fase 6, brillo sin ruido en Fase 7) sigue siendo la priori
 futuro -- ninguna de las fases de reproducibilidad (5, 8, 9) cambia esa conclusión, solo la hacen
 más confiable. **Fase 10 (arriba) descarta la dispersión MW E(B-V) como candidato; la investigación
 continúa en Fase 11.**
+
+## Fase 11 — grilla LOGZBIN de SIMSED (SNANA) vs. evaluación continua (LightCurveLynx)
+
+Absorbiendo la documentación oficial de LightCurveLynx y el manual de SNANA (dos agentes de
+investigación), se sharpeó la hipótesis original ("grid vs. live integration") en algo concreto y
+testeable: SNANA's SIMSED precomputa flujo en una grilla de redshift log-espaciada (`LOGZBIN`,
+default 0.02, pero `SLSN-I-MOSFIT`/`PISN-MOSFIT`/`SNIIn-MOSFIT` usan 0.1 -- 5x más gruesa, confirmado
+en sus `SED.INFO` reales en NLHPC) e interpola **linealmente** entre nodos -- mientras que
+LightCurveLynx evalúa cada objeto a su redshift exacto y continuo, sin discretizar nunca (confirmado
+leyendo `sed_template_model.py`/`physical_model.py` del paquete real instalado: la interpolación de
+LCL es `RectBivariateSpline` solo en fase×longitud-de-onda, el redshift se aplica analíticamente).
+
+### Paso 1 (fallido) -- intento de volcar `Sinterp` crudo via `GENMODEL_MSKOPT: 512`
+
+Un research agent encontró en `genmag_SIMSED.c` un bloque de debug (`LDMP_DEBUG`) que imprime el
+flujo crudo interpolado (`Sinterp`) por época real cuando `OPTMASK & 512` es verdadero, y documentación
+que sugiere que `GENMODEL_MSKOPT: 512` en el `.INPUT` activa ese bit. Se construyó un harness
+completo (`exploration/lightcurvelynx/fase11_simsed_zgrid/`) para explotar esto -- pero **dos
+corridas reales (jobs 11561825/11561826) devolvieron 0 líneas de debug**. Leyendo `snlc_sim.c`
+línea por línea (call site real, ~línea 29249) se confirmó la causa: el modelo SIMSED usa
+`INPUTS.OPTMASK_SIMSED` para armar el `OPTMASK` que le pasa a `genmag_SIMSED()`, **no**
+`INPUTS.GENMODEL_MSKOPT` (que sí se usa para otros modelos como BYOSED/PySEDModel, pero no para
+SIMSED). Y `OPTMASK_SIMSED` solo se alimenta internamente desde `SIMSED_GRIDONLY`/`SIMSED_WGTMAP_FILE`
+-- no existe ninguna clave de `.INPUT` documentada que le pase el bit 512. El código de debug es
+real pero inalcanzable sin recompilar SNANA (hay incluso una línea comentada en el propio código,
+`//    if ( GENLC.CID==19201 && ifilt_obs==1 ) { OPTMASK += 8 ; }`, que confirma que este debug se
+usa históricamente editando el fuente a mano, no vía config). Camino muerto, descartado.
+
+### Paso 1 (real) -- pivote a `PEAKMAG_r` del `.DUMP`, mismo patrón de Fase 7
+
+En vez de un flujo crudo pre-`x0`, se reusa el patrón ya probado en Fase 7: `PEAKMAG_r` del `.DUMP`
+real (`SIMGEN_DUMPALL`, `SELECTION: NONE` -- escribe TODO lo generado) menos `MU` (columna real,
+módulo de distancia, función suave de z sin relación con la grilla) aísla una cantidad que debería
+ser suave en z salvo por el artefacto de interpolación buscado. Harness: `GENRANGE_REDSHIFT`
+angosto (ancla = `GENRANGE_REDSHIFT[0]` real de cada clase, ventana = 5 celdas de `LOGZBIN`,
+`VEL_CMBAPEX: 0` para anclar la grilla exactamente ahí sin el margen de VPEC/CMB que SNANA le agrega
+por default), `NGENTOT_LC: 3000` para muestrear esa ventana con densidad. Ver
+`exploration/lightcurvelynx/fase11_simsed_zgrid/debug_survey_include.INPUT` (bloque `SIMGEN_DUMPALL`
+recortado a 30 variables -- `PEAKMAG_u/g/i/z/Y` quitadas porque `GENFILTERS: r` solo genera esa
+banda, y SNANA aborta con "Undefined SIMGEN_DUMP variable" si se pide una banda no generada).
+
+Dos incidentes reales de cuota más en el camino (jobs 11561879/11561880/11561925, mismo techo
+~200G): la ventana completa de 10 años del SIMLIB real hace que SNANA lea la cadencia acumulada
+COMPLETA de un LIBID antes de filtrar por `GENFILTERS` -- algunos LIBID acumulan 47.210 obs en 10
+años, por encima del límite fijo `MXOBS_SIMLIB=30000` (`FATAL ERROR ABORT`); se resolvió acotando
+`GENRANGE_MJD`/`GENRANGE_PEAKMJD` a ~1 año. Y el `sbatch` original borraba el FITS/SIM real de
+ambas clases recién al final -- `SLSN-I-MOSFIT` (960 templates, muchas más columnas `SIMSED_PAR*`)
+se quedó sin cuota a mitad de escribir su FITS porque el de `SNIa-91bg` (51MB) todavía no se había
+liberado; se corrigió borrando cada FITS inmediatamente después de copiar su `.DUMP`, antes de
+generar la siguiente clase.
+
+### Resultado
+
+Análisis en `exploration/lightcurvelynx/fase11_snana_selfcheck.py`: `PEAKMAG_r - MU`, ajuste de una
+tendencia suave global (polinomio grado 2 en `log10(z)`, sin necesitar que el mismo template SIMSED
+se repita a distinto z -- el ruido objeto-a-objeto de parámetros no sesga el ajuste de la tendencia,
+solo agrega varianza), residuo cuadriculado por posición fraccional dentro de una celda de la grilla
+(`frac=0` en un nodo exacto, `frac=0.5` en el punto medio).
+
+| Clase | `LOGZBIN` | N válido | std del residuo global | cerca de nodo | cerca de punto medio | diferencia |
+|---|---|---|---|---|---|---|
+| `SNIa-91bg` (control) | 0.02 | 1930 | 0.152 mag | -0.013 ± 0.008 | -0.001 ± 0.007 | +0.012 ± 0.011 mag |
+| `SLSN-I-MOSFIT` (hipótesis) | 0.1 | 1944 | **1.173 mag** | +0.088 ± 0.062 | -0.030 ± 0.060 | -0.118 ± 0.086 mag |
+
+**`SNIa-91bg`: resultado limpio, sin patrón.** Los 10 bins de `frac` oscilan sin tendencia
+(-0.004 a +0.015 mag, dentro de ±1 SEM), la diferencia nodo-vs-punto-medio no es significativa. Este
+es exactamente el resultado nulo esperado para la grilla más fina (default).
+
+**`SLSN-I-MOSFIT`: prueba sin potencia estadística suficiente, no un resultado nulo limpio.** La
+dispersión intrínseca de brillo entre los 960 templates físicos distintos (parámetros
+`kappa/kappagamma/mej/temp/vej` del magnetar-model MOSFIT, cada uno con su propia curva de luz) es
+**~8x mayor** que la de `SNIa-91bg` (std=1.17 mag vs. 0.15 mag) -- con `NGENTOT_LC=3000` repartido
+sobre 960 templates (~3 objetos por template en promedio), el ajuste de tendencia global de grado 2
+no puede separar "forma de curva de luz propia de cada template" de "sesgo de interpolación de
+grilla", y el SEM por bin (~0.06-0.09 mag) queda demasiado grande para confirmar o refutar un efecto
+del orden de 0.1 mag con confianza (diferencia nodo-vs-medio de -0.118 ± 0.086 mag, ~1.4σ, no
+significativa). Escalar esto a una potencia real necesitaría o bien `NGENTOT_LC` uno o dos órdenes
+de magnitud más grande, o bien un diseño que fije/repita un puñado de templates específicos a través
+de la ventana de redshift en vez de dejar que SNANA elija uno al azar por objeto -- ninguna de las
+dos es barata en el sentido de la disciplina de este proyecto ("probar barato antes de escalar").
+
+### Conclusión Fase 11
+
+**No hay evidencia de un artefacto de interpolación de grilla de magnitud relevante, en ninguna de
+las dos clases probadas -- pero el resultado de la clase con la hipótesis afilada (`SLSN-I-MOSFIT`)
+es genuinamente ambiguo, no un descarte limpio.** Incluso tomando el punto estimado (no
+significativo) de -0.118 mag como cota superior aproximada del efecto: es un orden de magnitud
+demasiado chico para explicar un residuo que típicamente implica varias décimas a >1 mag de
+diferencia sistemática de brillo/flujo (razones de detección de 2x-10x) -- el mismo argumento de
+"real pero demasiado chico para importar" que cerró Fase 10 (dispersión MW E(B-V)). Dado el costo ya
+invertido (3 pivotes de diseño, 5 incidentes/reintentos de cuota) y que escalar esto más allá
+requeriría una inversión de cómputo sustancialmente mayor sin garantía de resolver la ambigüedad, se
+recomienda **no continuar escalando Fase 11 por ahora** y pasar a **Fase 12** (mismatch de
+passband/zeropoint entre `kcor_LSST.fits` real y los throughputs de `lsst/throughputs` que descarga
+LightCurveLynx) -- dejando la puerta abierta a retomar Fase 11 con un diseño de mayor potencia si
+Fase 12-14 tampoco cierran el residuo.
+
+### Archivos de esta fase
+
+- `exploration/lightcurvelynx/fase11_simsed_zgrid/` -- harness completo (`.INPUT` de survey/modelo/root,
+  `run_fase11_zgrid.sbatch`); el intento fallido de `GENMODEL_MSKOPT: 512` queda documentado en los
+  comentarios del `.INPUT` como referencia de qué NO funciona y por qué.
+- `exploration/lightcurvelynx/fase11_zgrid_compare.py`/`.sbatch` -- construido para el diseño
+  original (comparación punto a punto contra `evaluate_bandfluxes()` de LightCurveLynx usando
+  `Sinterp`); no se llegó a usar porque el Paso 1 original resultó inalcanzable, pero queda
+  verificado que la API (`SIMSEDModel(templates=[...], flux_scale=..., redshift=..., distance=10.0,
+  t0=0.0)` + `evaluate_bandfluxes(passband_group, times, [band], state=None)`) funciona end-to-end
+  (probado interactivamente en el venv real de NLHPC) -- reutilizable si se retoma esta fase con más
+  potencia estadística.
+- `exploration/lightcurvelynx/fase11_snana_selfcheck.py` -- el análisis real que sí se corrió
+  (solo lado SNANA, ver Resultado arriba).
