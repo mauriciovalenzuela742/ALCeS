@@ -1035,7 +1035,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       ruido/SNR o la forma de la curva de luz, no en el flujo simulado en sí.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Dieciocho fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Diecinueve fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1143,6 +1143,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <span class="step-n">16</span>
         <div class="step-body">
           <p><strong>Los 3 ítems de menor prioridad, cierre del roadmap completo</strong> — <code>GENSIGMA_SEARCH_PEAKMJD: 1.0</code> es real y activo, pero leyendo <code>snlc_sim.c::gen_peakmjd_smear()</code> completa se confirma que solo alimenta <code>SNDATA.SEARCH_PEAKMJD</code>, una única asignación que nunca se vuelve a leer en ningún lugar del código real — puro metadata de salida para un fit posterior, no afecta trigger, Trest ni SNR de nada. <code>REDCOV</code>/<code>TEMPLATE_ZPT</code> no aparecen en ningún <code>.INPUT</code>/<code>.SIMLIB</code> real de las 19 clases — no configurado, nada que portar. La crítica que los propios autores de LightCurveLynx documentan sobre su modelo de ruido Poisson (comparado contra datos reales de Rubin DP1) no aplica a este proyecto en absoluto: el modelo genérico que critican arma sus parámetros desde el OpSim crudo, pero este proyecto inyecta <code>SKYSIG</code>/PSF/<code>ZPT</code> <strong>reales del <code>.SIMLIB</code> real de SNANA</strong> desde la Fase 2A — exactamente lo que evita el problema que señalan. Con esto se agotan los 8 candidatos del roadmap estructurado (Fases 10-15) sin identificar la causa raíz. El hallazgo más sólido que queda sin explicar sigue siendo el de Fase 7: LightCurveLynx simula objetos más <em>tenues</em>, no más brillantes, que SNANA, y aun así sobre-detecta — apunta a algo en la cadena ruido→SNR→trigger que ninguna verificación puntual logró aislar. Próximo paso recomendado: extender la comparación de brillo sin ruido a las 18 clases restantes, una comparación pointwise de la cadena completa para un solo objeto, o aceptar el residuo como una diferencia de calibración agregada a corregir empíricamente por clase.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">17</span>
+        <div class="step-body">
+          <p><strong>Comparación pointwise ruido→SNR→trigger para <code>SNIa</code>/SALT2 — el hallazgo más sólido desde Fase 7</strong> — se retoma una brecha real que Fase 1 dejó documentada y sin cerrar: SNR de LightCurveLynx sistemáticamente más alto que el de SNANA para la misma campaña. <strong>Paso 1:</strong> se reconstruyó línea por línea <code>gen_fluxNoise_calc()</code> (fórmula real de ruido de SNANA) y se comparó numéricamente contra <code>poisson_bandflux_std()</code> real de LightCurveLynx con condiciones de observación reales del <code>.SIMLIB</code> — con los mismos parámetros reales las dos fórmulas coinciden casi exactamente (razón 0.999-1.000); el único defecto real encontrado (LightCurveLynx usa <code>readout_noise=8.8</code>/<code>dark_current=0.2</code>, defaults genéricos de LSSTCam, en vez de los <code>0.25</code>/<code>0</code> reales y simplificados de esta campaña) va en dirección <em>contraria</em> al sobre-conteo. <strong>Paso 2:</strong> remedido el SNR hoy con todo el código acumulado — la brecha de Fase 1 (mediana +29%, p90 +151%) se achicó mucho (+11.3%/+30.4%) pero no desapareció, y como el ruido ya se confirmó equivalente, el residuo tiene que venir del numerador. <strong>Paso 3, el hallazgo real:</strong> nunca se había hecho la comparación de brillo sin ruido de Fase 7 para SALT2 (solo se hizo para SIMSED) — hecha ahora contra el <code>.DUMP</code> real de producción, LightCurveLynx sale sistemáticamente <strong>más brillante</strong> que SNANA en casi todo el rango de redshift (~0.12-0.24 mag), <em>lo opuesto</em> de Fase 7 y en la dirección correcta para explicar el sobre-conteo — cuantitativamente consistente con el exceso de SNR del Paso 2. Candidato de causa más probable: <code>GENMAG_OFF</code>/M_abs no está declarado en el <code>.INPUT</code> real (a diferencia de alpha/beta/x1/c, que sí coinciden exactamente); el PoC usa <code>M_abs=-19.3</code> de la literatura general, nunca verificado contra la convención interna real que usa SNANA para este template SALT2 — el cabo suelto más concreto y accionable de todo el proyecto, pendiente de cerrar.</p>
         </div>
       </li>
     </ol>
@@ -1322,6 +1328,24 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         (Fases 10-15) sin identificar la causa raíz — el hallazgo más sólido que queda sin explicar sigue
         siendo el de Fase 7 (LightCurveLynx simula objetos más tenues, no más brillantes, y aun así
         sobre-detecta).</p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Hallazgo real y accionable (Fase 16) — SNIa/SALT2 sale más brillante en LightCurveLynx, no más tenue</p>
+        <h3>~0.12-0.24 mag de exceso de brillo en casi todo el rango de z, consistente con el exceso de SNR medido</h3>
+        <p>La fórmula de ruido de ambos códigos resultó matemáticamente equivalente cuando se alimenta con los
+        mismos parámetros reales (razón 0.999-1.000, verificado línea por línea contra <code>gen_fluxNoise_calc()</code>
+        real de SNANA) — el único defecto real (<code>readout_noise</code>/<code>dark_current</code> con
+        defaults genéricos de LSSTCam en vez de los reales de esta campaña) va en dirección contraria al
+        sobre-conteo. El SNR remedido hoy (job 11563393) sigue con un residuo real del 11-30% sobre SNANA
+        (bajó mucho desde el +29%/+151% que documentó la Fase 1, pero no desapareció) — tiene que venir del
+        numerador, no del ruido. Y ahí está el hallazgo: la comparación de brillo sin ruido de Fase 7 nunca
+        se había hecho para SALT2 (solo para SIMSED) — hecha ahora contra el <code>.DUMP</code> real de
+        producción, LightCurveLynx sale sistemáticamente <strong>más brillante</strong> que SNANA en casi
+        todo el rango de z (~0.12-0.24 mag) — <em>lo opuesto</em> de Fase 7, y en la dirección correcta.
+        Candidato de causa más probable, no verificado hasta el fondo: <code>GENMAG_OFF</code>/M_abs no está
+        declarado en el <code>.INPUT</code> real (a diferencia de alpha/beta/x1/c, que sí coinciden
+        exactamente) — el PoC usa <code>M_abs=-19.3</code> de la literatura general, nunca calibrado contra
+        la convención interna real de SNANA para este template SALT2 específico.</p>
       </div>
     </div>
 

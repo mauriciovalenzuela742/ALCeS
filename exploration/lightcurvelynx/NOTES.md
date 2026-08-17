@@ -2946,3 +2946,130 @@ simuladores y trabajar con un factor de corrección empírico por clase en vez d
 Sin archivos nuevos -- investigación completa e inline (greps contra los `.INPUT`/`.SIMLIB` reales de
 NLHPC, lectura de código fuente de SNANA, y una consulta WebFetch al notebook real de LightCurveLynx).
 Sin simulación nueva, sin incidentes de cuota.
+
+## Fase 16 — comparación pointwise ruido→SNR→trigger (Opción 2 del usuario tras Fase 15)
+
+Con los 8 candidatos del roadmap agotados, se retoma el enfoque "holístico" (b) que quedó pendiente:
+comparar la cadena completa ruido→SNR→trigger para un objeto/clase fijo, en vez de un mecanismo a la
+vez. Se eligió `SNIa` (SALT2) para esto -- no por casualidad: **Fase 1 (el origen mismo del proyecto)
+ya había documentado una discrepancia de SNR real y sin resolver para esta clase específica**
+("el modelo de ruido fotométrico de LightCurveLynx subestima el ruido por-época real... queda como
+brecha abierta para Fase 2"), y esa brecha nunca se retomó formalmente con las herramientas y el
+acceso al código fuente real que este proyecto fue acumulando en Fases 10-15.
+
+### Paso 1 -- fórmula de ruido: reconstruida línea por línea, resulta matemáticamente equivalente
+
+Se leyó `gen_fluxNoise_calc()` completa (`snlc_sim.c`, ~L27505-27600) -- la función real que arma la
+varianza de ruido de SNANA. Fórmula real (unidades p.e., gain=1 en esta campaña):
+```
+NEA = 4π·σ²_psf(arcsec) / pixsize²          (Noise Equivalent Area, misma formula en ambos lados)
+fluxsn_pe = 10^(0.4·(zpt-mag))                (shot noise de la fuente)
+sqerr_sky_pe = NEA · SKYSIG²                  (ruido de cielo)
+sqerr_ccd_pe = NEA · readnoise²                (read noise CCD)
+sqerr_zp_pe  = (fluxsn_pe · (10^(0.4·zpterr)-1))²   (incertidumbre de zeropoint)
+sqsig_true = fluxsn_pe + sqerr_sky_pe + sqerr_ccd_pe + sqerr_zp_pe
+```
+Comparada término a término contra `poisson_bandflux_std()` real de LightCurveLynx
+(`noise_models/base_noise_models.py`) -- reconstruidas ambas en Python
+(`fase16_noise_formula_compare.py`, no versionado) y evaluadas con condiciones de observación reales
+tomadas del `.SIMLIB` real (SKYSIG/PSF1/ZPTAVG/ZPTERR reales) para varias magnitudes de fuente:
+**con los mismos parámetros reales (`readout_noise=0.25`, `dark_current=0`, los valores reales de esta
+campaña), el `fluxerr` de LightCurveLynx coincide con el de SNANA con una razón de 0.9986-1.0000** --
+prácticamente idéntico. Las dos fórmulas son matemáticamente equivalentes.
+
+**Hallazgo colateral real, pero en la dirección contraria:** `snana_noise_columns()` nunca pasa
+`read_noise`/`dark_current` explícitos a `OpSim`, así que LightCurveLynx cae en los *defaults*
+hardcodeados de la clase `OpSim` (`obstable/opsim.py`): `readout_noise=8.8` e⁻/píxel y
+`dark_current=0.2` e⁻/s/píxel (constantes genéricas de LSSTCam, fuente citada:
+`smtn-002.lsst.io`) -- muy por encima del `readnoise=0.25` real y simplificado que usa el `.SIMLIB`
+de esta campaña (`WriterParams.ccd_noise`). Con los defaults reales del proyecto (no los "matched"),
+el `fluxerr` de LightCurveLynx sale **entre 0.3% y 12% más grande** que el de SNANA (mayor en
+`g`/`r` a magnitudes brillantes, donde el ruido de cielo es más chico y el read noise pesa más) --
+real, pero en la dirección **contraria** a explicar el sobre-conteo (más ruido en LCL, no menos).
+Se deja documentado como una discrepancia real de fidelidad (candidato de bajo impacto para portar
+si se retoma esta fase), no como causa del residuo.
+
+### Paso 2 -- SNR remedido hoy: la brecha de Fase 1 se achicó mucho, pero no desapareció
+
+Se corrió `run_snia_ddf_poc.py` fresco (job 11563393) con TODO el código acumulado desde Fase 1
+(incluye `zp_err_mag=0.005` ya corregido en Fase 1 punto 7b, ruido real de SNANA vía
+`snana_noise_columns()`, dispersión MWEBV real de Fase 10, etc.) -- el propio script ya compara
+automáticamente contra la referencia real:
+
+| | mediana SNR | p90 SNR |
+|---|---|---|
+| SNANA real (`SNIa_DDF`) | 0.78 | 2.26 |
+| LightCurveLynx, medido en Fase 1 (histórico) | 1.008 (+29%) | 5.68 (+151%, 2.5x) |
+| LightCurveLynx, remedido hoy (Fase 16) | 0.868 (+11.3%) | 2.948 (+30.4%) |
+
+La brecha se redujo sustancialmente (de 2.5x a 1.3x en la cola alta) gracias a los fixes acumulados
+en fases posteriores, pero **sigue existiendo un residuo real del 11-30%** -- no explicado por la
+fórmula de ruido (Paso 1 la confirmó equivalente). Tiene que venir del numerador (flujo simulado),
+no del denominador (ruido).
+
+### Paso 3 -- brillo sin ruido para SALT2: nunca antes probado, y en dirección OPUESTA a Fase 7
+
+Fase 7 estableció (para `SNIa-91bg`, SIMSED) que LightCurveLynx simula objetos **más tenues** que
+SNANA -- pero esa comparación nunca se hizo para `SNIa` (SALT2), un modelo completamente distinto
+(`sncosmo.SALT2Source`, no `SIMSEDModel`). `run_snia_ddf_poc.py` nunca extraía `flux_perfect` (mismo
+bug metodológico que Fase 7 encontró y corrigió para SIMSED, nunca portado a SALT2). Se construyó
+`compare_brightness_truth_salt2.py` (mismo patrón de Fase 7, reconstruye el `source_model` real de
+`run_snia_ddf_poc.py` pero captura `flux_perfect` en banda `r` en vez de descartarlo) y se comparó
+contra el `.DUMP` real de producción (`SNIa_DDF_baseline_v5.3.1_10yrs.DUMP`, `PEAKMAG_r`,
+`SELECTION: NONE`):
+
+| bin z | N SNANA | mediana SNANA | N LCL | mediana LCL | Δ (LCL-SNANA) |
+|---|---|---|---|---|---|
+| [0.011,0.181) | 10 | 19.691 | 13 | 20.176 | +0.486 (poca estadística) |
+| [0.181,0.351) | 64 | 21.489 | 56 | 21.256 | **-0.234** |
+| [0.351,0.521) | 164 | 22.415 | 158 | 22.277 | **-0.137** |
+| [0.521,0.690) | 257 | 23.313 | 276 | 23.185 | **-0.128** |
+| [0.690,0.860) | 368 | 24.346 | 382 | 24.106 | **-0.239** |
+| [0.860,1.030) | 490 | 25.169 | 546 | 25.029 | **-0.140** |
+| [1.030,1.200) | 379 | 26.156 | 552 | 26.040 | **-0.116** |
+
+**Salvo el primer bin (poca estadística), LightCurveLynx sale sistemáticamente MÁS BRILLANTE que
+SNANA en todo el rango de redshift real, ~0.12-0.24 mag** -- lo opuesto de Fase 7, y en la dirección
+CORRECTA para explicar el sobre-conteo de `SNIa`. Cuantitativamente consistente: 0.12-0.24 mag de
+exceso de brillo ≈ 11-25% de exceso de flujo, del mismo orden que el 11-30% de exceso de SNR medido
+en el Paso 2 -- y dado que el Paso 1 mostró que el ruido de LCL es *más* grande, no más chico, que el
+de SNANA, el exceso de brillo tiene que ser -- por eliminación -- toda la explicación del exceso de
+SNR observado (y un poco más, para compensar el exceso de ruido).
+
+**Candidato de causa más probable, no verificado hasta el fondo:** `GENMEAN_SALT2ALPHA=0.14`,
+`GENMEAN_SALT2BETA=3.1`, `GENPEAK_SALT2c/x1` y sus sigmas coinciden EXACTAMENTE con
+`SIMGEN_INCLUDE_SNIa-SALT2.INPUT` real -- pero **`GENMAG_OFF`/la magnitud absoluta M_abs no está
+declarada en absoluto en el `.INPUT` real** (`GENMAG_OFF_GLOBAL` default de SNANA es 0.0, sin M_B0
+explícito para SALT2 en este archivo). El PoC usa `m_abs_func = Normal(loc=-19.3, ...)` -- un valor
+de la literatura general, nunca verificado contra la convención interna real que usa SNANA para
+`SALT2.WFIRST-H17` (que probablemente deriva su M_B0 de la normalización `FLUXSCALE` propia del
+template, no de un M_abs configurable). Una diferencia de calibración de ~0.15-0.2 mag entre la
+convención `X0FromDistMod` de LightCurveLynx/sncosmo y la normalización real de SNANA explicaría el
+patrón observado limpiamente. No se llegó a verificar la convención exacta de sncosmo (fuera del
+alcance razonable de esta sesión, ya muy extensa) -- queda como el cabo suelto más concreto y
+accionable de todo el proyecto.
+
+### Conclusión Fase 16
+
+**El hallazgo más sólido y accionable desde Fase 7.** A diferencia de los candidatos de Fase 10-15
+(todos descartados o insuficientes), este apunta a una causa real, cuantificada, en la dirección
+correcta, y específica de una sola clase bien delimitada (`SNIa`/SALT2): LightCurveLynx simula
+supernovas ~0.12-0.24 mag más brillantes que SNANA para los mismos parámetros SALT2 reales
+(alpha/beta/x1/c/z), consistente numéricamente con el exceso de SNR observado. La causa más probable
+es una diferencia de calibración de magnitud absoluta (M_abs/M_B0) entre la convención que usa
+`X0FromDistMod` de LightCurveLynx y la normalización interna real de SNANA para este template SALT2
+específico -- no verificada hasta el fondo, pero el cabo suelto más concreto de todo el proyecto.
+**Recomendación:** el siguiente paso natural (fuera de esta sesión) es leer el código fuente de
+`sncosmo.SALT2Source`/`X0FromDistMod` para encontrar la convención exacta de M_B0 que asumen, y
+comparar contra cómo SNANA deriva x0 internamente para `SALT2.WFIRST-H17` sin `GENMAG_OFF`
+declarado -- si se confirma una diferencia de calibración, es un fix de una constante, no una
+reimplementación.
+
+### Archivos de esta fase (Fase 16)
+
+- `exploration/lightcurvelynx/compare_brightness_truth_salt2.py`/`.sbatch` -- primera comparación de
+  brillo sin ruido para la clase SALT2 (nunca antes hecha, Fase 7 solo cubrió SIMSED).
+- `exploration/lightcurvelynx/fase16_noise_formula_compare.py` -- exploratorio, no versionado
+  (reconstrucción y comparación numérica de ambas fórmulas de ruido, Paso 1).
+- Sin cambios a `run_simsed_poc.py`/`run_snia_ddf_poc.py` -- esta fase es diagnóstico, no
+  implementación (el fix de M_abs, si se confirma, queda para retomar).
