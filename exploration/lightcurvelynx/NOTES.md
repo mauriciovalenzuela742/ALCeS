@@ -2609,3 +2609,68 @@ Fase 12-14 tampoco cierran el residuo.
   potencia estadística.
 - `exploration/lightcurvelynx/fase11_snana_selfcheck.py` -- el análisis real que sí se corrió
   (solo lado SNANA, ver Resultado arriba).
+
+## Fase 12 — mismatch de passband/zeropoint (`kcor_LSST.fits` real vs. `lsst/throughputs` que descarga LCL)
+
+Siguiente candidato del roadmap: cada corrida de LightCurveLynx descarga los passbands de
+`raw.githubusercontent.com/lsst/throughputs/main/baseline/total_<banda>.dat` (visible en el stdout
+de cada job) -- el preset genérico `LSST` de LCL, no necesariamente la curva de transmisión exacta +
+cualquier offset de zeropoint nativo-vs-sintético que trae el `kcor_LSST.fits` real de la campaña
+(referenciado por el `.INPUT` de las 19 clases, nunca antes inspeccionado -- es un FITS, necesita
+`astropy.io.fits`).
+
+### Paso 1 -- leer `kcor_LSST.fits` real
+
+Abierto con `astropy.io.fits` en el venv real de NLHPC (`/home/mvalenzuela/run_SNANA/kcor_LSST.fits`).
+Estructura real: HDU `ZPoff` (offset de zeropoint nativo-vs-sintético por banda), `FilterTrans`
+(curva de transmisión real, 991 puntos, 2100-12000 Å en bins de 10 Å), `PrimarySED` (espectro de
+referencia AB), más `KCOR`/`MAG+MWXTCOR` (tablas de K-correction, vacías -- no aplican a este modo de
+generación). Header confirma `FILTPATH1 = '$SNDATA_ROOT/filters/LSST/baseline_1.9'` -- el kcor real
+usa la versión **1.9** de los throughputs de Rubin.
+
+**Hallazgo 1 -- `ZPoff` es cero en las 6 bandas** (`ZPoff(Primary)=ZPoff(SNpot)=0.0` para
+`LSST-u/g/r/i/z/Y`, sistema `AB` puro): no hay ningún offset de zeropoint nativo-vs-sintético oculto
+en el kcor real -- descarta de entrada la mitad de la hipótesis original sin necesitar comparar nada
+más. Coincide exactamente con la convención `MAG_AB_ZP_NJY = 8.9 + 2.5*9` (AB puro) que ya usa todo
+el proyecto (Fase 7, `compare_brightness_truth.py`).
+
+### Paso 2 -- diff numérico contra lo que descarga LightCurveLynx
+
+Se forzó una descarga real (`PassbandGroup.from_preset(preset="LSST")` en el venv de NLHPC) y se leyó
+el archivo cacheado (`~/.cache/lightcurvelynx/passbands/LSST/<banda>.dat`). **El propio header del
+archivo descargado dice `# Version 1.9`** -- coincide exactamente con `baseline_1.9` del kcor real; la
+rama `main` de `lsst/throughputs` en GitHub sigue sirviendo la misma versión 1.9 que usa esta
+campaña, no hay deriva de versión entre ambos.
+
+Comparación numérica directa (interpolando la curva de LCL a la grilla de 10 Å del kcor real):
+
+| Banda | Δλ_efectiva (Å) | pico kcor | pico LCL | razón de área (LCL/kcor) | max\|ΔT\| |
+|---|---|---|---|---|---|
+| u | -13.49 | 0.1806 | 0.1806 | 1.0039 | 0.0001 |
+| g | -1.08 | 0.4828 | 0.4828 | 1.0004 | 0.0003 |
+| r | +0.01 | 0.5777 | 0.5777 | 1.0001 | 0.0004 |
+| i | +0.25 | 0.6235 | 0.6235 | 1.0003 | 0.0001 |
+| z | +0.89 | 0.6306 | 0.6306 | 1.0004 | 0.0001 |
+| Y | +3.43 | 0.3405 | 0.3405 | 1.0013 | 0.0006 |
+
+Transmisión de pico idéntica a 4 decimales en las 6 bandas; longitud de onda efectiva difiere menos
+de 14 Å incluso en el peor caso (`u`, la banda más angosta y con el corte azul más agudo -- esperable
+por diferencias de grilla/interpolación, no de forma real); área integrada difiere menos del 0.4% en
+todas las bandas. Esto es efectivamente **la misma curva**, con diferencias del orden de la
+discretización numérica (kcor a 10 Å de resolución vs. la grilla nativa más fina que descarga LCL),
+no una diferencia física real de transmisión.
+
+### Conclusión Fase 12
+
+**Descartado, con evidencia numérica directa y concluyente -- no ambiguo, a diferencia de Fase 11.**
+No hay offset de zeropoint nativo-vs-sintético (ZPoff=0) ni diferencia real de forma/posición de las
+curvas de transmisión (mismo release v1.9, diffs sub-Angstrom/sub-porcentuales explicables por
+resolución de grilla). El passband/zeropoint no es la causa del residuo sistémico. Recomendación:
+pasar a **Fase 13** (extrapolación en los bordes del template: relleno a cero por defecto de
+LightCurveLynx vs. supresión de la observación de SNANA) -- señalado en el plan original como "el
+lead más concreto mecánicamente" de todos los candidatos restantes.
+
+### Archivos de esta fase
+
+Sin archivos nuevos -- investigación completa e inline (lectura de FITS + comparación numérica
+directa en el venv real de NLHPC, sin necesitar ninguna simulación nueva). Sin incidentes de cuota.

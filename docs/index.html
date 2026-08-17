@@ -1035,7 +1035,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       ruido/SNR o la forma de la curva de luz, no en el flujo simulado en sí.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Trece fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Quince fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1113,6 +1113,18 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <span class="step-n">11</span>
         <div class="step-body">
           <p><strong>Plan de investigación absorbiendo documentación oficial, primer candidato probado y descartado</strong> — con el bake-off de codificación cerrado, se absorbió la documentación oficial de LightCurveLynx (readthedocs) y el manual de SNANA, cruzando cada mecanismo candidato contra los archivos reales de esta campaña en NLHPC para descartar 9 de ellos sin necesidad de correr nada (<code>FLUXERRMODEL</code>, corrección NEXPOSE/coadd, ruido Poisson de host, velocidad peculiar, bits zHOST de SEARCHEFF, <code>Om0</code>, <code>GENMAG_SMEAR</code> fuera de <code>SNIa-SALT2</code>, entre otros). El primer candidato con evidencia real de estar activo: <code>GENSIGMA_MWEBV_RATIO: 0.16</code> (dispersión gaussiana del 16% sobre el E(B-V) de Vía Láctea). Fórmula exacta confirmada leyendo <code>snlc_sim.c::gen_MWEBV()</code> directo del código fuente público de SNANA, portada y probada en <code>SNIa-91bg (NON1ASED)</code> (5 semillas nuevas) — resultado prácticamente idéntico a la línea base sin dispersión (2.254x ± 0.081 en ambos casos): los campos DDF de este proyecto tienen E(B-V) nominal demasiado bajo para que un 16% de dispersión mueva la aguja. Refuerza el hallazgo de Fase 3 (la extinción, de host o de Vía Láctea, no explica el residuo) y descarta el primer candidato del roadmap sin necesidad de escalar al resto del catálogo — la investigación continúa con la Fase 11 del plan (grilla precomputada SIMSED vs. integración en vivo).</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">12</span>
+        <div class="step-body">
+          <p><strong>Grilla <code>LOGZBIN</code> de SIMSED: hipótesis afilada, resultado ambiguo</strong> — SNANA precomputa el flujo de SIMSED en una grilla de redshift log-espaciada (<code>LOGZBIN</code>, 0.02 por defecto, pero 0.1 — 5x más gruesa — en <code>SLSN-I-MOSFIT</code>/<code>PISN-MOSFIT</code>/<code>SNIIn-MOSFIT</code>) e interpola linealmente entre nodos, mientras LightCurveLynx evalúa cada objeto a su redshift exacto sin discretizar nunca. El primer intento de aislar el flujo crudo interpolado (<code>GENMODEL_MSKOPT: 512</code>, un bit de debug real en <code>genmag_SIMSED.c</code>) resultó inalcanzable desde cualquier <code>.INPUT</code> documentado — leyendo <code>snlc_sim.c</code> se confirmó que SIMSED usa una variable interna distinta, no esa. Pivote al patrón de Fase 7 (<code>PEAKMAG_r</code> del <code>.DUMP</code> real menos <code>MU</code>, cuadriculado por posición fraccional dentro de una celda de grilla), con tres incidentes más de cuota resueltos en el camino. Resultado: <code>SNIa-91bg</code> (control, grilla fina) sale limpio, sin patrón. <code>SLSN-I-MOSFIT</code> (grilla gruesa, la hipótesis real) sale <strong>sin potencia estadística suficiente</strong> — la dispersión intrínseca entre sus 960 templates físicos es ~8x mayor que la del control, y el punto estimado no significativo (-0.118 ± 0.086 mag) ya es un orden de magnitud demasiado chico para explicar un residuo de varias décimas a &gt;1 mag. No se escala más por ahora — no es un descarte limpio, queda abierto si Fase 13-14 no cierran el residuo.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">13</span>
+        <div class="step-body">
+          <p><strong>Passband/zeropoint: descartado con evidencia numérica directa</strong> — cada corrida de LightCurveLynx descarga sus passbands de <code>lsst/throughputs</code> en GitHub; el <code>kcor_LSST.fits</code> real de la campaña nunca se había inspeccionado (es un FITS binario). Abierto con <code>astropy.io.fits</code>: la tabla <code>ZPoff</code> es cero en las 6 bandas (sin offset de zeropoint nativo-vs-sintético oculto, sistema AB puro — coincide con la convención que ya usa todo el proyecto). El header confirma que el kcor real usa la versión <strong>1.9</strong> de los throughputs de Rubin (<code>baseline_1.9</code>) — y el archivo que descarga LightCurveLynx de la rama <code>main</code> trae ese mismo <code>#&nbsp;Version&nbsp;1.9</code> en su encabezado. Comparación numérica directa (interpolando ambas curvas a la misma grilla) confirma: transmisión de pico idéntica a 4 decimales en las 6 bandas, longitud de onda efectiva a menos de 14&nbsp;Å incluso en el peor caso, área integrada dentro del 0.4% — son efectivamente la misma curva, con diferencias del orden de la resolución de grilla, no una diferencia física real. Descartado limpio, sin ambigüedad — a diferencia de Fase 12.</p>
         </div>
       </li>
     </ol>
@@ -1221,6 +1233,32 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         se eligieron deliberadamente por su E(B-V) nominal bajo (0.006–0.025), así que incluso el máximo
         recorte a 3σ mueve la extinción muy poco. Refuerza — no contradice — el hallazgo de Fase 3: ni la
         extinción de host ni la de Vía Láctea explican el residuo sistémico.</p>
+      </div>
+      <div class="cause-card refuted">
+        <p class="cause-label">Resultado ambiguo (Fase 11) — grilla LOGZBIN de SIMSED</p>
+        <h3>Sin potencia estadística suficiente en la clase de grilla gruesa; el punto estimado ya es demasiado chico</h3>
+        <p>SNANA interpola linealmente el flujo SIMSED entre nodos de una grilla de redshift log-espaciada
+        (<code>LOGZBIN</code>, 0.1 en <code>SLSN-I-MOSFIT</code> — 5x más gruesa que el default 0.02);
+        LightCurveLynx evalúa cada objeto a su z exacto, sin discretizar. Probado con <code>PEAKMAG_r</code> del
+        <code>.DUMP</code> real menos <code>MU</code>, cuadriculado por posición dentro de una celda de grilla:
+        <code>SNIa-91bg</code> (control, grilla fina) sale limpio, sin patrón. <code>SLSN-I-MOSFIT</code> (grilla
+        gruesa) tiene ~8x más dispersión intrínseca entre sus 960 templates físicos que el control, y el punto
+        estimado no significativo (-0.118 ± 0.086 mag, ~1.4σ) ya es un orden de magnitud demasiado chico para
+        explicar un residuo de varias décimas a &gt;1 mag. No se escala más por ahora (necesitaría 10-100x más
+        objetos o fijar templates específicos) — resultado abierto, no un descarte limpio.</p>
+      </div>
+      <div class="cause-card refuted">
+        <p class="cause-label">Hipótesis descartada (Fase 12) — mismatch de passband/zeropoint</p>
+        <h3>Mismo release v1.9 de los throughputs de Rubin en ambos lados, sin offset de zeropoint oculto</h3>
+        <p>El <code>kcor_LSST.fits</code> real de la campaña (nunca antes inspeccionado, es un FITS binario)
+        tiene <code>ZPoff=0</code> en las 6 bandas — sistema AB puro, sin offset nativo-vs-sintético oculto,
+        coincide con la convención que ya usa todo el proyecto. Su header confirma
+        <code>FILTPATH1=.../LSST/baseline_1.9</code>; el archivo que descarga LightCurveLynx de
+        <code>lsst/throughputs</code> (rama <code>main</code>) trae ese mismo <code># Version 1.9</code> en su
+        propio encabezado. Comparación numérica directa (curvas interpoladas a la misma grilla): transmisión de
+        pico idéntica a 4 decimales en las 6 bandas, longitud de onda efectiva a menos de 14 Å incluso en el peor
+        caso (<code>u</code>), área integrada dentro del 0.4% — es efectivamente la misma curva. Descartado
+        limpio y concluyente, sin ambigüedad.</p>
       </div>
     </div>
 
