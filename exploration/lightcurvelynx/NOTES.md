@@ -2674,3 +2674,103 @@ lead más concreto mecánicamente" de todos los candidatos restantes.
 
 Sin archivos nuevos -- investigación completa e inline (lectura de FITS + comparación numérica
 directa en el venv real de NLHPC, sin necesitar ninguna simulación nueva). Sin incidentes de cuota.
+
+## Fase 13 — extrapolación en los bordes del template (LightCurveLynx) vs. supresión de la observación (SNANA)
+
+El lead marcado como "el más concreto mecánicamente" del plan original: LightCurveLynx dice en su
+documentación que sus `LightcurveTemplateModel` no periódicos "caen a 0.0" fuera de su rango de fase
+por defecto; SNANA, según el manual, suprime la observación (no la genera) cuando la longitud de onda
+en marco de reposo cae fuera del rango declarado del SED. Una observación de flujo cero con ruido
+Poisson realista encima es, en principio, capaz de disparar una detección espuria si ambos lados no
+manejan el borde igual.
+
+### Paso 1 -- ¿qué clases tocan este borde, y cuánto de la población?
+
+Se escanearon las 19 clases (`fase13_scan.py`, no versionado -- exploratorio, lee `SED.INFO`/
+`RESTLAMBDA_RANGE` o, si no está declarado, el primer `.SED` real) y se calculó, para cada banda LSST
+(rango observado real extraído de `kcor_LSST.fits`) y cada extremo de `GENRANGE_REDSHIFT`, si la
+longitud de onda en marco de reposo necesaria cae fuera del `RESTLAMBDA_RANGE` declarado. Resultado:
+**`SLSN-I` (SIMSED y NON1ASED, `GENRANGE_REDSHIFT` hasta z=9.7) es, con mucha diferencia, la clase más
+expuesta** -- a z=9.7 las 6 bandas caen completamente fuera del rango 1000-11000 Å declarado.
+`PISN-MOSFIT` toca el borde de forma marginal (banda `u` apenas, a z=2.4). El resto de las 17 clases
+no toca el borde en absoluto con sus rangos reales.
+
+Lo que hace esto importante, no solo una curiosidad de la cola: con el `dndz` real de `SLSN-I`
+(`MD14`, ponderado por SFR), **el 46% de TODA la población generada ya está en z≥2.2** -- el punto
+donde la banda `u` empieza a caer fuera de rango. No es un caso extremo raro, es casi la mitad del
+catálogo simulado.
+
+### Paso 2 -- confirmar el comportamiento real de cada lado (no solo confiar en la documentación)
+
+**LightCurveLynx real (código, no doc):** `SEDTemplate.evaluate_sed()` (`sed_template_model.py`)
+inicializa la matriz de salida en cero y solo llena las FASES dentro de `self.times[0]-self.times[-1]`
+-- el cero-padding documentado es real, pero **solo en el eje de fase**. En el eje de longitud de
+onda no hay ningún chequeo de rango en absoluto -- se llama a
+`RectBivariateSpline(...)(wavelengths, grid=True)` con cualquier longitud de onda, dentro o fuera del
+rango nativo del SED. Probado interactivamente en el venv real de NLHPC (`SIMSED.SLSN-I-MOSFIT`,
+template 0): a longitudes de onda por debajo de 1000 Å o por encima de 11000 Å, el flujo devuelto
+**no es cero -- es un valor constante, clampeado exactamente al valor del borde** (p.ej. idéntico a
+100, 300, 500, 999 y 1000 Å, los cinco dieron el mismo flujo). No es la hipótesis original (cero), es
+peor: LightCurveLynx sigue generando una observación con flujo real y no-trivial, sin importar cuán
+lejos del rango declarado se pregunte.
+
+**SNANA real (código, no manual):** confirmado en `genmag_SEDtools.c` (función que construye la
+tabla de flujo, comentario real "Mar 22 2017 -- bail if any part of filter trans it outside of model
+range"):
+```c
+if ( LAMOBS_MIN/z1 < SEDMODEL.LAMMIN[ised] ) { continue ; }
+if ( LAMOBS_MAX/z1 > SEDMODEL.LAMMAX[ised] ) { continue ; }
+```
+Si el rango COMPLETO de la banda no cabe en marco de reposo dentro del SED declarado, SNANA nunca
+construye esa celda de la tabla -- la observación no se genera (existe incluso una variable real y
+distinta, `NOBS_UNDEFINED`, en la lista de variables permitidas de `SIMGEN_DUMP`, confirmando que
+SNANA rastrea esto por separado de `NOBS`).
+
+### Paso 3 -- implementación y prueba en `SLSN-I` (SIMSED)
+
+Se agregó `restlambda_gate()` a `run_simsed_poc.py` (replica exacta de la condición real de arriba)
+y se conectó en el paso de aplanado: cualquier observación cuya banda no quepa completa en marco de
+reposo dentro de `restlambda_range=(1000, 11000)` se descarta antes de construir `phot_df`/`head_df`
+(igual que SNANA, que nunca la genera). Solo aplicado a `SLSN-I` por ahora -- el resto de las clases
+no declara `restlambda_range` y su comportamiento queda byte-idéntico.
+
+5 semillas nuevas (jobs 11562466/579/640/755/829, con limpieza de `phot_df.parquet` entre semilla y
+semilla por headroom ajustado, ~168MB libres):
+
+| semilla | observaciones suprimidas | detectados/2000 |
+|---|---|---|
+| 0 | 1.011.432 (14.7% del total generado) | 1239 (61.95%) |
+| 1 | -- | 1327 (66.35%) |
+| 2 | -- | 1325 (66.25%) |
+| 3 | -- | 1304 (65.20%) |
+| 4 | -- | 1303 (65.15%) |
+| **media** | | **64.98% ± 1.60%** |
+
+**Ratio final: 1.577 ± 0.039** (rango 1.504-1.610), contra la línea base sin el fix, **1.604 ± 0.036**
+(rango 1.542-1.648) -- las bandas se solapan casi por completo, no es un cambio estadísticamente
+significativo a nivel de 5 semillas, aunque la dirección es la correcta (baja, no sube) y la magnitud
+por semilla individual (hasta -3.6pp en la semilla 0) es real.
+
+### Conclusión Fase 13
+
+**Mecanismo real, confirmado y corregido -- pero no explica el residuo de `SLSN-I` por sí solo.** El
+14.7% de observaciones suprimidas es una fracción grande, pero `SEARCHEFF` solo exige 2 épocas reales
+agrupadas para el trigger (Fase 4) -- los objetos que pierden observaciones por este mecanismo están
+casi todos en el extremo de alto z, donde de cualquier forma ya eran marginales o indetectables antes
+del fix (ver la eficiencia por bin de redshift de la semilla 0: 81.1% en z<1.92, cayendo a 0.0% en
+z=[7.69,9.61)). El fix es una mejora real de fidelidad física (ahora `SLSN-I` respeta el mismo límite
+físico que SNANA) y se queda en el código -- el ratio del dashboard se actualiza al nuevo valor más
+correcto (1.577 ± 0.039) -- pero no se escala a `SLSN-I (NON1ASED)` ni a `PISN-MOSFIT` por ahora: el
+resultado de la clase con mayor exposición ya muestra que el efecto, aunque real, es demasiado chico
+para mover el residuo de forma significativa, y `PISN-MOSFIT` tiene una exposición mucho más marginal
+(solo `u` a z=2.4). Recomendación: pasar a **Fase 14** (estado de `GENMAG_SMEAR_MODELNAME: G10` en
+`SNIa`, último candidato del roadmap original) o a los ítems de menor prioridad (`GENSIGMA_SEARCH_PEAKMJD`,
+`REDCOV`) si Fase 14 tampoco cierra el residuo.
+
+### Archivos de esta fase (Fase 13)
+
+- `exploration/lightcurvelynx/run_simsed_poc.py` -- `BAND_RANGES_OBS`, `restlambda_gate()`, y el
+  chequeo en el aplanado; `restlambda_range=(1000.0, 11000.0)` agregado solo a `CLASS_CONFIGS["SLSN-I"]`.
+- `docs/lcl_qc/lcl_qc_index.json` -- ratio de `SLSN-I` actualizado a 1.577 ± 0.039 (antes 1.604 ± 0.036).
+- `exploration/lightcurvelynx/fase13_scan.py` -- exploratorio, no versionado (escaneo de
+  `RESTLAMBDA_RANGE` real de las 19 clases, Paso 1).

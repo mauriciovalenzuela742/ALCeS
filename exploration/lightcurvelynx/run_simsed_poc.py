@@ -91,6 +91,35 @@ DDF_FIELD_EBV = {
 MW_RV = 3.1
 GENSIGMA_MWEBV_RATIO = 0.16  # Fase 10: real, activo en toda la campana (templates.py)
 
+# Fase 13: rango observado real de cada banda LSST -- extraido del propio
+# kcor_LSST.fits real (HDU FilterTrans, primer/ultimo bin con transmision no
+# nula), no un valor generico. Usado para replicar el "bail if any part of
+# filter trans is outside model range" real de SNANA (genmag_SEDtools.c,
+# funcion prep_filter_SEDMODEL(), comentario "Mar 22 2017"): si el rango
+# COMPLETO de la banda, corrido a marco de reposo (lambda_obs/(1+z)), no cabe
+# dentro del RESTLAMBDA_RANGE declarado del SED, SNANA nunca genera esa
+# observacion -- ni siquiera con flujo indefinido, directamente no la cuenta
+# (ver NOBS_UNDEFINED, variable real y distinta de NOBS en el dump).
+BAND_RANGES_OBS = {
+    "u": (3200.0, 4090.0), "g": (3760.0, 5760.0), "r": (5240.0, 7150.0),
+    "i": (6600.0, 8440.0), "z": (7900.0, 9490.0), "Y": (8980.0, 10980.0),
+}
+
+
+def restlambda_gate(z: float, filt: str, restlambda_range: tuple[float, float]) -> bool:
+    """True si la banda `filt` a redshift `z` SI cabe dentro de
+    restlambda_range en marco de reposo (replica exacta de la condicion real
+    de snlc_sim.c/genmag_SEDtools.c) -- False si SNANA la habria suprimido."""
+    lam_lo, lam_hi = BAND_RANGES_OBS[filt]
+    z1 = 1.0 + z
+    rlo, rhi = restlambda_range
+    if lam_lo / z1 < rlo:
+        return False
+    if lam_hi / z1 > rhi:
+        return False
+    return True
+
+
 # --- config por clase, parametros reales de cada SIMGEN_INCLUDE_*.INPUT ---
 CLASS_CONFIGS = {
     # Fase 3: modelo de host extinction real ESSENCE-WV07 (Wood-Vasey+2007),
@@ -158,6 +187,12 @@ CLASS_CONFIGS = {
         dndz=("md14", 2.0e-8),
         sntype=40,
         host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
+        # Fase 13: RESTLAMBDA_RANGE real declarado en SED.INFO (1000-11000 A).
+        # A GENRANGE_REDSHIFT[1]=9.7, TODAS las bandas caen fuera de rango en
+        # marco de reposo -- y el 46% de la poblacion completa (ponderada por
+        # dndz MD14) ya esta en z>=2.2, donde la banda u empieza a quedar
+        # fuera. Primera clase de prueba de esta fase (ver NOTES.md).
+        restlambda_range=(1000.0, 11000.0),
     ),
     "SNIax": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNIax",
@@ -503,11 +538,29 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     print(f"[{time.time()-t_start:.1f}s] simulacion terminada: {len(lc)} objetos, "
           f"{sim_wall_time:.1f}s ({sim_wall_time/max(len(lc),1)*1000:.2f} ms/objeto)")
 
+    # Fase 13: replica el "bail if any part of filter trans is outside model
+    # range" real de SNANA -- si la clase declara restlambda_range, cualquier
+    # observacion cuya banda no quepa COMPLETA en marco de reposo dentro de
+    # ese rango se descarta antes de aplanar (SNANA nunca la genera; LCL por
+    # defecto seguia devolviendo un flujo extrapolado/clampeado no-cero via
+    # RectBivariateSpline sin ningun chequeo de rango de longitud de onda,
+    # confirmado leyendo SEDTemplate.evaluate_sed() -- ver NOTES.md).
+    restlambda_range = cfg.get("restlambda_range")
+    n_gated_total = 0
+
     head_rows, phot_rows = [], []
     for _, row in lc.iterrows():
         sub = row["lightcurve"]
         if sub is None or len(sub) == 0:
             continue
+        if restlambda_range is not None:
+            keep_mask = sub["filter"].astype(str).apply(
+                lambda f: restlambda_gate(row["z"], "Y" if f == "y" else f, restlambda_range)
+            )
+            n_gated_total += int((~keep_mask).sum())
+            sub = sub[keep_mask]
+            if len(sub) == 0:
+                continue
         snid = str(int(row["id"]))
         head_rows.append({
             "SNID": snid, "SNTYPE": cfg["sntype"], "RA": row["ra"], "DEC": row["dec"],
@@ -520,6 +573,10 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
                 "SNID": snid, "MJD": obs["mjd"], "FLT": flt,
                 "FLUXCAL": obs["flux"], "FLUXCALERR": obs["fluxerr"],
             })
+
+    if restlambda_range is not None:
+        print(f"[{time.time()-t_start:.1f}s] Fase 13: {n_gated_total} observaciones suprimidas "
+              f"por caer fuera de RESTLAMBDA_RANGE={restlambda_range} en marco de reposo")
 
     head_df = pd.DataFrame(head_rows)
     phot_df = pd.DataFrame(phot_rows)

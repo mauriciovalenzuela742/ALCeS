@@ -1035,7 +1035,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       ruido/SNR o la forma de la curva de luz, no en el flujo simulado en sí.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Quince fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Dieciséis fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1125,6 +1125,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <span class="step-n">13</span>
         <div class="step-body">
           <p><strong>Passband/zeropoint: descartado con evidencia numérica directa</strong> — cada corrida de LightCurveLynx descarga sus passbands de <code>lsst/throughputs</code> en GitHub; el <code>kcor_LSST.fits</code> real de la campaña nunca se había inspeccionado (es un FITS binario). Abierto con <code>astropy.io.fits</code>: la tabla <code>ZPoff</code> es cero en las 6 bandas (sin offset de zeropoint nativo-vs-sintético oculto, sistema AB puro — coincide con la convención que ya usa todo el proyecto). El header confirma que el kcor real usa la versión <strong>1.9</strong> de los throughputs de Rubin (<code>baseline_1.9</code>) — y el archivo que descarga LightCurveLynx de la rama <code>main</code> trae ese mismo <code>#&nbsp;Version&nbsp;1.9</code> en su encabezado. Comparación numérica directa (interpolando ambas curvas a la misma grilla) confirma: transmisión de pico idéntica a 4 decimales en las 6 bandas, longitud de onda efectiva a menos de 14&nbsp;Å incluso en el peor caso, área integrada dentro del 0.4% — son efectivamente la misma curva, con diferencias del orden de la resolución de grilla, no una diferencia física real. Descartado limpio, sin ambigüedad — a diferencia de Fase 12.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">14</span>
+        <div class="step-body">
+          <p><strong>Extrapolación en los bordes del template: mecanismo real, confirmado y corregido — pero no basta para explicar el residuo</strong> — el lead marcado como "el más concreto mecánicamente" del plan. Confirmado en código (no solo documentación): <code>SEDTemplate.evaluate_sed()</code> de LightCurveLynx solo hace zero-padding en el eje de <em>fase</em>; en el eje de <em>longitud de onda</em> no hay ningún chequeo — la spline simplemente se clampea al valor del borde, sin importar cuán lejos del rango nativo del SED se pregunte (probado interactivamente: 100&nbsp;Å a 999&nbsp;Å dan exactamente el mismo flujo que 1000&nbsp;Å). SNANA, en cambio, tiene un chequeo real y explícito (<code>genmag_SEDtools.c</code>, comentario "bail if any part of filter trans it outside of model range"): si la banda no cabe completa en marco de reposo dentro del <code>RESTLAMBDA_RANGE</code> del SED, la observación simplemente no se genera. <code>SLSN-I</code> (<code>GENRANGE_REDSHIFT</code> hasta z=9.7) es la clase más expuesta con enorme diferencia — a z≥2.2 (ya el <strong>46% de toda la población</strong> ponderada por <code>dndz</code>) la banda <code>u</code> empieza a caer fuera de rango. Implementado el chequeo real (<code>restlambda_gate()</code>) y probado con 5 semillas nuevas: <strong>14.7% de todas las observaciones generadas</strong> se suprimen — pero el ratio final apenas se mueve, <strong>1.604x ± 0.036 → 1.577x ± 0.039</strong> (bandas que se solapan casi por completo), porque <code>SEARCHEFF</code> solo exige 2 épocas reales para el trigger y los objetos afectados están casi todos en el extremo de alto z, donde ya eran marginales de cualquier forma. El fix queda en el código (mejora real de fidelidad física) y el dashboard se actualiza al nuevo ratio — pero no explica el residuo por sí solo.</p>
         </div>
       </li>
     </ol>
@@ -1259,6 +1265,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         pico idéntica a 4 decimales en las 6 bandas, longitud de onda efectiva a menos de 14 Å incluso en el peor
         caso (<code>u</code>), área integrada dentro del 0.4% — es efectivamente la misma curva. Descartado
         limpio y concluyente, sin ambigüedad.</p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Mecanismo real confirmado y corregido (Fase 13) — pero insuficiente para explicar el residuo</p>
+        <h3>LightCurveLynx no respeta el rango de longitud de onda del SED; SNANA suprime la observación, LightCurveLynx la clampea</h3>
+        <p><code>SEDTemplate.evaluate_sed()</code> solo hace zero-padding en el eje de <em>fase</em> — en
+        longitud de onda no hay chequeo alguno, la spline se clampea al valor del borde sin importar cuán
+        lejos se pregunte (probado: 100–999&nbsp;Å dan el mismo flujo que 1000&nbsp;Å). SNANA, en cambio,
+        directamente no genera la observación si la banda no cabe completa en marco de reposo dentro del
+        <code>RESTLAMBDA_RANGE</code> del SED (<code>genmag_SEDtools.c</code>, chequeo real confirmado en
+        código). <code>SLSN-I</code> (z hasta 9.7) es la clase más expuesta — a z≥2.2, ya el 46% de la
+        población, la banda <code>u</code> empieza a caer fuera de rango. Implementado el chequeo real y
+        probado con 5 semillas: 14.7% de las observaciones se suprimen, pero el ratio final apenas se mueve
+        (1.604x ± 0.036 → 1.577x ± 0.039, bandas que se solapan) — <code>SEARCHEFF</code> solo exige 2
+        épocas para el trigger, y los objetos afectados ya eran marginales en el extremo de alto z de
+        cualquier forma. Corregido para <code>SLSN-I</code>; no se escala a más clases por ahora.</p>
       </div>
     </div>
 

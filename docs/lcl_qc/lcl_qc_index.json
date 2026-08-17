@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-15T19:09:34+00:00",
+  "generated_at": "2026-08-17T01:29:56+00:00",
   "campaign_ref": "full_v5.3_10yrs (baselines DDF reales)",
   "phase": "Fase 5 -- 5 semillas independientes por clase SIMSED/SALT2 (seed_index 0-4), codigo con 3 bugs de reproducibilidad de LightCurveLynx corregidos. Fase 6 -- primera clase NON1ASED (SNIa-91bg, 5 semillas) + verificacion SEARCHEFF + bake-off de codificacion. Fase 7 -- SNIax bake-off (confirma que el efecto de codificacion es especifico de SIMSED_REDCOR), cobertura NON1ASED extendida a TDE/SLSN-I/KN-BULLA-BNS-M2COMP, comparacion directa de brillo simulado (sin ruido) vs. SNANA real. Fase 8 -- 5 semillas completas para las 5 clases NON1ASED (TDE/SLSN-I/KN-BULLA-BNS-M2COMP/SNIax), catalogo con 19 clases todas con barrido de 5 semillas salvo las 4 SIMSED-elastic/SNIa-91bg-elastic diagnosticas Fase 9 -- bake-off de codificacion cerrado con 5 semillas completas en ambos lados (SNIa-91bg-elastic ~1.10x, SNIax-elastic ~0.98x indistinguible de 1.0), catalogo de 19 clases + 2 auxiliares diagnosticas sin ninguna comparacion basada en una sola semilla. Fase 10 -- absorbida documentacion oficial de LightCurveLynx y manual de SNANA, plan de investigacion priorizado; primer candidato probado (dispersion GENSIGMA_MWEBV_RATIO=0.16, formula verificada contra snlc_sim.c real) descartado por magnitud despreciable en los campos DDF de baja extincion de este proyecto (SNIa-91bg NON1ASED: 2.254+/-0.081 sin cambio).",
   "kinds": [
@@ -92,17 +92,17 @@
       "dndz": "MD14",
       "host_av": "implementada (WV07 real)",
       "snana_detected": 824,
-      "lcl_detected": 1271,
-      "lcl_detected_mean_5seeds": 1321,
+      "lcl_detected": 1239,
+      "lcl_detected_mean_5seeds": 1300,
       "ngentot": 2000,
       "snana_pct": 41.2,
-      "lcl_pct": 63.55,
-      "ratio": 1.54,
-      "ratio_mean_5seeds": 1.604,
-      "ratio_std_5seeds": 0.036,
-      "ratio_min_5seeds": 1.542,
-      "ratio_max_5seeds": 1.648,
-      "note": "Rango de redshift mas amplio probado (0.02-9.7). Fase 5: 1.60x +/- 0.04."
+      "lcl_pct": 61.95,
+      "ratio": 1.5,
+      "ratio_mean_5seeds": 1.577,
+      "ratio_std_5seeds": 0.039,
+      "ratio_min_5seeds": 1.504,
+      "ratio_max_5seeds": 1.61,
+      "note": "Rango de redshift mas amplio probado (0.02-9.7). Fase 5: 1.60x +/- 0.04. Fase 13: se descubrio que LightCurveLynx no respeta RESTLAMBDA_RANGE del SED (SIMSEDModel.evaluate_sed() extrapola/clampea la spline en vez de suprimir la observacion como hace SNANA de verdad, snlc_sim.c/genmag_SEDtools.c linea ~1141) -- implementado el mismo chequeo real (restlambda_gate() en run_simsed_poc.py) y re-corridas las 5 semillas: 14.7% de TODAS las observaciones generadas caen fuera de rango en marco de reposo (SLSN-I llega a z=9.7, RESTLAMBDA_RANGE real es 1000-11000 A), pero el ratio final apenas cambia (1.604+/-0.036 -> 1.577+/-0.039, bandas que se solapan casi por completo) porque SEARCHEFF solo exige 2 epocas reales para el trigger -- los objetos ya marginales estan casi todos a z alto, donde YA eran dificiles de detectar de cualquier forma. Mecanismo real y corregido, pero no explica el residuo por si solo."
     },
     {
       "class": "SLSN-I (NON1ASED)",
