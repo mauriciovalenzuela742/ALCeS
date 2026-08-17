@@ -2774,3 +2774,89 @@ para mover el residuo de forma significativa, y `PISN-MOSFIT` tiene una exposici
 - `docs/lcl_qc/lcl_qc_index.json` -- ratio de `SLSN-I` actualizado a 1.577 ± 0.039 (antes 1.604 ± 0.036).
 - `exploration/lightcurvelynx/fase13_scan.py` -- exploratorio, no versionado (escaneo de
   `RESTLAMBDA_RANGE` real de las 19 clases, Paso 1).
+
+## Fase 14 — estado real de `GENMAG_SMEAR_MODELNAME: G10` (`SNIa` únicamente)
+
+Último candidato del roadmap original, marcado de entrada como el de menor prioridad (afecta solo
+1/19 clases) pero barato de verificar. `run_snia_ddf_poc.py` ya trae un comentario propio desde
+Fase 0/1 admitiendo que `SIGMA_INT=0.090` (leído de `SALT2.INFO`) es una "aproximación aceptada del
+modelo G10 completo... fuera de alcance para un PoC" -- nunca se había re-confirmado qué le falta
+exactamente ni si la falta podría explicar parte del residuo.
+
+### Qué hace el G10 real (confirmado en código, no en el manual)
+
+`GENMAG_SMEAR_MODELNAME: G10` está real y activo en `SIMGEN_INCLUDE_SNIa-SALT2.INPUT`. Leyendo
+`sntools_genSmear.c::get_genSmear_SALT2()` (repo público de SNANA), la dispersión intrínseca real de
+G10 es la suma de DOS términos independientes, no solo uno:
+
+```c
+magSmear(lam) = SMEAR0 + SMEAR(lam)
+```
+- `SMEAR0 = rCOH * SIGCOH` -- **exactamente lo que ya implementa el PoC**: un solo número aleatorio
+  gaussiano por evento, multiplicado por `SIGCOH` (0.090, de `SALT2.INFO`), igual para todas las
+  bandas.
+- `SMEAR(lam)` -- **el término que falta por completo**: SNANA lee un archivo real,
+  `salt2_color_dispersion.dat` (viene con el template `SALT2.WFIRST-H17`, no un archivo genérico),
+  construye nodos de longitud de onda cada 800 Å, y a CADA nodo le asigna un número aleatorio
+  gaussiano INDEPENDIENTE escalado por `sigma(lambda)` de ese archivo -- interpolado suavemente entre
+  nodos (`interp_SINFUN`). El resultado es dispersión cromática real: bandas distintas de un mismo
+  evento pueden salir más o menos brillantes entre sí, no solo el evento completo desplazado parejo
+  como hace `SIGMA_INT` solo.
+
+### Magnitud real de `sigma(lambda)` (leída directo del archivo real en NLHPC)
+
+`salt2_color_dispersion.dat` tiene una forma de "cuenco": mínimo cerca de 5700 Å (banda V), sube
+fuerte hacia el UV y sube de nuevo hacia el IR cercano:
+
+| λ rest (Å) | sigma(λ) | banda LSST aprox. (z≈0) |
+|---|---|---|
+| 3040 | 0.159 | borde azul de `u` |
+| 3990 | 0.042 | borde rojo de `u` / `g` |
+| 4590-6990 | 0.017-0.028 | `g`/`r` (mínimo real ≈5690 Å) |
+| 7980 | 0.059 | `i`/`z` |
+| 9000 | 0.090 | `z`/`Y` |
+| 10500 | 0.125 | borde rojo de `Y` |
+
+Comparado con la aproximación plana `SIGCOH=0.090` sola: en `g`/`r` el término cromático que falta
+(0.017-0.03) es chico frente a `SIGCOH` -- la aproximación actual ya es razonable ahí (dispersión
+total real ≈√(0.090²+0.02²)≈0.092, casi igual a 0.090). En `u` e `Y`, en cambio, el término cromático
+que falta es del mismo orden o MAYOR que `SIGCOH` (dispersión total real ≈√(0.090²+0.10²)≈0.13-0.15
+mag) -- ahí la aproximación actual **subestima** la dispersión real, no la sobreestima.
+
+### Razonamiento de dirección (sin correr nada todavía)
+
+Justo por subestimar, no sobreestimar, la dispersión real en `u`/`Y`: el efecto esperado de corregir
+esto va en la dirección **contraria** a "explicar el sobre-conteo". Más dispersión gaussiana
+simétrica alrededor de un umbral de detección de un solo lado (SNR/flujo mínimo) empuja, en promedio,
+MÁS objetos marginales por encima del umbral, no menos (el mismo sesgo tipo Eddington ya documentado
+en Fase 7) -- así que agregar el término cromático real probablemente subiría un poco la eficiencia
+de detección de LightCurveLynx en `u`/`Y`, no la bajaría. Es el mismo patrón que Fase 7 (LightCurveLynx
+resultó más tenue, no más brillante, que SNANA) y que Fase 10/13 (mecanismos reales pero que no
+explican -- o incluso apuntan en contra de -- el sobre-conteo).
+
+### Conclusión Fase 14
+
+**No se implementa el término cromático completo por ahora.** El razonamiento de dirección (arriba)
+sugiere que, si tuviera algún efecto medible, sería en el sentido contrario al que hay que explicar
+-- y como implementar el término cromático completo (leer `salt2_color_dispersion.dat`, replicar la
+interpolación de nodos de 800 Å con randoms independientes por nodo) es un trabajo bastante más
+grande que las demás verificaciones "baratas" de este roadmap, para una clase que además es solo
+1/19 del catálogo, no se justifica la inversión sin una razón más concreta para esperar que sí
+explique el residuo. Se deja documentado como pendiente reutilizable si en el futuro se necesita
+mayor fidelidad de `SNIa` específicamente.
+
+**Con esto se cierran los 5 candidatos del roadmap post-Fase-9** (Fases 10-14): dos reales pero
+insuficientes en magnitud (MW E(B-V), extrapolación de borde de SIMSED), dos descartados limpio
+(grilla LOGZBIN -- ambiguo más que descartado, en rigor -- y passband/zeropoint), y este último
+razonado como improbable sin necesidad de implementarlo. La causa raíz del residuo sistémico sigue
+sin identificarse. Los ítems de menor prioridad que quedan en el plan original
+(`GENSIGMA_SEARCH_PEAKMJD`, `REDCOV`, la crítica documentada de LightCurveLynx a su propio modelo de
+ruido Poisson) son la única pista no explorada; alternativamente, vale la pena considerar que el
+residuo podría no tener una causa única identificable vía este tipo de auditoría mecanismo-por-
+mecanismo, y que el camino que queda sea una calibración empírica agregada en vez de un fix puntual.
+
+### Archivos de esta fase (Fase 14)
+
+Sin archivos nuevos -- investigación completa e inline (lectura de código fuente de SNANA +
+inspección directa del archivo real `salt2_color_dispersion.dat` en NLHPC, sin simulación nueva).
+Sin incidentes de cuota.

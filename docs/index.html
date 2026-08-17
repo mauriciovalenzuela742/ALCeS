@@ -1035,7 +1035,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       ruido/SNR o la forma de la curva de luz, no en el flujo simulado en sí.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Dieciséis fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Diecisiete fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1131,6 +1131,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <span class="step-n">14</span>
         <div class="step-body">
           <p><strong>Extrapolación en los bordes del template: mecanismo real, confirmado y corregido — pero no basta para explicar el residuo</strong> — el lead marcado como "el más concreto mecánicamente" del plan. Confirmado en código (no solo documentación): <code>SEDTemplate.evaluate_sed()</code> de LightCurveLynx solo hace zero-padding en el eje de <em>fase</em>; en el eje de <em>longitud de onda</em> no hay ningún chequeo — la spline simplemente se clampea al valor del borde, sin importar cuán lejos del rango nativo del SED se pregunte (probado interactivamente: 100&nbsp;Å a 999&nbsp;Å dan exactamente el mismo flujo que 1000&nbsp;Å). SNANA, en cambio, tiene un chequeo real y explícito (<code>genmag_SEDtools.c</code>, comentario "bail if any part of filter trans it outside of model range"): si la banda no cabe completa en marco de reposo dentro del <code>RESTLAMBDA_RANGE</code> del SED, la observación simplemente no se genera. <code>SLSN-I</code> (<code>GENRANGE_REDSHIFT</code> hasta z=9.7) es la clase más expuesta con enorme diferencia — a z≥2.2 (ya el <strong>46% de toda la población</strong> ponderada por <code>dndz</code>) la banda <code>u</code> empieza a caer fuera de rango. Implementado el chequeo real (<code>restlambda_gate()</code>) y probado con 5 semillas nuevas: <strong>14.7% de todas las observaciones generadas</strong> se suprimen — pero el ratio final apenas se mueve, <strong>1.604x ± 0.036 → 1.577x ± 0.039</strong> (bandas que se solapan casi por completo), porque <code>SEARCHEFF</code> solo exige 2 épocas reales para el trigger y los objetos afectados están casi todos en el extremo de alto z, donde ya eran marginales de cualquier forma. El fix queda en el código (mejora real de fidelidad física) y el dashboard se actualiza al nuevo ratio — pero no explica el residuo por sí solo.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">15</span>
+        <div class="step-body">
+          <p><strong>Estado real de <code>GENMAG_SMEAR_MODELNAME: G10</code> en <code>SNIa</code> — razonado y descartado sin necesidad de implementarlo</strong> — último candidato del roadmap, el de menor prioridad (1/19 clases). Confirmado en <code>sntools_genSmear.c</code> (código real de SNANA, no el manual): el G10 real es <code>SIGCOH</code> (un número por evento, igual para todas las bandas — exactamente lo que ya implementa el PoC) <strong>más</strong> un término cromático que falta por completo — dispersión dependiente de longitud de onda leída de un archivo real (<code>salt2_color_dispersion.dat</code>), con nodos cada 800&nbsp;Å y un random independiente en cada uno. Leyendo ese archivo real en NLHPC: la dispersión cromática tiene forma de cuenco, mínima cerca de 5700&nbsp;Å (~0.017 mag, chica frente al <code>SIGCOH=0.090</code> ya implementado) pero sube fuerte hacia el UV (0.16 en el borde azul de <code>u</code>) y hacia el infrarrojo cercano (0.09–0.125 en <code>z</code>/<code>Y</code>) — ahí la aproximación actual <em>subestima</em> la dispersión real, no la sobreestima. Razonamiento de dirección: más dispersión simétrica alrededor de un umbral de detección de un solo lado empuja, en promedio, <strong>más</strong> objetos marginales por encima del umbral (mismo sesgo tipo Eddington de Fase 7) — así que agregar el término que falta probablemente subiría la eficiencia de detección de LightCurveLynx en <code>u</code>/<code>Y</code>, no la bajaría: va en la dirección contraria a lo que hay que explicar. No se implementa por ahora — con esto se cierran los 5 candidatos del roadmap post-Fase-9 sin haber encontrado la causa raíz del residuo.</p>
         </div>
       </li>
     </ol>
@@ -1280,6 +1286,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         (1.604x ± 0.036 → 1.577x ± 0.039, bandas que se solapan) — <code>SEARCHEFF</code> solo exige 2
         épocas para el trigger, y los objetos afectados ya eran marginales en el extremo de alto z de
         cualquier forma. Corregido para <code>SLSN-I</code>; no se escala a más clases por ahora.</p>
+      </div>
+      <div class="cause-card refuted">
+        <p class="cause-label">Descartado por razonamiento de dirección (Fase 14) — dispersión cromática G10 en SNIa</p>
+        <h3>El término que falta subestima la dispersión real; agregarlo probablemente subiría la detección, no la bajaría</h3>
+        <p>El G10 real (<code>sntools_genSmear.c</code>) es <code>SIGCOH</code> (ya implementado, un número
+        por evento igual en todas las bandas) más un término cromático que falta por completo —
+        dispersión dependiente de longitud de onda leída de <code>salt2_color_dispersion.dat</code> (archivo
+        real), con forma de cuenco: mínima cerca de 5700&nbsp;Å (~0.017 mag) pero hasta 0.16 en el borde azul
+        de <code>u</code> y 0.09–0.125 en <code>z</code>/<code>Y</code> — ahí la aproximación actual
+        (<code>SIGCOH=0.090</code> plano) <em>subestima</em> la dispersión real, no la sobreestima. Más
+        dispersión simétrica alrededor de un umbral de detección de un solo lado empuja, en promedio, más
+        objetos marginales por encima del umbral (mismo sesgo tipo Eddington de Fase 7) — agregar el término
+        que falta probablemente subiría la eficiencia de detección en <code>u</code>/<code>Y</code>, en la
+        dirección contraria a la que hay que explicar. No implementado — cierra los 5 candidatos del
+        roadmap post-Fase-9 sin identificar la causa raíz del residuo.</p>
       </div>
     </div>
 
