@@ -3073,3 +3073,47 @@ reimplementación.
   (reconstrucción y comparación numérica de ambas fórmulas de ruido, Paso 1).
 - Sin cambios a `run_simsed_poc.py`/`run_snia_ddf_poc.py` -- esta fase es diagnóstico, no
   implementación (el fix de M_abs, si se confirma, queda para retomar).
+
+### Paso 4 -- se retoma el candidato M_abs: descartado, con el signo contrario al esperado
+
+Se leyó el código fuente REAL de ambos lados para la fórmula x0↔magnitud absoluta:
+
+**LightCurveLynx** (`X0FromDistMod`/`_x0_from_distmod`, `astro_utils/snia_utils.py`):
+```python
+# distmod = -2.5*log10(x0) + alpha*x1 - beta*c - m_abs + 10.635
+x0 = 10 ** (-0.4 * (distmod - alpha*x1 + beta*c + m_abs - 10.635))
+```
+
+**SNANA** (`SALT2x0calc()`, `genmag_SALT2.c:2932`):
+```c
+arg   = 0.4 * ( dlmag - alpha*x1 + beta*c );
+x0inv = X0SCALE_SALT2 * pow(TEN, arg);   // X0SCALE_SALT2 = 1.0E-12 (genmag_SALT2.h)
+x0    = 1./x0inv;
+```
+con `mBoff_SALT2 = 10.635` (`load_mBoff_SALT2()`, `genmag_SALT2.c:2975`) -- **la misma constante
+exacta que usa LightCurveLynx**, confirmando que ambos códigos implementan la misma convención
+estándar de normalización SALT2 (mB = mBoff - 2.5·log10(x0), SNLS/VEGA system, Guy+2010).
+
+Despejando ambas fórmulas para el mismo `x0`/`distmod`/`alpha·x1`/`beta·c`, el M_abs *implícito* que
+usa SNANA (vía `X0SCALE_SALT2`) es:
+```
+m_abs_SNANA = 2.5·log10(X0SCALE_SALT2) + mBoff_SALT2 = 2.5·log10(1e-12) + 10.635 = -30 + 10.635 = -19.365
+```
+contra `m_abs = -19.3` que usa el PoC (`m_abs_func`, valor de la literatura general nunca antes
+verificado). **Diferencia real: 0.065 mag -- pero con el signo CONTRARIO al necesario.** -19.365 es
+*más brillante* que -19.3 (más negativo). Si se corrigiera el PoC a -19.365, LightCurveLynx generaría
+objetos **aún más brillantes** que ahora -- empeoraría la discrepancia observada (LCL ya sale más
+brillante que SNANA), no la explicaría. Descartado como causa del exceso de 0.12-0.24 mag: de hecho,
+sin este pequeño efecto de compensación en la dirección opuesta, la discrepancia real subyacente
+sería *aún mayor* (~0.19-0.30 mag) que la medida en el Paso 3.
+
+**Candidatos residuales, no verificados (quedan para retomar si se decide seguir):** la fórmula de
+conversión x0↔mB ya se confirmó idéntica -- el exceso de brillo tiene que venir de la propia
+NORMALIZACIÓN DE FLUJO del template SALT2 (`salt2_template_0.dat`/`_1.dat`, interpolación 2D
+fase×longitud de onda -- sncosmo vs. el motor interno de SNANA podrían interpolar/normalizar
+distinto pese a leer el mismo archivo real), o del *color law* (`SALT2.INFO::COLORCOR_PARAMS`,
+"reconstruido a mano" desde Fase 0/1, nunca verificado línea por línea contra la fórmula real de
+`genmag_SALT2.c` -- un error de escala en el término `beta·c` produciría justo un offset sistemático
+como el observado, dado que `GENPEAK_SALT2c=-0.054` no es cero). Verificar cualquiera de los dos
+requiere una comparación punto a punto de flujo crudo (patrón similar a Fase 11's
+`evaluate_bandfluxes()`, pero para SALT2/sncosmo en vez de SIMSED) -- no se hizo en esta sesión.
