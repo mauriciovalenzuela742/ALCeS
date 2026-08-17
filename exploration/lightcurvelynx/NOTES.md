@@ -2860,3 +2860,89 @@ mecanismo, y que el camino que queda sea una calibración empírica agregada en 
 Sin archivos nuevos -- investigación completa e inline (lectura de código fuente de SNANA +
 inspección directa del archivo real `salt2_color_dispersion.dat` en NLHPC, sin simulación nueva).
 Sin incidentes de cuota.
+
+## Fase 15 — los 3 ítems de menor prioridad del plan original
+
+Cierra el roadmap completo. Los tres se descartan rápido, con evidencia directa de código o de los
+archivos reales de esta campaña -- ninguno requirió simulación nueva.
+
+### 15a — `GENSIGMA_SEARCH_PEAKMJD: 1.0`
+
+Real y activo campaña-wide (`include_survey_DDF_baseline_v5.3.1_10yrs.INPUT`). Leyendo
+`snlc_sim.c::gen_peakmjd_smear()` completa: calcula `PEAKMJD_SMEAR = GENLC.PEAKMJD + smear` (un
+número gaussiano, sigma=1 día) y lo asigna a `SNDATA.SEARCH_PEAKMJD` -- **una única asignación, en
+una única línea (`snlc_sim.c:25532`), y esa variable no se vuelve a leer en ningún otro lugar de
+`snlc_sim.c`, `genmag_SIMSED.c` ni `genmag_SEDtools.c`** (grep completo, cero resultados adicionales).
+Es puro metadata de salida -- una estimación "de pipeline de búsqueda" que se escribe en el header
+para quien después ajuste la curva de luz y necesite un PEAKMJD inicial aproximado con algo de
+incertidumbre realista. **No afecta el trigger de SEARCHEFF, no afecta el cálculo de Trest (fase) de
+ninguna observación generada (que usa `GENLC.PEAKMJD`, el valor verdadero, no el suavizado), no
+afecta SNR ni el conteo de detecciones de ninguna forma.** Descartado sin necesidad de portarlo --
+no hay nada que replicar en LightCurveLynx porque no participa del cálculo real de nada comparable.
+
+### 15b — `REDCOV` / covarianza de ruido de flujo correlacionado
+
+Grep de `REDCOV`/`TEMPLATE_ZPT`/`CORRELATED`/`FLUXERRMODEL` contra los `.INPUT` reales de las 19
+clases (`model_config/` y `elastic/model_config/`), el `.INPUT` de survey real, y el `.SIMLIB` real:
+**una sola coincidencia en total**, un comentario en inglés en `SIMGEN_INCLUDE_SNII-NMF.INPUT`
+("SIMSED parameters are correlated & interpolated") que se refiere a la interpolación de parámetros
+físicos SIMSED, no a covarianza de ruido de flujo. `REDCOV`/`TEMPLATE_ZPT` no aparecen en ningún
+archivo real de esta campaña. Descartado -- no está configurado, nada que portar.
+
+### 15c — crítica de LightCurveLynx a su propio modelo de ruido Poisson (notebook `data_driven_noise_dp1`)
+
+Los propios autores de LightCurveLynx muestran (notebook `data_driven_noise_dp1.html`, absorbido vía
+WebFetch) que el modelo Poisson estándar de flujo-vs-error se desvía de datos reales de Rubin DP1
+(~800k observaciones), y proponen un modelo "data-driven" alternativo (normalizing flow entrenado con
+`pzflow`) como mejora general -- no cuantifican una dirección de sesgo específica ni una condición
+concreta, lo presentan como una limitación general de cualquier fórmula analítica de ruido fotométrico
+frente a la complejidad real de las condiciones de observación.
+
+**Más importante: esta crítica no aplica a este proyecto en absoluto.** El modelo Poisson "genérico"
+que critica ese notebook es el que arma sus parámetros (profundidad, PSF, cielo) a partir del OpSim
+crudo -- pero este proyecto reemplazó eso desde **Fase 2A** (muy al principio): `snana_noise_columns()`
+en cada `run_*.py` construye `sky_bg_e`/`psf_footprint`/`zp` directamente desde `SKYSIG`/`seeingFwhmEff`/
+`ZPT` **reales del `.SIMLIB` real de SNANA** (confirmado en el propio código, `run_simsed_poc.py:331-339`),
+no desde una estimación genérica derivada del OpSim. El `PoissonFluxNoiseModel` de LightCurveLynx sigue
+usándose (sigue siendo "Poisson" en su forma matemática, varianza=señal+fondo), pero alimentado con los
+mismos números reales que usa SNANA -- exactamente lo que evita el problema que señala el notebook (usar
+parámetros de ruido no representativos de la campaña real). No hay nada que implementar aquí para esta
+comparación específica.
+
+### Conclusión Fase 15 (y del roadmap post-Fase-9 completo)
+
+Los 3 ítems de menor prioridad se cierran limpio: dos no están configurados en absoluto en esta
+campaña (`REDCOV`, y de hecho tampoco importa `GENSIGMA_SEARCH_PEAKMJD` aunque sí esté activo, porque
+no participa del cálculo real), y el tercero (crítica de ruido Poisson de LCL) no es aplicable porque
+este proyecto ya usa parámetros de ruido reales de SNANA, no los genéricos que la crítica señala.
+
+Con esto se agotan los 8 candidatos identificados en el roadmap de investigación estructurado tras
+absorber la documentación oficial de LightCurveLynx y el manual de SNANA (Fases 10-15). Ninguno
+explica el residuo sistémico multiplicativo por sí solo. El estado del proyecto queda así:
+- **Confirmado no explicativo, con evidencia directa de código en ambos lados**: extinción MW
+  (Fase 10), grilla LOGZBIN de SIMSED (Fase 11, aunque con potencia estadística limitada),
+  passband/zeropoint (Fase 12), extrapolación de borde de SED (Fase 13), dispersión cromática G10
+  (Fase 14, por razonamiento de dirección), y los 3 ítems de esta fase.
+- **Ya descartado en fases anteriores** (Fase 3-9): extinción de host, trigger de detección,
+  reproducibilidad/semillas, codificación SIMSED-vs-NON1ASED.
+- **Hallazgo más sólido que queda sin explicar**: LightCurveLynx simula objetos ~0.2-0.6 mag más
+  *tenues*, no más brillantes, que SNANA (Fase 7) -- lo opuesto a la hipótesis obvia de "sobre-brillo"
+  -- y aun así sobre-detecta sistemáticamente. Esto apunta a algo en la interacción ruido/SNR/forma de
+  curva de luz que ninguna de las 8 verificaciones puntuales de Fases 10-15 logró aislar.
+
+**Recomendación:** la auditoría mecanismo-por-mecanismo (candidato concreto → verificar en código real
+→ probar si corresponde) agotó su lista razonable de candidatos identificables desde la documentación.
+Los próximos pasos productivos probablemente ya no sean "¿qué parámetro le falta a LightCurveLynx?"
+sino algo más holístico: (a) extender la comparación de brillo sin ruido de Fase 7 a las 18 clases
+restantes para confirmar si el patrón "~0.2-0.6 mag más tenue" es universal o varía por clase/tipo de
+SED; (b) una comparación pointwise de la propagación completa ruido→SNR→trigger para un solo objeto
+fijo en ambos códigos (más ambicioso que Fase 11, pero aislaría la cadena completa en vez de un
+mecanismo a la vez); o (c) aceptar el residuo como una diferencia de calibración agregada entre ambos
+simuladores y trabajar con un factor de corrección empírico por clase en vez de perseguir una causa
+única.
+
+### Archivos de esta fase (Fase 15)
+
+Sin archivos nuevos -- investigación completa e inline (greps contra los `.INPUT`/`.SIMLIB` reales de
+NLHPC, lectura de código fuente de SNANA, y una consulta WebFetch al notebook real de LightCurveLynx).
+Sin simulación nueva, sin incidentes de cuota.

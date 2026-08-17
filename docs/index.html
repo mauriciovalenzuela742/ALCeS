@@ -1035,7 +1035,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       ruido/SNR o la forma de la curva de luz, no en el flujo simulado en sí.</p>
     </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Diecisiete fases, cada una con una decisión real</h3>
+    <h3 style="margin:26px 0 12px; font-size:1rem;">Dieciocho fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1137,6 +1137,12 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <span class="step-n">15</span>
         <div class="step-body">
           <p><strong>Estado real de <code>GENMAG_SMEAR_MODELNAME: G10</code> en <code>SNIa</code> — razonado y descartado sin necesidad de implementarlo</strong> — último candidato del roadmap, el de menor prioridad (1/19 clases). Confirmado en <code>sntools_genSmear.c</code> (código real de SNANA, no el manual): el G10 real es <code>SIGCOH</code> (un número por evento, igual para todas las bandas — exactamente lo que ya implementa el PoC) <strong>más</strong> un término cromático que falta por completo — dispersión dependiente de longitud de onda leída de un archivo real (<code>salt2_color_dispersion.dat</code>), con nodos cada 800&nbsp;Å y un random independiente en cada uno. Leyendo ese archivo real en NLHPC: la dispersión cromática tiene forma de cuenco, mínima cerca de 5700&nbsp;Å (~0.017 mag, chica frente al <code>SIGCOH=0.090</code> ya implementado) pero sube fuerte hacia el UV (0.16 en el borde azul de <code>u</code>) y hacia el infrarrojo cercano (0.09–0.125 en <code>z</code>/<code>Y</code>) — ahí la aproximación actual <em>subestima</em> la dispersión real, no la sobreestima. Razonamiento de dirección: más dispersión simétrica alrededor de un umbral de detección de un solo lado empuja, en promedio, <strong>más</strong> objetos marginales por encima del umbral (mismo sesgo tipo Eddington de Fase 7) — así que agregar el término que falta probablemente subiría la eficiencia de detección de LightCurveLynx en <code>u</code>/<code>Y</code>, no la bajaría: va en la dirección contraria a lo que hay que explicar. No se implementa por ahora — con esto se cierran los 5 candidatos del roadmap post-Fase-9 sin haber encontrado la causa raíz del residuo.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">16</span>
+        <div class="step-body">
+          <p><strong>Los 3 ítems de menor prioridad, cierre del roadmap completo</strong> — <code>GENSIGMA_SEARCH_PEAKMJD: 1.0</code> es real y activo, pero leyendo <code>snlc_sim.c::gen_peakmjd_smear()</code> completa se confirma que solo alimenta <code>SNDATA.SEARCH_PEAKMJD</code>, una única asignación que nunca se vuelve a leer en ningún lugar del código real — puro metadata de salida para un fit posterior, no afecta trigger, Trest ni SNR de nada. <code>REDCOV</code>/<code>TEMPLATE_ZPT</code> no aparecen en ningún <code>.INPUT</code>/<code>.SIMLIB</code> real de las 19 clases — no configurado, nada que portar. La crítica que los propios autores de LightCurveLynx documentan sobre su modelo de ruido Poisson (comparado contra datos reales de Rubin DP1) no aplica a este proyecto en absoluto: el modelo genérico que critican arma sus parámetros desde el OpSim crudo, pero este proyecto inyecta <code>SKYSIG</code>/PSF/<code>ZPT</code> <strong>reales del <code>.SIMLIB</code> real de SNANA</strong> desde la Fase 2A — exactamente lo que evita el problema que señalan. Con esto se agotan los 8 candidatos del roadmap estructurado (Fases 10-15) sin identificar la causa raíz. El hallazgo más sólido que queda sin explicar sigue siendo el de Fase 7: LightCurveLynx simula objetos más <em>tenues</em>, no más brillantes, que SNANA, y aun así sobre-detecta — apunta a algo en la cadena ruido→SNR→trigger que ninguna verificación puntual logró aislar. Próximo paso recomendado: extender la comparación de brillo sin ruido a las 18 clases restantes, una comparación pointwise de la cadena completa para un solo objeto, o aceptar el residuo como una diferencia de calibración agregada a corregir empíricamente por clase.</p>
         </div>
       </li>
     </ol>
@@ -1301,6 +1307,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         que falta probablemente subiría la eficiencia de detección en <code>u</code>/<code>Y</code>, en la
         dirección contraria a la que hay que explicar. No implementado — cierra los 5 candidatos del
         roadmap post-Fase-9 sin identificar la causa raíz del residuo.</p>
+      </div>
+      <div class="cause-card refuted">
+        <p class="cause-label">Cierre del roadmap (Fase 15) — los 3 ítems de menor prioridad, ninguno aplica</p>
+        <h3>GENSIGMA_SEARCH_PEAKMJD es metadata sin efecto real; REDCOV no está configurado; la crítica de ruido Poisson de LCL no aplica a este proyecto</h3>
+        <p><code>GENSIGMA_SEARCH_PEAKMJD: 1.0</code> es real y activo, pero <code>snlc_sim.c</code> confirma
+        que solo alimenta un campo de metadata de salida (<code>SNDATA.SEARCH_PEAKMJD</code>) que nunca se
+        vuelve a leer — no afecta trigger, fase ni SNR de nada. <code>REDCOV</code>/<code>TEMPLATE_ZPT</code>
+        no aparecen en ningún <code>.INPUT</code>/<code>.SIMLIB</code> real de las 19 clases. Y la crítica que
+        los propios autores de LightCurveLynx documentan sobre su modelo de ruido Poisson genérico (vs. datos
+        reales de Rubin DP1) no aplica aquí: este proyecto inyecta <code>SKYSIG</code>/PSF/<code>ZPT</code>
+        <strong>reales del <code>.SIMLIB</code> real de SNANA</strong> desde la Fase 2A, no los parámetros
+        genéricos derivados de OpSim que señala esa crítica. Con esto se agotan los 8 candidatos del roadmap
+        (Fases 10-15) sin identificar la causa raíz — el hallazgo más sólido que queda sin explicar sigue
+        siendo el de Fase 7 (LightCurveLynx simula objetos más tenues, no más brillantes, y aun así
+        sobre-detecta).</p>
       </div>
     </div>
 
