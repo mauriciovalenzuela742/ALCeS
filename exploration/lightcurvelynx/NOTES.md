@@ -3117,3 +3117,51 @@ distinto pese a leer el mismo archivo real), o del *color law* (`SALT2.INFO::COL
 como el observado, dado que `GENPEAK_SALT2c=-0.054` no es cero). Verificar cualquiera de los dos
 requiere una comparación punto a punto de flujo crudo (patrón similar a Fase 11's
 `evaluate_bandfluxes()`, pero para SALT2/sncosmo en vez de SIMSED) -- no se hizo en esta sesión.
+
+### Paso 5 -- color law verificado hasta el fondo: coincide EXACTO, descartado como causa
+
+Se cerró el segundo candidato residual de Fase 16. `sncosmo.models.SALT2Source._set_colorlaw_from_file()`
+sí lee `Salt2ExtinctionLaw.version`/`min_lambda`/`max_lambda` del archivo real que genera
+`setup_salt2_local.py` (confirmado leyendo `models.py` real del paquete instalado, `sncosmo==2.13.0`
+en el venv de NLHPC) y, para `version=1`, delega en `SALT2ColorLaw` -- una clase Cython compilada
+(`salt2utils.cpython-312-x86_64-linux-gnu.so`), sin fuente Python instalada localmente. Se descargó el
+`.pyx` real (`raw.githubusercontent.com/sncosmo/sncosmo/master/sncosmo/salt2utils.pyx`) para leer su
+implementación exacta:
+
+```cython
+# SALT2CL_B = 4302.57, SALT2CL_V = 5428.55 (constantes fijas, iguales a las internas de SNANA)
+# coeffs[0] = alpha = 1.0 - sum(params)          -- misma normalizacion que SNANA
+# P(l) = alpha*l + params[0]*l^2 + params[1]*l^3 + ...   -- mismo polinomio
+# fuera de [l_lo, l_hi]: extrapolacion lineal tangente (valor + derivada analitica en el borde)
+#   -- mismo mecanismo exacto que SALT2colorfun_pol/_dpol de SNANA (Paso 4 arriba)
+```
+Coincide, término a término, con `SALT2colorlaw1`/`SALT2colorfun_pol`/`_dpol` reales de SNANA
+(`genmag_SALT2.c`) -- misma normalización `alpha`, mismo polinomio, mismo mecanismo de extrapolación
+lineal tangente, mismas constantes de referencia B/V. El único punto que requería verificación
+numérica (no solo algebraica) era si el doble signo negativo interno de sncosmo
+(`out = -out` dentro de `__call__`, luego `10**(-0.4*colorlaw(wave)*c)` en `models.py:813`) se cancela
+correctamente contra la convención de signo de SNANA (`exp(c*constant*val)`, sin negar) -- confirmado
+numéricamente:
+
+```python
+# fase16_verify_colorlaw.py (no versionado) -- evalua AMBAS formulas reales (sncosmo.salt2utils.
+# SALT2ColorLaw cargando el archivo real, y una reconstruccion Python 1:1 de SALT2colorlaw1) en el
+# mismo grid de lambda, incluyendo puntos DENTRO y FUERA de [2800,9500] A, con c=-0.054 real (GENPEAK_SALT2c)
+```
+
+| λ (Å) | factor sncosmo | factor SNANA (reconstruido) | razón | Δmag |
+|---|---|---|---|---|
+| 1500 (fuera, extrapolado) | 2.468619 | 2.468619 | 1.000000 | 0.000000 |
+| 2800 (borde) | 1.394828 | 1.394828 | 1.000000 | -0.000000 |
+| 4302.6 (B, referencia) | 1.000000 | 1.000000 | 1.000000 | -0.000000 |
+| 5428.6 (V, referencia) | 0.951481 | 0.951481 | 1.000000 | -0.000000 |
+| 9500 (borde) | 0.865289 | 0.865289 | 1.000000 | 0.000000 |
+| 12000 (fuera, extrapolado) | 0.856784 | 0.856784 | 1.000000 | -0.000000 |
+
+**Coinciden a precisión de máquina en todo el rango probado, dentro y fuera de la zona de calibración
+-- el color law está correctamente implementado, no explica el exceso de brillo de 0.12-0.24 mag.**
+Con esto, los DOS candidatos concretos identificados en la Fase 16 (M_abs, color law) quedan
+descartados con evidencia numérica sólida. El candidato que queda -- la normalización/interpolación
+2D (fase×longitud de onda) del propio flujo del template `salt2_template_0/1.dat` en `sncosmo` vs. el
+motor interno de SNANA -- sigue sin verificar; requeriría comparar flujo crudo punto a punto (mismo
+patrón de Fase 11 pero para SALT2), no hecho en esta sesión.
