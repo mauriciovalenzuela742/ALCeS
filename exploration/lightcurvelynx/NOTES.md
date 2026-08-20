@@ -3165,3 +3165,37 @@ descartados con evidencia numérica sólida. El candidato que queda -- la normal
 2D (fase×longitud de onda) del propio flujo del template `salt2_template_0/1.dat` en `sncosmo` vs. el
 motor interno de SNANA -- sigue sin verificar; requeriría comparar flujo crudo punto a punto (mismo
 patrón de Fase 11 pero para SALT2), no hecho en esta sesión.
+
+## Fase 17 — limpieza de disco, glosario del dashboard, escala WFD
+
+Ronda de trabajo pedida explícitamente por el usuario: liberar espacio, verificar el color law (Paso
+2/5 arriba, ya cerrado dentro de Fase 16), mejorar el dashboard con un glosario, confirmar el `z`
+máximo de `SLSN-I`, correr simulaciones a escala WFD, y generar un notebook de análisis.
+
+### Limpieza de disco (~14.6 GB liberados)
+
+Se borraron los `phot_df.parquet` de las 97 carpetas `poc_output_*` que lo tenían (76 de semillas
+`_seed1..4` + 20 de "semilla 0"/principal), verificando antes que cada una tuviera `summary.json`
+(ninguna carpeta se saltó -- las 97 lo tenían). Se conservó `head_df.parquet`/`summary.json`/`qc/*.png`
+en todas. **199G → 185G** confirmado (`du -sh ~/`). Además, a pedido explícito del usuario durante la
+sesión, se borraron también los `head_df.parquet` de las 80 carpetas `_seed1..4` que lo tenían (~10MB,
+son chicos) -- las carpetas de semilla quedan solo con `summary.json`/`qc/`, que es toda la
+"comprobación" que hace falta conservar de esas corridas extra (su número ya está incorporado a
+`ratio_mean_5seeds`/`ratio_std_5seeds` en el dashboard). Las carpetas "semilla 0"/principal conservan
+su `head_df.parquet` intacto.
+
+### Confirmación de `z` máximo de `SLSN-I` (sin cambio de código)
+
+El usuario preguntó si había que ajustar el `z` máximo de `SLSN-I` a 6 (recordando que "en SNANA lo
+extendimos más"). Investigación real (grep exhaustivo de todos los `.INPUT` de `SLSN-I` en NLHPC, con
+fecha de modificación) confirmó que **no existe ningún `GENRANGE_REDSHIFT=6` activo en ningún archivo
+real hoy** -- los valores reales activos son `z=9.7` (SIMSED/MOSFIT,
+`/home/mvalenzuela/run_SNANA/model_config/SIMGEN_INCLUDE_SLSN-I-MOSFIT.INPUT`, el canónico que usa la
+campaña de producción real) y `z=2.95` (NON1ASED/BBFIT, el más reciente de los tres archivos
+relacionados con `SLSN-I` encontrados, `run_SNANA/elastic/model_config/SIMGEN_INCLUDE_SLSN-I_NON1ASED.INPUT`,
+modificado 6-Ago-2026). El valor `6.0` solo existe **comentado/deshabilitado**
+(`#GENRANGE_REDSHIFT: 0.02 6.0`) en el archivo canónico más antiguo (Oct-2025) -- nunca activo en
+ninguna corrida real verificable. `run_simsed_poc.py`/`run_non1ased_poc.py` ya usan exactamente estos
+mismos rangos (`(0.02, 9.7)` y `(0.02, 2.95)` respectivamente) -- coinciden con la campaña real, no
+hay desalineamiento. **El usuario confirmó usar `z=9.7`** -- no se requirió ningún cambio de código,
+solo esta verificación explícita para que quede documentada y no se reabra la duda.
