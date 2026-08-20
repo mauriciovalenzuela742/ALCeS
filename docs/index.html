@@ -757,6 +757,71 @@
   .cause-card h3 { margin: 0 0 8px; font-size: 0.92rem; }
   .cause-card p { margin: 0; font-size: 0.84rem; color: var(--ink-dim); }
 
+  .glossary {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card, transparent);
+    margin: 22px 0 26px;
+    padding: 0;
+    overflow: hidden;
+  }
+  .glossary summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 14px 18px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+  }
+  .glossary summary::-webkit-details-marker { display: none; }
+  .glossary summary::before {
+    content: "▸";
+    color: var(--accent);
+    transition: transform 0.15s ease;
+    font-size: 0.8rem;
+  }
+  .glossary[open] summary::before { transform: rotate(90deg); }
+  .glossary summary .sub {
+    font-weight: 400;
+    color: var(--ink-dim);
+    font-size: 0.8rem;
+  }
+  .glossary-body {
+    padding: 4px 20px 18px;
+    border-top: 1px solid var(--border);
+  }
+  .glossary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 22px;
+    margin-top: 14px;
+  }
+  .glossary-cat h4 {
+    margin: 0 0 8px;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+  .glossary-cat dl { margin: 0; }
+  .glossary-cat dt {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-top: 8px;
+  }
+  .glossary-cat dt code { font-weight: 600; }
+  .glossary-cat dd {
+    margin: 2px 0 0;
+    font-size: 0.8rem;
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+
   .lcl-cols {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -1034,6 +1099,90 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       "plantillas demasiado brillantes" como explicación del sobre-conteo y deja la causa raíz en el lado del
       ruido/SNR o la forma de la curva de luz, no en el flujo simulado en sí.</p>
     </div>
+
+    <details class="glossary">
+      <summary>Glosario — qué significa cada sigla/abreviación de esta página <span class="sub">(clic para expandir)</span></summary>
+      <div class="glossary-body">
+        <p class="section-sub" style="margin:12px 0 0;">Términos técnicos reales de SNANA/LightCurveLynx/Rubin que aparecen en esta página, agrupados por tema. No es un glosario genérico — cada definición está calibrada a cómo se usa el término específicamente en este proyecto (ver <code>exploration/lightcurvelynx/NOTES.md</code> para el detalle completo de cada hallazgo).</p>
+        <div class="glossary-grid">
+
+          <div class="glossary-cat">
+            <h4>Pipeline y campaña</h4>
+            <dl>
+              <dt>SNANA</dt><dd>Simulador de supernovas de referencia (código C real, <code>snlc_sim.exe</code>, v11.05p aquí) — el "ground truth" contra el que se compara LightCurveLynx en toda la sección 06.</dd>
+              <dt>NLHPC</dt><dd>Clúster de supercómputo chileno donde corre todo el pipeline y las simulaciones.</dd>
+              <dt>OpSim</dt><dd>Simulador de cadencia de observación de Rubin/LSST — de ahí sale qué campos/bandas/noches se observan; fuente real del SIMLIB.</dd>
+              <dt>DDF <span style="font-weight:400">/</span> WFD</dt><dd><strong>Deep Drilling Field</strong>: pocos campos observados con cadencia muy densa. <strong>Wide-Fast-Deep</strong>: área amplia, cadencia dispersa. Todo lo corrido hasta ahora en LightCurveLynx es DDF.</dd>
+              <dt>GENVERSION</dt><dd>Nombre real de una corrida SNANA individual (una clase × una estrategia).</dd>
+              <dt>NGEN / NGENTOT_LC</dt><dd>Número total de objetos ("light curves") que se generan en una corrida — denominador de los % de detección de la tabla.</dd>
+              <dt>SIMLIB</dt><dd>Archivo real de SNANA: por cada pointing (LIBID), lista MJD/banda/cielo/PSF/zeropoint observación por observación — la cadencia real convertida al formato que SNANA necesita.</dd>
+              <dt>CID</dt><dd>"Candidate ID" — identificador único de cada objeto simulado dentro de una corrida.</dd>
+            </dl>
+          </div>
+
+          <div class="glossary-cat">
+            <h4>Modelos de transientes</h4>
+            <dl>
+              <dt>SIMSED</dt><dd>Formato SNANA basado en una grilla de plantillas SED reales (<code>SED.INFO</code> + parámetros por template).</dd>
+              <dt>NON1ASED</dt><dd>Formato alternativo "no tipo Ia" de SNANA (<code>NON1A.LIST</code> + bloque <code>NON1A_KEYS</code> de pesos por plantilla) — la codificación en desarrollo para varias clases del catálogo.</dd>
+              <dt>SALT2</dt><dd>Modelo estándar de curva de luz para SNIa, parametrizado por <code>x1</code> (forma) y <code>c</code> (color) — usado vía <code>sncosmo</code> en LightCurveLynx.</dd>
+              <dt>SIMSED_GRIDONLY <span style="font-weight:400">vs</span> SIMSED_REDCOR</dt><dd>Los dos esquemas de peso por plantilla: <code>GRIDONLY</code> = peso uniforme; <code>REDCOR</code> = pesado según cercanía a una distribución bivariada real (población físicamente correlacionada).</dd>
+              <dt>PLAsTiCC / ELASTiCC / VC25</dt><dd>Familias de catálogo: PLAsTiCC (challenge de clasificación fotométrica), ELASTiCC (extensión posterior, modelos "V19_*"), VC25 (modelos propios, Ramírez+2024).</dd>
+              <dt>MOSFIT / STELLA / BBFIT</dt><dd>Sufijos que indican el origen del modelo físico: MOSFIT = ajustador de curvas de luz genérico; STELLA = código de modelado estelar; BBFIT = ajuste de cuerpo negro a un evento real único.</dd>
+            </dl>
+          </div>
+
+          <div class="glossary-cat">
+            <h4>Cosmología y distribución</h4>
+            <dl>
+              <dt>DNDZ</dt><dd>Tasa volumétrica de eventos por redshift — cuántos objetos hay a cada <code>z</code> antes de cualquier selección. Valores reales: <code>MD14</code> (Madau &amp; Dickinson 2014), <code>POWERLAW</code>/<code>POWERLAW2</code>, <code>CC_S15</code> (Strolger 2015), <code>PISN_PLK12</code> (Planck 2012).</dd>
+              <dt>GENRANGE_REDSHIFT</dt><dd>Parámetro real de SNANA: rango mínimo/máximo de <code>z</code> generado para una clase.</dd>
+              <dt>host_av</dt><dd>Extinción de la galaxia anfitriona (host); columna de la tabla que indica si la clase la implementa y con qué modelo.</dd>
+              <dt>WV07</dt><dd>Modelo real de distribución de extinción de host (Wood-Vasey+2007, proyecto ESSENCE).</dd>
+              <dt>E(B-V)</dt><dd>Exceso de color por polvo, en magnitudes — "extinción" de Vía Láctea (MW) o de host.</dd>
+              <dt>GENSIGMA_MWEBV_RATIO</dt><dd>Parámetro real de SNANA (0.16 en esta campaña) que agrega dispersión gaussiana del 16% sobre el E(B-V) nominal de Vía Láctea.</dd>
+            </dl>
+          </div>
+
+          <div class="glossary-cat">
+            <h4>Detección, ruido y fotometría</h4>
+            <dl>
+              <dt>SEARCHEFF</dt><dd>Módulo real de SNANA que decide si un objeto es "detectado": curva de eficiencia por banda vs. SNR + lógica de trigger por número de épocas.</dd>
+              <dt>SNR</dt><dd>Signal-to-Noise Ratio (<code>flux/fluxerr</code>) — umbral clave de si se detecta o no una observación.</dd>
+              <dt>PHOTFLAG</dt><dd>Bit real de SNANA que marca una observación como "detectada" según el trigger de SEARCHEFF.</dd>
+              <dt>FLUXCAL / FLUXCALERR</dt><dd>Flujo calibrado de SNANA y su error, en la escala de flujo nativa (zeropoint de referencia 27.5).</dd>
+              <dt>PEAKMAG_[banda]</dt><dd>Magnitud de pico real, sin ruido, del <code>.DUMP</code> de SNANA — clave en las comparaciones "de brillo sin ruido" (Fases 7 y 16).</dd>
+              <dt>flux_perfect</dt><dd>Flujo simulado <em>sin ruido</em> que LightCurveLynx ya calcula internamente (nunca se había extraído antes de la Fase 7).</dd>
+              <dt>ZPT / ZPTAVG / ZPTERR</dt><dd>Zeropoint fotométrico (magnitud que produce 1 electrón/seg) y su incertidumbre — columnas reales del SIMLIB.</dd>
+              <dt>PSF / NEA</dt><dd><strong>Point Spread Function</strong>: ancho angular con que un punto de luz se ve emborronado. <strong>Noise Equivalent Area</strong>: área efectiva de ruido derivada del PSF (<code>NEA=4π·σ²/pixsize²</code>).</dd>
+              <dt>SKYSIG</dt><dd>Nivel de ruido de fondo de cielo por píxel — columna real del SIMLIB.</dd>
+              <dt>GENMAG_SMEAR / G10 / SIGCOH</dt><dd>Dispersión intrínseca de magnitud de SALT2 (Guy+2010): término coherente (<code>SIGCOH</code>, un número por evento, igual en todas las bandas) + término cromático (dependiente de λ, no implementado en el PoC).</dd>
+            </dl>
+          </div>
+
+          <div class="glossary-cat">
+            <h4>SALT2 específico</h4>
+            <dl>
+              <dt>x1 / c</dt><dd>Parámetros SALT2: <code>x1</code> = stretch (forma/duración de la curva), <code>c</code> = color.</dd>
+              <dt>alpha / beta (Tripp)</dt><dd>Coeficientes de la relación de Tripp que corrigen la magnitud absoluta por stretch y color (0.14/3.1 en esta campaña).</dd>
+              <dt>mBoff</dt><dd>Constante de referencia (10.635) de la conversión x0↔magnitud absoluta de SALT2 — idéntica en SNANA y LightCurveLynx, verificado en Fase 16.</dd>
+              <dt>M_abs</dt><dd>Magnitud absoluta de referencia de la SNIa — descartada como causa del exceso de brillo (Fase 16, tiene el signo contrario al necesario).</dd>
+              <dt>color law</dt><dd>Función que da la extinción intrínseca en magnitudes en función de <code>c</code> y λ — verificada línea por línea contra SNANA en Fase 16/17, coincide a precisión de máquina.</dd>
+            </dl>
+          </div>
+
+          <div class="glossary-cat">
+            <h4>Métricas propias de este dashboard</h4>
+            <dl>
+              <dt>ratio / ratio_mean_5seeds</dt><dd>Razón detectados<sub>LightCurveLynx</sub>/detectados<sub>SNANA</sub> por clase; "mean/std_5seeds" = media/desviación estándar sobre 5 semillas independientes (no una sola corrida).</dd>
+              <dt>snana_pct / lcl_pct</dt><dd>Porcentaje de objetos generados que terminaron detectados, en cada simulador.</dd>
+              <dt>sufijo <code>-elastic</code></dt><dd>Clases auxiliares/diagnósticas creadas solo para comparar LightCurveLynx contra sí mismo (mismo template, distinto esquema de peso) — no tienen contraparte SNANA real.</dd>
+            </dl>
+          </div>
+
+        </div>
+      </div>
+    </details>
 
     <h3 style="margin:26px 0 12px; font-size:1rem;">Diecinueve fases, cada una con una decisión real</h3>
     <ol class="recipe">
