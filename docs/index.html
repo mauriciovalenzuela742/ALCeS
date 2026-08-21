@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "30&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "31&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-28</span>
+      <span class="verdict-badge critical">Actualización Fases 22-29</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1323,8 +1323,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       resultado implausible, la firma de un problema del método, no de física real), así que se
       documenta como un <strong>límite metodológico real</strong> (cerrarlo requeriría instrumentar y
       recompilar el binario C de SNANA). El patrón cromático de Fase 23 sigue sin causa identificada — la
-      cadena SALT2 queda agotada dentro de los métodos no invasivos disponibles. Ver pestaña "30 fases"
-      (Fases 22-28) para el detalle completo.</p>
+      cadena SALT2 queda agotada dentro de los métodos no invasivos disponibles.</p>
+      <p><strong>Fase 29 (se instrumenta y recompila SNANA real — el límite de Fase 28 se cruza):</strong>
+      a pedido explícito del usuario, se parchea <code>INTEG_zSED_SALT2()</code> (clon propio y privado de
+      SNANA del usuario en NLHPC, cero impacto en el pipeline de producción) para volcar el
+      <code>FTMP</code>/<code>TRANS</code> reales por bin de longitud de onda, sin ninguna reconstrucción
+      de por medio. Comparando las dos convenciones de pesado (<code>λ</code> vs. <code>1/λ</code>)
+      correctamente normalizadas (el primer intento sin normalizar reprodujo el mismo tipo de resultado
+      implausible de Fase 25 — diagnosticado esta vez con precisión: cada convención necesita dividirse
+      por su propia integral de peso) sobre esos mismos valores reales: el signo coincide con el
+      <code>diff</code> real de Fase 27 en las <strong>7 combinaciones banda/<code>z</code></strong>
+      probadas, y explica entre <strong>~25% y ~45%</strong> de su magnitud. La integración de banda
+      queda así <strong>confirmada</strong> (no descartada) como un componente real del mecanismo,
+      insuficiente por sí sola — el resto de la magnitud (definición exacta de punto cero de cada código,
+      más allá del exponente de peso) queda sin aislar. El patrón cromático de Fase 23 sigue sin causa
+      identificada. Ver pestaña "31 fases" (Fases 22-29) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1980,6 +1993,40 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           la cadena SALT2 queda agotada dentro de los métodos no invasivos disponibles.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">29</span>
+        <div class="step-body">
+          <p><strong>Se cruza el límite de Fase 28: SNANA real instrumentado y recompilado — la
+          integración de banda queda confirmada (no descartada), signo correcto en las 7 pruebas</strong>
+          — a pedido explícito del usuario ("vamos por el lado a"). El clon propio del usuario en NLHPC
+          (<code>~/github/SNANA_src</code>) ya tenía un <code>snlc_sim.exe</code> compilado con 2 parches
+          locales (<code>USE_PYTHON</code>/<code>USE_ROOT</code> deshabilitados), pero sin
+          <code>Makefile</code> generado — hubo que rehacer <code>autoreconf/configure/make</code> desde
+          cero, resolviendo en el camino una cadena real de dependencias rotas (perl del sistema sin
+          <code>File::Compare</code>, <code>python3-config</code> requerido incluso con
+          <code>USE_PYTHON</code> deshabilitado, GSL/cfitsio fuera del path nativo de <code>gcc</code>,
+          <code>libintl</code> faltante en el link) sin tocar el código de SNANA. Parche real agregado a
+          <code>INTEG_zSED_SALT2()</code> (<code>genmag_SALT2.c</code>): un volcado gateado por
+          <code>getenv("ALCES_DUMP_INTEG")</code> que escribe <code>FTMP</code>/<code>TRANS</code>/
+          <code>LAMOBS</code> reales por bin de longitud de onda en el pico verdadero
+          (<code>Trest=0</code>) — sin ninguna reconstrucción de por medio. No-regresión verificada:
+          mismo objeto controlado corrido dos veces (con/sin el volcado activo) da un <code>.DUMP</code>
+          real byte-idéntico. Primer intento de comparar las dos convenciones con sumas crudas sin
+          normalizar dio el mismo tipo de resultado implausible de Fase 25 (~1 mag) — diagnosticado esta
+          vez con precisión (cada convención necesita dividirse por su propia integral de peso, el
+          formalismo estándar de fotometría sintética). Corregido: <code>&lt;F&gt;_SNANA =
+          Σ(FTMP·TRANS·LAMSED)/Σ(TRANS·LAMSED)</code> vs. <code>&lt;F&gt;_LCL =
+          Σ(FTMP·TRANS/LAMSED)/Σ(TRANS/LAMSED)</code>, sobre los mismos valores reales volcados por
+          SNANA. Resultado: el signo coincide con el <code>diff</code> real de Fase 27 en las
+          <strong>7 combinaciones banda/<code>z</code></strong> probadas (<code>g</code>:+0.10 vs.
+          +0.09 real en <code>z=0.6</code>; <code>i/z/y</code> negativos en ambos <code>z</code>,
+          igual que Fase 27), y explica entre <strong>~25% y ~45%</strong> de la magnitud total. La
+          integración de banda queda <strong>confirmada</strong> como componente real del mecanismo —
+          insuficiente por sí sola, con el resto de la magnitud (definición exacta de punto cero de cada
+          código, más allá del exponente de peso) sin aislar en esta fase. El patrón cromático de
+          Fase 23 <strong>sigue sin causa identificada</strong>.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2309,7 +2356,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "30 fases" },
+    { id: "fases", label: "31 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

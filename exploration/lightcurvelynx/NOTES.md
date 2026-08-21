@@ -4225,3 +4225,135 @@ ruido como esta -- u otro mecanismo aún no identificado).
 
 `fase28_interp_zhigh.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo). Sin cambios a
 scripts del pipeline -- diagnóstico puro, ningún candidato quedó en condición de accionar una corrección.
+
+## Fase 29 — instrumentando SNANA real: la convención de integración de banda, correctamente normalizada, confirma el signo (y una fracción de la magnitud) del diff de Fase 27
+
+A pedido explícito del usuario ("vamos por el lado a"), se instrumenta y recompila el propio código C de
+SNANA (opción (a) del cierre de Fase 28) para aislar de una vez por todas el único factor de
+`Fbin_forFlux = FTMP * CCOR * HOSTXT_FRAC*MWXT_FRAC * LAMSED*TRANS` (`genmag_SALT2.c`) nunca verificado
+de forma confiable: la convención de integración de banda (`λ` de SNANA vs. `1/λ` de LightCurveLynx),
+que Fases 25/26-higiene fallaron en aislar por reconstrucción manual (resultados implausibles, ~3 mag en
+`u`, no monótonos, cambiando de signo entre intentos).
+
+### El clon propio de SNANA ya era compilable -- solo hacía falta reconstruir el entorno de build
+
+Verificado antes de tocar código: `~/github/SNANA_src` (clon privado del usuario, branch `master`, al
+día con `origin/master`) ya tenía un `bin/snlc_sim.exe` previamente compilado con 2 parches locales
+reales (`USE_PYTHON`/`USE_ROOT` deshabilitados en `genmag_PySEDMODEL.h`/`sntools_output.h`), pero sin el
+`Makefile`/`config.status` generado (se había limpiado tras el build anterior) -- hubo que rehacer
+`autoreconf -fi && ./configure && make snlc_sim` desde cero en NLHPC, lo cual reveló una cadena real de
+dependencias de build rotas, todas resueltas sin tocar el código de SNANA en sí:
+
+- `autoreconf` fallaba (`Can't locate File/Compare.pm`) porque el `/usr/bin/perl` del sistema (5.32) no
+  trae ese módulo core -- resuelto copiando solo `File/Compare.pm` (puro Perl, sin binario XS) desde un
+  módulo `perl/5.40` a un directorio aislado y apuntando `PERL5LIB` ahí (copiar el `lib` completo del
+  perl 5.40 rompe por mismatch de ABI en `Cwd.so`, un XS binario -- solo el archivo puro-Perl es seguro
+  de mezclar entre versiones).
+- `./configure` requiere `python3-config` (para el flag `USE_PYTHON`, aunque esté deshabilitado a nivel
+  de macro C -- el check de `configure.ac` es incondicional) -- resuelto con `module load
+  python/3.13.2-zen4-6` (evitando cualquier módulo que dependa de `intel/`, que reemplaza `CC` por
+  `mpiicc` y rompe la cadena de compilación gcc-nativa).
+- La regla de compilación real de `Makefile.am` (`SNCFLAGS`/`ICFITSIO`/`IGSL`, NO las variables estándar
+  `CPPFLAGS`/`LDFLAGS` de autoconf) requiere que GSL/cfitsio estén en el `PATH` de búsqueda nativo de
+  `gcc` -- resuelto exportando `C_INCLUDE_PATH`/`LIBRARY_PATH`/`LD_LIBRARY_PATH` apuntando directo a
+  instalaciones reales de `gsl/2.8` (build skylake_avx512) y `cfitsio/4.4.0` (build zen4/aocc) ya
+  presentes en el árbol `spack` de NLHPC, en vez de usar módulos `module load` (que en este cluster no
+  siempre exportan esas rutas de forma completa).
+- El link final fallaba (`cannot find -lintl`) porque `python3-config --embed` de ese módulo Python
+  requiere `libintl` (gettext) explícito -- resuelto agregando el `lib/` de un módulo `gettext/0.23.1`
+  ya presente en el mismo árbol `spack`, sin necesitar `module load` adicional.
+
+Build final verificado: `snlc_sim.exe` compila limpio (solo warnings preexistentes de `-Wformat-overflow`
+en `snlc_sim.c`, no relacionados) y corre (menú de ayuda real confirmado).
+
+### El parche real a `genmag_SALT2.c`
+
+`INTEG_zSED_SALT2()` ya tenía hooks de debug reales (`int LDMP`, hardcodeado a `0`) -- en vez de
+reactivarlos, se agregó un volcado nuevo gateado por variable de entorno, inmediatamente después del
+cálculo real de `Fbin_forFlux` (línea 2843), solo para `ised==0` (superficie `M0`):
+
+```c
+	Fbin_forFlux = (FTMP * CCOR * HOSTXT_FRAC*MWXT_FRAC * LAMSED*TRANS);
+	Fbin_forSpec = (FTMP * CCOR * HOSTXT_FRAC*MWXT_FRAC );
+
+	// ALCES Fase29: volcado real de (LAMOBS,LAMSED,TRANS,FTMP,Fbin_forFlux) por bin de
+	// longitud de onda, gateado por env var -- para aislar la convencion de integracion
+	// de banda (LAMSED*TRANS) sin reconstruir FTMP a mano del lado LightCurveLynx.
+	// Ver exploration/lightcurvelynx/NOTES.md Fase 29 en el repo ALCeS.
+	if ( ised==0 && getenv("ALCES_DUMP_INTEG") != NULL ) {
+	  FILE *fp_alces = fopen("/home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx/dump_integ_salt2.csv","a");
+	  if ( fp_alces != NULL ) {
+	    fprintf(fp_alces, "%d,%d,%.6f,%.6f,%.6f,%.8e,%.8e,%.8e\n",
+		    ifilt_obs, ilamobs, Trest, LAMOBS, LAMSED, TRANS, FTMP, Fbin_forFlux);
+	    fclose(fp_alces);
+	  }
+	}
+```
+
+`Trest` (agregado en una segunda iteración, necesario para poder aislar la evaluación sintética exacta en
+el pico -- ver Fase 22) y `ifilt_obs`/`Tobs` ya eran parámetros/variables reales de la función; nada del
+resto de la función se modificó. Este parche vive **solo en el clon privado de SNANA del usuario**
+(`~/github/SNANA_src`, repo externo, no versionado en este repo git) -- no se commitea a ALCeS.
+
+**No-regresión verificada**: se corrió el mismo objeto controlado (z=0.6, `x1`/`c` fijos, `RANSEED`
+fijo) dos veces con el binario recompilado -- una vez sin `ALCES_DUMP_INTEG`, otra con la variable
+seteada -- y el `.DUMP` real resultante (`PEAKMAG_*`/`MU`/`PEAKMJD`/etc., las 35 columnas de
+`SIMGEN_DUMPALL`) salió **byte-idéntico** entre ambas corridas. El parche es comprobadamente inocuo
+cuando la variable de entorno no está seteada.
+
+### El experimento: mismo `FTMP`/`TRANS` real de SNANA, dos convenciones de pesado, correctamente normalizadas
+
+Objeto controlado real (`GENRANGE_REDSHIFT`/`SALT2c`/`SALT2x1` colapsados a un punto, `OPT_MWEBV:0`,
+`OPT_MWCOLORLAW:99`, mismo patrón de Fase 26/27) corrido a `z=0.6` y `z=0.9` con el binario instrumentado
+y `ALCES_DUMP_INTEG=1`. El volcado captura, por cada bin real de longitud de onda observada evaluado en
+`Trest=0` (el epoch sintético del pico verdadero, Fase 22), el `FTMP`/`TRANS`/`LAMOBS` reales que usó
+SNANA -- sin ninguna interpolación/reconstrucción de por medio.
+
+**Primer intento -- sumas crudas sin normalizar, descartado como sin sentido**: comparar directamente
+`Σ FTMP·TRANS·LAMSED` (SNANA) contra `Σ FTMP·TRANS/LAMSED` (LightCurveLynx) da diferencias de hasta
+`~1 mag`, absurdamente grandes -- el mismo tipo de resultado implausible de Fase 25. Diagnóstico real
+esta vez (con los datos de SNANA en mano, no una reconstrucción): las dos sumas crudas viven en escalas
+completamente distintas (`~1e5` vs. `~1e-3`) porque ninguna está normalizada por su propia integral de
+peso -- exactamente el mismo error de fondo que arruinó Fase 25, ahora identificado con precisión en vez
+de solo sospechado.
+
+**Corregido -- promedio ponderado normalizado (el formalismo estándar de fotometría sintética)**:
+`<F>_SNANA = Σ(FTMP·TRANS·LAMSED) / Σ(TRANS·LAMSED)` y `<F>_LCL = Σ(FTMP·TRANS/LAMSED) / Σ(TRANS/LAMSED)`
+-- ambos convergen a la misma magnitud física cuando el SED es plano, y aíslan limpiamente el efecto de
+la FORMA del peso dentro de la banda. Resultado, relativo a `r` (misma convención `diff` que Fase 27):
+
+| `z` | banda | Δmag (peso LCL − peso SNANA), esta fase | `diff` real Fase 27 |
+|---:|---|---:|---:|
+| 0.6 | g | **+0.1011** | +0.0935 |
+| 0.6 | i | **-0.0229** | -0.0864 |
+| 0.6 | z | **-0.0094** | -0.0997 |
+| 0.6 | y | **-0.0151** | -0.0978 |
+| 0.9 | i | **-0.0373** | -0.1201 |
+| 0.9 | z | **-0.0517** | -0.1771 |
+| 0.9 | y | **-0.0462** | -0.1975 |
+
+### Conclusión Fase 29 -- la convención de integración de banda queda confirmada, no descartada: mismo signo en las 7 combinaciones, magnitud parcial
+
+A diferencia de Fase 25 (sin resultado confiable) y de la lectura literal de Fase 27 ("signo opuesto,
+insuficiente"), esta vez con evidencia código-real-vs-código-real y correctamente normalizada: **el
+efecto puro de pesar por `λ` vs `1/λ` reproduce el mismo signo que el `diff` real de Fase 27 en las 7
+combinaciones banda/`z` probadas** (`g` positivo, `i`/`z`/`y` negativos, en ambos `z`), y explica entre
+~25% y ~45% de la magnitud total medida por Fase 27. Esto **confirma** (no descarta) que la convención de
+integración de banda es un componente real y verificado del mecanismo que separa a SNANA de
+LightCurveLynx -- consistente en signo con el `diff` de Fase 27 en las 7 pruebas -- pero es
+insuficiente por sí sola para explicar toda la magnitud de ese `diff`, y ese mismo `diff` ya tiene signo
+opuesto al patrón cromático poblacional de Fase 23. Es decir: el patrón cromático de Fase 23 sigue **sin
+causa identificada**, pero ahora se sabe con precisión que la integración de banda es una pieza real
+(cuantificada, no descartada) de un mecanismo más grande, cuyo resto (~55%-75% de la magnitud del `diff`
+de Fase 27) queda sin aislar -- candidato para una continuación futura: la definición exacta de punto
+cero/normalización de fotometría sintética de cada código más allá del simple exponente de peso (`λ`
+vs. `1/λ`), no abordada en esta fase.
+
+### Archivos de esta fase
+
+Parche real a `~/github/SNANA_src/src/genmag_SALT2.c` (contenido completo arriba) -- vive en el clon
+privado de SNANA del usuario, no versionado en este repo. Exploratorios en NLHPC, borrados tras usarlos:
+`sim_fase29_z06.INPUT`/`sim_fase29_z06_dump.INPUT`/`sim_fase29_z09.INPUT` (objetos controlados),
+`analyze_z06.py`/`analyze_z06_v2.py`/`analyze_z09.py` (análisis del volcado real). GENVERSIONs
+`TEST_FASE29_bandflux_z06`/`z06_dump`/`z09_dump` generados en `SNDATA_ROOT/SIM/` y borrados tras extraer
+el `.DUMP`/volcado. Sin cambios a scripts del pipeline de este repo -- diagnóstico puro.
