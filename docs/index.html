@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-24</span>
+      <span class="verdict-badge critical">Actualización Fases 22-26</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1287,9 +1287,17 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       extinción MW. Pero verificado numéricamente que la diferencia O94-vs-F99 es
       <strong>&lt;0.005 mag</strong> a los <code>E(B-V)</code> reales de DDF — <strong>descartado</strong>
       como causa del patrón cromático, aunque la corrección es real e importante igual. El patrón de
-      Fase 23 sigue sin explicarse — candidato que queda: la convención de integración de flujo en
-      banda (photon-counting vs. energy-flux) entre SNANA y <code>sncosmo</code>, nunca comparada
-      término a término. Ver pestaña "26 fases" (Fases 22-24) para el detalle completo.</p>
+      Fase 23 sigue sin explicarse — candidato que quedaba: la convención de integración de flujo en
+      banda (photon-counting vs. energy-flux) entre SNANA y <code>sncosmo</code>.</p>
+      <p><strong>Fase 26 (candidato cerrado — código real vs. código real):</strong> corriendo el binario
+      real <code>snlc_sim.exe</code> con un objeto SALT2 exacto y comparándolo directo contra
+      <code>compute_noise_free_lightcurves()</code> real de LightCurveLynx para el mismo objeto (sin
+      ninguna fórmula reconstruida a mano), la diferencia banda-a-banda es de solo
+      <strong>0.0002-0.002 mag</strong> — dos a tres órdenes de magnitud más chica que el patrón de
+      Fase 23. <strong>Descartado</strong>, con la evidencia más fuerte de toda la investigación. Con
+      esto se agotan los 5 candidatos concretos de la cadena SALT2 (color law, M_abs, interpolación 2D,
+      extinción MW, integración de banda) — el patrón cromático de Fase 23 queda sin causa identificada
+      dentro de esta cadena. Ver pestaña "28 fases" (Fases 22-26) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1549,7 +1557,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintisiete fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintiocho fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1841,6 +1849,36 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           queda (no intentado): correr el binario real <code>snlc_sim.exe</code> (ya disponible en
           NLHPC) con un objeto de prueba controlado y comparar directo, código real contra código real,
           en vez de una reconstrucción manual.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">26</span>
+        <div class="step-body">
+          <p><strong>Integración de flujo en banda cerrada — código real contra código real,
+          descartada</strong> — cierra el candidato que dejó abierto Fase 25. Higiene primero (1a/1b):
+          repetir la reconstrucción manual a <code>z</code> seguros (0.15-0.9) y con un control de
+          espectro plano confirmó que la señal implausible <strong>no era un artefacto de borde</strong>
+          (era estable en <code>z</code>) sino un problema de la propia reconstrucción manual (espectro
+          real y espectro plano dan el mismo resultado no monótono) — confirma que había que abandonar
+          la reconstrucción a mano. Prueba definitiva (1c): se corrió el binario real
+          <code>snlc_sim.exe</code> (<code>SNANA/11.05p</code>, el mismo de producción) vía
+          <code>sbatch</code> con un <code>.INPUT</code> mínimo que fija un objeto SALT2 exacto
+          (<code>z</code>/<code>x1</code>/<code>c</code> colapsados a un punto, <code>OPT_MWEBV: 0</code>
+          para aislarlo, mismo modelo/SIMLIB/<code>OPT_MWCOLORLAW</code> reales) y se comparó su
+          <code>PEAKMAG_u/g/r/i</code> real, para dos objetos independientes, directo contra
+          <code>compute_noise_free_lightcurves()</code> real de LightCurveLynx reconstruyendo el mismo
+          objeto exacto (mismo <code>t0=PEAKMJD</code> y <code>x0</code> calculados con los valores
+          reales que generó SNANA) — sin ninguna fórmula reconstruida a mano de por medio.
+          <strong>Resultado: la diferencia banda-a-banda relativa a <code>r</code> es de solo
+          0.0002-0.002 mag</strong> en las dos corridas — dos a tres órdenes de magnitud más chico que
+          el patrón de ~0.07-0.12 mag/banda de Fase 23. El offset acromático global sí es real
+          (~-0.27 mag, parejo en las 4 bandas, consistente con el residuo ya conocido) pero
+          <strong>no tiene estructura cromática</strong>. Descartado como causa, con la evidencia más
+          fuerte de toda la investigación para esta pregunta específica. Con esto se agotan los 5
+          candidatos concretos de la cadena SALT2 (color law, M_abs, interpolación 2D, extinción MW,
+          integración de banda) — el patrón cromático de Fase 23 queda <strong>sin causa identificada</strong>
+          dentro de esta cadena, un resultado válido en sí mismo que acota el espacio de búsqueda para
+          cualquier continuación futura.</p>
         </div>
       </li>
     </ol>
@@ -2172,7 +2210,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "27 fases" },
+    { id: "fases", label: "28 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

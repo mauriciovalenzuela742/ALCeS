@@ -3893,3 +3893,93 @@ bien en Fases 16/20/21).
 `fase25_bandflux_convention.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo -- 2
 versiones, la primera con el bug de normalización circular ya documentado arriba). Sin cambios a
 scripts del pipeline -- ningún hallazgo lo suficientemente confiable como para actuar sobre él.
+
+## Fase 26 -- integración de flujo en banda cerrada: código real vs. código real, descartada
+
+Cierra definitivamente el candidato que dejó abierto Fase 25, siguiendo el camino que esa misma fase
+identificó como el correcto: comparar código real contra código real, no una reconstrucción manual de
+la fórmula de SNANA.
+
+### 1a/1b -- higiene: la reconstrucción manual NO es de fiar, ni por borde de template ni por forma del SED
+
+Se repitió el intento de Fase 25 a `z` seguros (`0.15, 0.3, 0.6, 0.9`, lejos del borde azul del template
+SALT2 salvo un efecto menor en `u` a `z=0.9`) y con un control de espectro plano (`f_λ=`constante).
+Resultado: la señal es **estable en `z`** (no es un artefacto de borde, contra lo que sugería el
+diagnóstico de Fase 25) pero **espectro real y espectro plano dan prácticamente el mismo resultado**
+implausible y no monótono (`u:+3.0, g:+0.44, r:0, i:-0.23, z:-0.16, y:+0.56` mag relativo a `r`) -- muy
+distinto del patrón suave y monótono de Fase 23. Esto confirma que el problema no es el SED ni el borde
+del template: la propia reconstrucción manual, comparando dos fórmulas ad-hoc con normalizaciones no
+directamente comparables entre sí, no rastrea ningún efecto físico real. Confirma la recomendación de
+Fase 25: abandonar la reconstrucción manual y pasar directo a la prueba definitiva.
+
+### 1c -- la prueba definitiva: `snlc_sim.exe` real vs. `compute_noise_free_lightcurves()` real
+
+Se corrió el binario real de SNANA (`SNANA_DIR=/home/lmod/software/SNANA/11.05p`, módulo `SNANA/11.05p`,
+el mismo binario que genera toda la campaña de producción) con un `.INPUT` mínimo (`sbatch`, no en login
+node) que fija un objeto SALT2 exactamente conocido: `GENRANGE_REDSHIFT`/`GENRANGE_SALT2c`/
+`GENRANGE_SALT2x1` colapsados a un punto (`z=0.15`, `x1=0.973`, `c=-0.054`, mismos valores pico
+nominales de la campaña), `GENSIGMA_SALT2c/x1: 0 0`, `OPT_MWEBV: 0` (aísla el objeto de la extinción MW,
+ya descartada en Fase 24), mismo modelo real `SALT2.WFIRST-H17`, mismo SIMLIB DDF real,
+`OPT_MWCOLORLAW: 99` (Fase 24). No existe un modo `GENPERFECT` que simplifique esto directamente para
+este caso (revisado en `snlc_sim.c` real: sus bits solo tocan smearing/extinción/HOSTLIB, no colapsan
+rangos de parámetros) -- se usó la vía directa de colapsar `GENRANGE_*`.
+
+Dos bugs reales de sintaxis `.INPUT` encontrados y corregidos en el camino (documentados porque son
+reales, no artefactos): `SIMGEN_DUMPALL: N` debe declarar el conteo EXACTO de variables listadas
+(un desfase de 3 corrompió el parseo de todas las keys siguientes, incluyendo `GENMODEL`, con el error
+engañoso `'' is not a valid genmag-model`); y `DNDZ` es obligatorio incluso con `GENRANGE_REDSHIFT`
+colapsado a un punto (sin él, `init_DNDZ_Rate` aborta con `Unknown rate model`).
+
+El `.DUMP` real resultante (`TEST_FASE26_bandflux_hygiene.DUMP`) dio `PEAKMAG_z`/`PEAKMAG_Y` = `-9`
+(sin dato) para los 40 objetos generados, pese a que el LIBID elegido sí tiene epochs reales en `z`
+(523 observaciones, confirmado grepeando el SIMLIB) -- un comportamiento real de `snlc_sim.exe` no
+diagnosticado a fondo (posiblemente relacionado con `GENLC.SIMLIB_USEFILT_ENTRY`/`keep_SIMLIB_OBS`,
+visto en el código real pero sin causa raíz confirmada), que queda anotado como cabo suelto menor y no
+bloqueante: `u/g/r/i` sí quedaron completos y son exactamente las bandas centrales del patrón de
+Fase 23.
+
+Del lado LightCurveLynx: se reconstruyó el objeto EXACTO que generó SNANA (mismo `z` heliocéntrico,
+`x1`, `c`, `t0=PEAKMJD` real, `x0` calculado con `_x0_from_distmod()` real de LightCurveLynx usando el
+`MU` real que SNANA generó) vía `SncosmoWrapperModel` + `compute_noise_free_lightcurves()` real (sin
+`ExtinctionEffect`, ya que `OPT_MWEBV=0` del lado SNANA), para dos objetos reales independientes del
+`.DUMP` (CID=2 y CID=7, distintos `z`/`RA`/`DEC`/`PEAKMJD`).
+
+**Resultado, banda por banda, relativo a `r` (aísla el efecto puro de convención, cancela cualquier
+offset acromático global):**
+
+| banda | CID=2: LCL−r | CID=2: SNANA−r | diff | CID=7: LCL−r | CID=7: SNANA−r | diff |
+|---|---|---|---|---|---|---|
+| u | +0.8702 | +0.8722 | −0.0020 | +0.8741 | +0.8760 | −0.0019 |
+| g | −0.0708 | −0.0706 | −0.0002 | −0.0707 | −0.0705 | −0.0002 |
+| i | +0.3243 | +0.3238 | +0.0005 | +0.3218 | +0.3213 | +0.0005 |
+
+Las diferencias reales (`diff`) son de **0.0002 a 0.002 mag** -- dos a tres órdenes de magnitud más
+chicas que el patrón de Fase 23 (`~0.07-0.12` mag entre bandas adyacentes). El offset acromático global
+sí es real y del orden esperado (`Δmag(LCL−SNANA)` ≈ `-0.27` mag parejo en las 4 bandas, consistente con
+el residuo ya conocido desde Fase 22) -- pero es constante entre bandas, no cromático: la convención de
+integración NO introduce estructura cromática detectable a este nivel de precisión.
+
+### Conclusión Fase 26 -- descartado con evidencia sólida, código real contra código real
+
+La convención de integración de flujo en banda (`λ` de SNANA vs. `1/λ` de LightCurveLynx) **no explica
+el patrón cromático de Fase 23**, con la evidencia más fuerte posible para esta pregunta: no una
+reconstrucción manual de fórmulas (que ya mostró ser frágil en Fase 25 y de nuevo en 1a/1b de esta
+fase), sino los dos binarios/APIs reales de producción, para el mismo objeto exacto, comparados
+directamente. Con esto se agotan **todos** los candidatos concretos identificados en la cadena SALT2:
+color law (Fase 16), `M_abs`/`x0` (Fase 20), interpolación 2D del template (Fase 21), ley de extinción MW
+(Fase 24), y ahora la convención de integración de banda (Fase 26) -- los cinco descartados con
+evidencia numérica directa. **El patrón cromático de Fase 23 (`g→y`, ~0.21 mag de spread total) queda
+sin causa identificada** dentro del alcance de esta investigación de la cadena SALT2 propiamente dicha.
+Esto es en sí mismo un resultado válido y bien acotado, no un fracaso: la investigación deja mapeado con
+precisión qué NO lo explica, lo cual reduce sustancialmente el espacio de búsqueda para cualquier
+continuación futura (candidatos fuera de la cadena SALT2 -- p.ej. el modelo de ruido/PSF por banda, o
+algo en el propio `Passband`/`kcor_LSST.fits` no cubierto aún -- quedan como las áreas más probables no
+exploradas). Las conclusiones finales de la investigación completa (síntesis como astrónomo experto)
+quedan fuera de esta fase, a pedido explícito del usuario, para una sesión aparte.
+
+### Archivos de esta fase
+
+Exploratorios, no versionados, borrados de NLHPC tras usarlos: `fase26_bandflux_hygiene.py` (1a),
+`fase26_flat_control.py` (1b), `sim_fase26_bandflux_test.INPUT` + `run_fase26_bandflux_test.sh` (1c,
+SNANA real), `fase26_lcl_vs_real_snana.py` + `fase26_check2.py` (1c, LightCurveLynx real). Sin cambios a
+scripts del pipeline -- candidato descartado, nada que corregir.
