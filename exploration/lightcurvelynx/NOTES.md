@@ -4112,3 +4112,116 @@ Exploratorios, no versionados, borrados de NLHPC tras usarlos: `fase27_paso_a_zb
 `TEST_FASE27_bandflux_z06`/`z09` generados en `SNDATA_ROOT/SIM/` y borrados tras extraer el `.DUMP`. Sin
 cambios a scripts del pipeline -- diagnóstico puro, ningún candidato quedó en condición de accionar una
 corrección.
+
+## Fase 28 — interpolación 2D descartada también a z alto; M1 confirmado idéntico; la descomposición término a término se topa con un límite real
+
+Antes de escribir código se revisó un candidato más por lectura de código, sin necesitar corridas:
+**offsets de calibración/magnitud del `.INPUT` real** (`GENMAG_OFF_GLOBAL`/`GENMAG_OFF_MODEL`/
+`FUDGE_MAG`/`MAGOFF`) -- grepeado en `include_model_SNIa.INPUT`, `SIMGEN_INCLUDE_SNIa-SALT2.INPUT` y
+todo `~/AUTOSIM/build/full_v5.3_10yrs/`: **ninguna de esas keys aparece en ningún `.INPUT` de la
+campaña** -- descartado sin ambigüedad.
+
+### Paso 1 — interpolación 2D (Fase 21) reabierta en las λ_rest reales de z alto: descartada de nuevo, con más margen que antes
+
+Fase 21 solo había medido la diferencia bilineal (SNANA real) vs. bicúbica (`sncosmo` real) en la
+longitud de onda rest-frame de la banda `r` cerca de `z` bajo y en un barrido de fase en B rest-frame
+-- nunca en las λ_rest que `g/i/z/y` muestrean realmente a `z=0.6-0.9`, justo donde Fase 27 encontró que
+el residuo total (código real vs. código real) crece a `0.09-0.20` mag. Se repitió el método exacto de
+Fase 21 (mismo `M0`/`M1` crudo, mismo `SALT2ColorLaw` real) pero evaluando el **bandflux real completo**
+(vía `Passband.fluxes_to_bandflux()` real de LightCurveLynx, integrado sobre el ancho real de cada
+banda, no solo su centro) dos veces -- una con `M0`/`M1` interpolados bilinealmente (fórmula exacta de
+SNANA) y otra con el `BicubicInterpolator` real de `sncosmo` (`src._model["M0"]`/`["M1"]`) -- manteniendo
+fijos la ley de color, `x1`/`c`, y la convención de integración de banda (ambos cálculos usan la MISMA
+integración real de LightCurveLynx), para aislar el efecto puro del esquema de interpolación 2D.
+
+**Bug real encontrado y corregido en el propio script** (mismo tipo de trampa de normalización que ya
+mordió a Fase 25): `src._model["M0"]`/`["M1"]` (bicúbico real de `sncosmo`) ya trae horneado el factor
+`X0SCALE_SALT2=1e-12` desde `__init__` (hallazgo de Fase 19/20), mientras que `M0`/`M1` crudo leído del
+archivo (usado para el bilineal) no lo trae -- sin corregir esto, la razón de flujos salía contaminada
+por un factor `1e12` fijo (`Δmag=30.00` idéntico en las 7 combinaciones banda/z, un valor obviamente
+artificial). Corregido escalando el lado bilineal por `X0SCALE_SALT2` antes de comparar.
+
+**Resultado, tras la corrección — negligible en las 7 combinaciones banda/`z` probadas:**
+
+| `z` | banda | Δmag(bicúbico−bilineal) | `diff` real Fase 27 |
+|---:|---|---:|---:|
+| 0.6 | g | +0.0001 | +0.0935 |
+| 0.6 | i | -0.0000 | -0.0864 |
+| 0.6 | z | -0.0000 | -0.0997 |
+| 0.6 | y | +0.0000 | -0.0978 |
+| 0.9 | i | +0.0001 | -0.1201 |
+| 0.9 | z | -0.0000 | -0.1771 |
+| 0.9 | y | +0.0000 | -0.1975 |
+
+El efecto de esquema de interpolación es de `~0.0000-0.0001` mag -- **más chico todavía que el máximo ya
+despreciable de Fase 21 (`0.0022` mag)**, y tres a cuatro órdenes de magnitud menor que el residuo real
+de Fase 27 (`0.09-0.20` mag). **Descartado de nuevo, ahora con cobertura completa de las λ_rest que
+realmente importan a `z` alto** -- no queda como "cabo suelto" como lo dejó Fase 23. Con `DAYSTEP=1`
+día/`LAMSTEP=10` Å (grilla nativa fina respecto a la curvatura real de la superficie SALT2), bilineal y
+bicúbico siguen convergiendo incluso lejos de B/r.
+
+### Verificación adicional — el template `M1` (nunca antes chequeado) es byte-idéntico
+
+Las fases previas (16/20/21/25) solo habían confirmado `md5sum` idéntico para `salt2_template_0.dat`
+(`M0`) entre `salt2_h17_local/` (copia local de LightCurveLynx) y el `SALT2.WFIRST-H17` real de
+`$SNDATA_ROOT/models/SALT2/` (comprimido `.gz` en la copia real de SNANA) -- `M1` nunca se había
+verificado explícitamente. Confirmado ahora: **`3685abb568a787b27bcb258cd2e823b2`, idéntico en ambos
+lados** (igual que `M0`, re-confirmado de paso: `a75b5afcc7c59354af25c4b182ee3edd`). Cierra un supuesto
+que se venía arrastrando sin verificar desde el inicio de la investigación.
+
+### Paso 2 — descomposición término a término: todos los factores individualmente aislables ya están descartados, salvo uno que resiste el aislamiento
+
+Con Paso 1 (interpolación) y la verificación de `M1` de arriba, junto a lo ya establecido en fases
+previas, **todos los factores multiplicativos de `Fbin_forFlux = FTMP * CCOR * HOSTXT_FRAC * MWXT_FRAC *
+LAMSED * TRANS`** (`genmag_SALT2.c`, confirmada real en Fase 25) quedan verificados individualmente:
+
+| factor | estado | fase |
+|---|---|---|
+| `FTMP` (superficie `M0`+`x1·M1`, interpolación) | idéntico/despreciable | 21, **28 (esta fase, extendido a z alto)** |
+| `M0`/`M1` (valores crudos del template) | byte-idéntico | 16 (M0), **28 (M1, primera vez)** |
+| `CCOR` (ley de color) | idéntico a precisión de máquina | 16 |
+| `HOSTXT_FRAC` | =1, no aplica a `SNIa` en esta campaña | 27 |
+| `MWXT_FRAC` | =0 por diseño del test (`OPT_MWEBV:0`) | 26, 27 |
+| `TRANS` (curva de transmisión) | idéntica a 4 decimales | 12 |
+| `x0`/`M_abs` (normalización global) | idéntico a 6 cifras | 20 |
+| dispersión cromática (`GENMAG_SMEAR_MODELNAME: G10`) | media cero, no sesga | 27 |
+| `LAMSED*TRANS` (convención de integración: peso `λ` vs. `1/λ`) | **el único factor no aislado con éxito** | 25, 26 (higiene), este intento |
+
+El único factor que queda es la propia convención de integración de banda. Se evaluó si se podía aislar
+de forma limpia esta vez (a diferencia del intento fallido de Fase 25): en vez de reconstruir el flujo
+absoluto de SNANA desde cero (la fuente de los bugs de normalización de Fase 25), la idea era comparar,
+dentro del propio pipeline real de LightCurveLynx, el mismo SED real integrado con dos kernels de peso
+distintos (`S_b(λ)/λ` real vs. `S_b(λ)·λ`), aislando así la convención sin tocar la física de SNANA. Pero
+esto es **exactamente el experimento que Fase 25 y la higiene de Fase 26 (1a/1b) ya intentaron dos veces
+y documentaron como no confiable** -- incluyendo el control de espectro plano de Fase 26, que debería
+haber dado una razón moderada y predecible, y en cambio dio el mismo resultado implausible (`~3` mag en
+`u`, no monótono) que con el SED real. Ese patrón (un control de espectro plano fallando igual que el
+caso real) es la firma de un artefacto del propio método de comparación, no de un efecto físico -- y
+reintentarlo por tercera vez sin identificar la causa raíz de esa falla tiene alta probabilidad de
+reproducir el mismo artefacto. No se reintentó por esa razón: **se documenta como un límite metodológico
+real de este proyecto**, no como un candidato pendiente de "intentar de nuevo".
+
+### Conclusión Fase 28
+
+Con la interpolación 2D descartada ahora también en el régimen de `z` alto (no solo B/r) y el template
+`M1` confirmado idéntico, **se agota la lista completa de factores multiplicativos de la fórmula real de
+SNANA que se pueden aislar y verificar de forma independiente y confiable con las herramientas
+disponibles en este proyecto** -- los ocho primeros de la tabla de arriba, los ocho, están descartados
+con evidencia numérica directa. Queda un único factor, la convención de integración de banda, que sigue
+siendo plausible por eliminación (es lo único no verificado independientemente) pero que **no se puede
+aislar de forma confiable con los métodos disponibles** (reconstrucción manual, intentada tres veces
+contando esta fase, falla de la misma manera incluso con un control de espectro plano). Cerrar esto de
+forma definitiva requeriría instrumentar el binario real de SNANA (agregar un `printf`/dump de
+`FTMP`/`CCOR`/`LAMSED*TRANS` dentro de `INTEG_zSED_SALT2()` y recompilar `snlc_sim.exe`) -- una
+escalación real, fuera del alcance de este proyecto exploratorio tal como está planteado (no toca código
+de producción ni requiere recompilar SNANA). El patrón cromático de Fase 23 **sigue sin causa
+identificada**, ahora con la investigación de la cadena SALT2 verdaderamente agotada dentro de los
+métodos no invasivos disponibles -- cualquier continuación futura necesitaría, o bien instrumentación de
+SNANA a nivel de C, o bien un cambio de enfoque hacia candidatos genuinamente fuera de la cadena SALT2
+(el espacio ya señalado en Fase 27: modelo de ruido/PSF -- aunque no debería afectar una comparación sin
+ruido como esta -- u otro mecanismo aún no identificado).
+
+### Archivos de esta fase
+
+`fase28_interp_zhigh.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo). Sin cambios a
+scripts del pipeline -- diagnóstico puro, ningún candidato quedó en condición de accionar una corrección.

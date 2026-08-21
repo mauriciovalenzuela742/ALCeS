@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "29&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "30&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-27</span>
+      <span class="verdict-badge critical">Actualización Fases 22-28</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1308,8 +1308,23 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       señal real a <code>z</code> alto. También descartados por lectura de código real: extinción de host
       (<code>SNIa</code> no usa <code>GENTAU_AV</code> en esta campaña) y el modelo de dispersión
       cromática <code>GENMAG_SMEAR_MODELNAME: G10</code> (activo, pero de media cero por construcción —
-      no puede sesgar una mediana poblacional). El patrón de Fase 23 sigue sin causa identificada. Ver
-      pestaña "29 fases" (Fases 22-27) para el detalle completo.</p>
+      no puede sesgar una mediana poblacional). El patrón de Fase 23 sigue sin causa identificada.</p>
+      <p><strong>Fase 28 (la cadena SALT2 llega a su límite de aislamiento no invasivo):</strong>
+      reabriendo la interpolación 2D (Fase 21) en las λ_rest reales que <code>g/i/z/y</code> muestrean a
+      <code>z=0.6-0.9</code> (Fase 21 solo había cubierto B/r cerca de <code>z</code> bajo): el efecto es
+      de <strong>0.0000-0.0001 mag</strong> — más chico todavía que el máximo ya despreciable de Fase 21,
+      3-4 órdenes de magnitud menor que el residuo real. <strong>Descartada de nuevo</strong>, ya sin el
+      cabo suelto que dejó Fase 23. De paso, el template <code>M1</code> (nunca antes chequeado, solo
+      <code>M0</code> lo estaba) se confirma <strong>byte-idéntico</strong>. Con esto, los 8 factores
+      multiplicativos aislables de la fórmula real de SNANA quedan verificados uno por uno — descartados
+      todos. Queda un único factor sin aislar con éxito: la convención de integración de banda —
+      intentarlo de nuevo dentro del pipeline de LightCurveLynx reproduciría el mismo artefacto ya
+      documentado dos veces (Fase 25, higiene de Fase 26: hasta un control de espectro plano dio un
+      resultado implausible, la firma de un problema del método, no de física real), así que se
+      documenta como un <strong>límite metodológico real</strong> (cerrarlo requeriría instrumentar y
+      recompilar el binario C de SNANA). El patrón cromático de Fase 23 sigue sin causa identificada — la
+      cadena SALT2 queda agotada dentro de los métodos no invasivos disponibles. Ver pestaña "30 fases"
+      (Fases 22-28) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1569,7 +1584,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintinueve fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1928,6 +1943,43 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           como única explicación".</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">28</span>
+        <div class="step-body">
+          <p><strong>Interpolación 2D descartada también a z alto; M1 confirmado idéntico; la cadena
+          SALT2 llega a su límite de aislamiento no invasivo</strong> — antes de correr nada se descartó
+          otro candidato por lectura de código: ninguna key de offset de calibración
+          (<code>GENMAG_OFF_GLOBAL</code>/<code>GENMAG_OFF_MODEL</code>/<code>FUDGE_MAG</code>) aparece
+          en ningún <code>.INPUT</code> de la campaña. <strong>Paso 1:</strong> Fase 21 solo había medido
+          bilineal (SNANA real) vs. bicúbico (<code>sncosmo</code> real) en λ_rest de banda <code>r</code>
+          cerca de <code>z</code> bajo — nunca en las λ_rest reales que <code>g/i/z/y</code> muestrean a
+          <code>z=0.6-0.9</code>, justo donde Fase 27 encontró el residuo de 0.09-0.20 mag. Repetido con
+          el bandflux real completo (<code>Passband.fluxes_to_bandflux()</code>): bug de normalización
+          real encontrado y corregido (<code>src._model["M0"]</code> bicúbico ya trae horneado
+          <code>X0SCALE_SALT2=1e-12</code> desde <code>__init__</code>, el M0/M1 crudo del bilineal no —
+          sin corregir, la razón salía contaminada por un factor <code>1e12</code> fijo,
+          <code>Δmag=30.00</code> idéntico en las 7 combinaciones, obviamente artificial). Corregido:
+          resultado <strong>0.0000-0.0001 mag</strong> en las 7 combinaciones banda/<code>z</code> — más
+          chico todavía que el máximo de Fase 21 (0.0022 mag), 3-4 órdenes de magnitud menor que el
+          residuo real. <strong>Descartado de nuevo, ahora sin el cabo suelto que dejó Fase 23.</strong>
+          De paso, <code>M1</code> (nunca antes chequeado, solo <code>M0</code> lo estaba) se confirma
+          <strong>byte-idéntico</strong> entre la copia local y <code>$SNDATA_ROOT</code> real.
+          <strong>Paso 2:</strong> con esto, los 8 factores multiplicativos aislables de
+          <code>Fbin_forFlux = FTMP·CCOR·HOSTXT_FRAC·MWXT_FRAC·LAMSED·TRANS</code> quedan verificados
+          (template, ley de color, extinción MW/host, smear, <code>x0</code>, TRANS, interpolación) —
+          descartados todos. Queda un único factor no aislado con éxito: la convención de integración de
+          banda (<code>λ</code> vs. <code>1/λ</code>). Se evaluó reintentar aislarla dentro del propio
+          pipeline de LightCurveLynx (dos kernels de peso, mismo SED real) — pero es exactamente el
+          experimento que Fase 25 y la higiene de Fase 26 ya intentaron dos veces sin éxito, incluyendo
+          un control de espectro plano que debería haber dado una razón moderada y en cambio dio el mismo
+          artefacto implausible (~3 mag en <code>u</code>, no monótono) — la firma de un problema del
+          método de comparación, no de un efecto físico. No se reintentó una tercera vez sin resolver esa
+          causa raíz: se documenta como <strong>límite metodológico real</strong> (cerrarlo requeriría
+          instrumentar y recompilar el binario C de SNANA, fuera del alcance de este proyecto
+          exploratorio). El patrón cromático de Fase 23 <strong>sigue sin causa identificada</strong> —
+          la cadena SALT2 queda agotada dentro de los métodos no invasivos disponibles.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2257,7 +2309,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "29 fases" },
+    { id: "fases", label: "30 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
