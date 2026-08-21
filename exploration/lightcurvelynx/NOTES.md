@@ -3456,3 +3456,108 @@ resultados distintos hasta corregirlos; byte-idénticos después). Son candidato
 en `github.com/lincc-frameworks/LightCurveLynx` -- "seed= passed to the parent node doesn't propagate
 to internal samplers in ObsTableRADECSampler/SIMSEDModel/MultiSEDTemplateModel", con los 4 puntos de
 arriba como reproducción. No se abrió el issue en esta fase (el usuario pidió la nota, no la acción).
+
+## Fase 20 -- M_abs de SALT2 cerrado con primeros principios: la Fase 19 se corrige a sí misma
+
+Retoma el pendiente explícito de Fase 19: leer `sncosmo.SALT2Source`/`X0FromDistMod` para encontrar la
+convención real de M_B0 y compararla contra cómo deriva `x0` SNANA. **Resultado: la "corrección" que
+propuso Fase 19 (declarar el `M_abs=-19.365` de Fase 17 un espejismo, y proponer `-19.13` en su lugar)
+era ella misma un error** -- Fase 19 solo verificó que `X0SCALE_SALT2` se cancela del lado de SNANA,
+sin verificar si `sncosmo`/LightCurveLynx cancela el mismo factor de la misma forma. No lo hace.
+
+### El hallazgo que faltaba: `sncosmo.SALT2Source._SCALE_FACTOR = 1e-12`
+
+Leyendo `sncosmo/models.py` real (`inspect.getsourcefile`, venv real de NLHPC, `sncosmo==2.13.0`):
+
+```python
+class SALT2Source(Source):
+    _SCALE_FACTOR = 1e-12          # -- EXACTAMENTE el mismo valor que X0SCALE_SALT2 de SNANA
+    def __init__(self, ...):
+        for key in ['M0', 'M1']:
+            phase, wave, values = read_griddata_ascii(names_or_objs[key])
+            values *= self._SCALE_FACTOR      # -- aplicado UNA VEZ, al cargar el archivo
+            self._model[key] = BicubicInterpolator(phase, wave, values)
+    def _flux(self, phase, wave):
+        m0 = self._model['M0'](phase, wave)   # ya trae el *1e-12 horneado
+        m1 = self._model['M1'](phase, wave)
+        return (self._parameters[0] * (m0 + self._parameters[1] * m1) * ...)  # x0 * M0, sin mas factores
+```
+
+A diferencia de SNANA (donde `x0 = 1/(X0SCALE*10^arg)` y el flujo se multiplica DE NUEVO por
+`X0SCALE` en `INTEG_zSED_SALT2()` -- por eso se cancela, ver Fase 19), `sncosmo` aplica el `1e-12`
+**una sola vez, al leer el archivo**, y `x0` (el parámetro libre que pone `X0FromDistMod`) se usa
+directo, sin ningún factor de compensación. **El `1e-12` NO se cancela del lado de LightCurveLynx.**
+Fase 19 asumió (sin verificarlo) que ambos lados cancelaban igual -- no era así.
+
+### Verificación numérica directa (no solo álgebra, tercera vez que se hace esta pregunta)
+
+Confirmado que los archivos crudos son **byte-idénticos** (`md5sum` real:
+`a75b5afcc7c59354af25c4b182ee3edd` para `salt2_h17_local/salt2_template_0.dat` local y el
+`salt2_template_0.dat.gz` descomprimido de `run_SNANA/plasticc_models/SALT2.WFIRST-H17/` real). Con
+eso, `fase20_verify_mabs.py` (no versionado) calculó, para `z=0.3, x1=0, c=0, alpha=0.14, beta=3.1`:
+
+| M_abs probado | `x0` (LightCurveLynx) | flujo LCL/flujo SNANA | Δmag (LCL−SNANA) |
+|---|---|---|---|
+| -19.300 (Fases 0-19) | 3.906753e-05 | 0.941890 | +0.0650 |
+| **-19.365** | **4.147783e-05** | **1.000000** | **-0.0000** |
+| -19.130 (propuesta Fase 19) | 3.340535e-05 | 0.805378 | +0.2350 |
+
+`x0_SNANA` reconstruido de `SALT2x0calc()` real dio **4.147783e-05** -- coincide con el `x0` de
+LightCurveLynx a `M_abs=-19.365` a 6 cifras significativas exactas. El flujo físico (`x0 * 1e-12 *
+M0_crudo`, mismo `M0` crudo real para ambos) coincide con razón `1.000000` exacta. `-19.365` no es una
+aproximación: es exactamente `10.635 - 30` (`mBoff_SALT2 - 2.5*log10(X0SCALE_SALT2)`), la identidad
+algebraica que hace que `X0FromDistMod` reproduzca el `x0` real de SNANA byte a byte.
+
+### Aplicado y verificado end-to-end: la corrección es real, pero el residuo NO se cierra (empeora)
+
+Se corrigió `m_abs_func` (`loc=-19.3` → `loc=-19.365`) en `run_snia_ddf_poc.py` y
+`compare_brightness_truth_salt2.py`, y se corrió de nuevo `compare_brightness_truth_salt2.sbatch`
+(job 11897156, `COMPLETED`) contra el mismo `.DUMP` real de `SNIa_DDF_baseline_v5.3.1_10yrs`:
+
+| z bin | Δmag Fase 17 (`M_abs=-19.3`) | Δmag Fase 20 (`M_abs=-19.365`, correcto) |
+|---|---|---|
+| [0.181,0.351) | -0.234 | -0.319 |
+| [0.351,0.521) | -0.137 | -0.196 |
+| [0.521,0.690) | -0.128 | -0.193 |
+| [0.690,0.860) | -0.239 | -0.310 |
+| [0.860,1.030) | -0.140 | -0.208 |
+| [1.030,1.200) | -0.116 | -0.181 |
+| **media** | **-0.166** | **-0.235** |
+
+El desplazamiento medio real (-0.235 − (-0.166) = -0.069 mag) coincide con la predicción algebraica
+(0.065 mag) dentro del ruido de binning -- **confirmación end-to-end, no solo de fórmula**.
+
+### Conclusión Fase 20 (cierra el punto 9 de la Fase 18 de forma definitiva)
+
+1. **`M_abs=-19.365` es la calibración físicamente correcta** -- verificada por triplicado (álgebra,
+   coincidencia exacta de `x0`/flujo con archivos reales, y re-corrida end-to-end) -- y ya se aplicó a
+   `run_snia_ddf_poc.py`/`compare_brightness_truth_salt2.py`. El valor `-19.3` de las Fases 0-19 era un
+   placeholder de la literatura general, nunca antes verificado; corregirlo es una mejora real de
+   fidelidad, independiente de lo que sigue.
+2. **M_abs queda descartado como causa del residuo, con la evidencia más sólida de todo el
+   proyecto** -- corregirlo a su valor real EMPEORA el exceso de brillo medido (-0.166 → -0.235 mag),
+   no lo cierra. Esto revierte la propuesta de "calibración empírica ~-19.13" de Fase 19, que resultó
+   ser un artefacto de un supuesto no verificado (que `X0SCALE_SALT2` cancela simétricamente en ambos
+   simuladores) -- no cancela en LightCurveLynx/`sncosmo`, solo en SNANA.
+3. **Lección metodológica explícita** (para no repetirla una cuarta vez): cuando dos simuladores
+   comparten una constante de "normalización arbitraria", verificar SIEMPRE si esa constante se cancela
+   en el flujo físico final de **ambos** lados por separado -- nunca asumir simetría. Las tres rondas
+   sobre esta misma pregunta (Fase 17 álgebra parcial, Fase 19 "corrección" parcial, Fase 20 verificación
+   completa) son un caso de estudio de por qué este proyecto insiste en verificar numéricamente contra
+   archivos/código reales en vez de confiar en la derivación simbólica sola.
+4. **Recomendación real que queda**: con M_abs, color law (Fase 16), extinción, ruido, footprint,
+   SEARCHEFF, DNDZ y R_V todos cerrados o descartados con evidencia directa, el candidato que queda sin
+   investigar es el que Fase 16 ya señalaba: la normalización/interpolación 2D (fase×longitud de onda)
+   del propio flujo del template SALT2 -- comparar `M0(phase,wave)`/`M1(phase,wave)` punto a punto entre
+   el `BicubicInterpolator` de `sncosmo` y la interpolación real de SNANA (`SALT2_TABLE`, spline/bicúbica
+   propia en `genmag_SALT2.c`) sobre la misma grilla cruda -- nunca hecho, y ahora es el único mecanismo
+   de la cadena SALT2 sin verificar directamente.
+
+### Archivos de esta fase
+
+- `run_snia_ddf_poc.py`/`compare_brightness_truth_salt2.py`: `m_abs_func` corregido a `-19.365`, con
+  comentario explicando la derivación completa.
+- `fase20_verify_mabs.py`/`fase20_compare_bins.py` (exploratorios, no versionados, borrados de NLHPC
+  tras usarlos -- mismo criterio del proyecto para scripts de verificación puntual).
+- `docs/index.html`: pestañas "Resumen"/"21 fases" de LightCurveLynx actualizadas para reflejar este
+  cierre (reemplaza la recomendación de `-19.13` de Fase 19, ya superada).

@@ -116,7 +116,11 @@ def main():
         make_bifurcated_normal_sampler(**SALT2X1, seed=seed_base + 3), node_label="x1"
     )
     distmod_func = DistModFromRedshift(redshift_func, H0=70.0, Omega_m=0.3)
-    m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=SIGMA_INT, seed=seed_base + 4)
+    # Fase 20: -19.365 es el M_abs real que hace que X0FromDistMod coincida
+    # exacto con SALT2x0calc() de SNANA -- ver run_snia_ddf_poc.py y NOTES.md
+    # Fase 20 para la verificacion numerica completa (no cierra el residuo,
+    # es una correccion de calibracion real, independiente de esa pregunta).
+    m_abs_func = NumpyRandomFunc("normal", loc=-19.365, scale=SIGMA_INT, seed=seed_base + 4)
     x0_func = X0FromDistMod(
         distmod=distmod_func, x1=x1_func, c=c_func, alpha=ALPHA, beta=BETA, m_abs=m_abs_func,
     )

@@ -1177,21 +1177,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
 
     <div class="lcl-subpanel" id="lcl-sub-resumen">
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
-    difiere de SNANA (Fase 18-19 de <code>NOTES.md</code>), cruzados contra la evidencia de las Fases 0-17.
+    difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "21&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "22&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
-      <span class="verdict-badge">8 / 9 puntos cerrados</span>
-      <p><strong>Campo angular, telescopio, ruido, tasas <code>DNDZ(z)</code> por clase, <code>z</code> máximo
-      por clase, ley de extinción R_V y A_V por clase</strong> quedan cerrados con evidencia directa de código
-      real de ambos lados — footprint, throughput/zeropoint, ruido fotométrico, tasas de explosión y rangos de
-      redshift ya se verificaron clase por clase contra los <code>.INPUT</code> reales de producción.</p>
-      <p>El único punto que sigue abierto — y es el importante — son los <strong>parámetros SALT2</strong>
-      (punto 9): <code>alpha</code>/<code>beta</code>/<code>x1</code>/<code>c</code> coinciden exactos, pero
-      <code>M_abs</code>/<code>M_B0</code> nunca se verificó contra la convención interna real de SNANA — es el
-      candidato más fuerte, con evidencia cuantitativa (0.12-0.24 mag de exceso de brillo sin ruido), para el
-      residuo que queda.</p>
+      <span class="verdict-badge">9 / 9 puntos cerrados</span>
+      <p><strong>Los 9 puntos quedan cerrados con evidencia directa de código real de ambos lados</strong> —
+      campo angular, telescopio, ruido, tasas <code>DNDZ(z)</code> por clase, <code>z</code> máximo por clase,
+      ley de extinción R_V, A_V por clase y, desde Fase 20, también los parámetros SALT2.</p>
+      <p>El punto 9 (parámetros SALT2) fue el último en cerrarse, y de forma contraintuitiva:
+      <code>alpha</code>/<code>beta</code>/<code>x1</code>/<code>c</code> ya coincidían exactos, y ahora
+      también <code>M_abs</code> (<code>-19.365</code>, verificado por triplicado contra la convención real
+      de SNANA) — pero corregirlo <strong>no cierra</strong> el exceso de brillo medido, lo empeora
+      (-0.166 → -0.235 mag). M_abs queda descartado como causa con la evidencia más sólida del proyecto; el
+      residuo real sigue sin explicarse.</p>
     </div>
 
     <div class="causes" style="margin-top:20px;">
@@ -1248,15 +1248,17 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         <p>3 variantes reales (<code>exp</code>/<code>exp_halfgauss</code>/<code>wv07</code>) implementadas y
         verificadas línea por línea contra <code>snlc_sim.c</code> (Fase 3, Fase 2B rondas 2-3).</p>
       </div>
-      <div class="cause-card critical">
-        <p class="cause-label">09 · Abierto — el cabo suelto real</p>
+      <div class="cause-card confirmed">
+        <p class="cause-label">09 · Resuelto (Fase 20) — descartado, no explica el residuo</p>
         <h3>Parámetros SALT2 — M_abs/M_B0</h3>
-        <p><code>alpha</code>/<code>beta</code>/<code>x1</code>/<code>c</code> exactos. <code>M_abs</code> nunca
-        verificado: el <code>.INPUT</code> real no declara <code>GENMAG_OFF</code>. Fase 19 encontró que
-        <code>X0SCALE_SALT2=1e-12</code> de SNANA es bookkeeping puro (se cancela en el flujo real) — el
-        <code>-19.365</code> despejado algebraicamente era un espejismo. Calibración empírica de reemplazo:
-        <code>M_abs ≈ -19.13</code>, pendiente de verificar con primeros principios (ver pestaña "21 fases",
-        Fase 20).</p>
+        <p><code>alpha</code>/<code>beta</code>/<code>x1</code>/<code>c</code> exactos. <code>M_abs</code>
+        real: <code>-19.365</code> — confirmado por triplicado (leyendo <code>sncosmo.SALT2Source</code> real,
+        coincidencia exacta de <code>x0</code>/flujo con los archivos SALT2 reales, y una re-corrida
+        end-to-end contra el <code>.DUMP</code> real) y ya aplicado a
+        <code>run_snia_ddf_poc.py</code>. Corregirlo <strong>empeora</strong> el exceso de brillo medido
+        (-0.166 → -0.235 mag) — descarta M_abs como causa con la evidencia más sólida del proyecto. La
+        "calibración empírica -19.13" que proponía la Fase 19 resultó ser un error propio (asumía que
+        <code>X0SCALE_SALT2</code> se cancela igual en LightCurveLynx que en SNANA — no lo hace).</p>
       </div>
     </div>
     </div>
@@ -1517,7 +1519,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintiuna fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintidós fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1669,6 +1671,28 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           librería LightCurveLynx (4 samplers internos sin heredar <code>seed=</code>, Fases 4-5 — candidatos
           reales para un issue en el repo) del bug local de Fase 4 (<code>SEARCHEFF</code>, no existe en
           LightCurveLynx).</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">20</span>
+        <div class="step-body">
+          <p><strong>M_abs de SALT2 cerrado con primeros principios — la Fase 19 se corrige a sí
+          misma</strong> — se retomó el pendiente de Fase 19 y se encontró el dato que faltaba:
+          <code>sncosmo.SALT2Source._SCALE_FACTOR = 1e-12</code> (código real, <code>sncosmo==2.13.0</code>) es
+          <strong>el mismo valor</strong> que <code>X0SCALE_SALT2</code> de SNANA, pero LightCurveLynx lo aplica
+          <strong>una sola vez, al cargar el archivo</strong> (horneado en <code>M0</code>/<code>M1</code>), sin
+          ningún factor de compensación posterior — a diferencia de SNANA, donde sí se cancela. Fase 19 asumió
+          simetría entre ambos lados sin verificarla; no la hay. Verificado por triplicado: (1) los archivos
+          crudos son <strong>byte-idénticos</strong> (mismo <code>md5sum</code>, LightCurveLynx usa los
+          templates reales de SNANA); (2) con <code>M_abs=-19.365</code> el <code>x0</code> de LightCurveLynx
+          coincide con el <code>x0</code> real de SNANA a 6 cifras significativas, y el flujo físico
+          (<code>x0 × 1e-12 × M0</code> crudo) coincide con razón <code>1.000000</code> exacta; (3) aplicado el
+          fix real a <code>run_snia_ddf_poc.py</code>/<code>compare_brightness_truth_salt2.py</code> y
+          re-corrido contra el <code>.DUMP</code> real (job 11897156): el exceso de brillo medido
+          <strong>empeora</strong>, de -0.166 a -0.235 mag de media — confirmando que M_abs no explica el
+          residuo, con la evidencia más sólida de todo el proyecto. La "calibración empírica -19.13" que
+          proponía la Fase 19 queda descartada. Candidato que sigue sin investigar: la
+          normalización/interpolación 2D (fase×longitud de onda) del propio flujo del template SALT2.</p>
         </div>
       </li>
     </ol>
@@ -2000,7 +2024,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "21 fases" },
+    { id: "fases", label: "22 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

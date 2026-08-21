@@ -203,7 +203,23 @@ def main(seed_index: int = 0, wfd: bool = False):
     # el linaje de este catalogo). H0=73 introduce un ~0.1 mag de brillo
     # sistematico de mas -- ver NOTES.md Fase 2 parte A.
     distmod_func = DistModFromRedshift(redshift_func, H0=70.0, Omega_m=0.3)
-    m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=SIGMA_INT, seed=seed_base + 4)
+    # Fase 20: -19.3 (Fases 0-19) era un valor de la literatura general, nunca
+    # verificado contra la convencion real de SNANA -- -19.365 es el valor
+    # exacto (no una aproximacion) que hace que X0FromDistMod produzca el
+    # MISMO x0/flujo fisico que SALT2x0calc() real de SNANA para el mismo
+    # distmod/x1/c/alpha/beta, verificado numericamente con los archivos SALT2
+    # reales (byte-identicos a los de SNANA, confirmado via md5sum) y el
+    # codigo real de sncosmo.SALT2Source._flux(): con -19.365 el x0 calculado
+    # coincide con el de SNANA a 6 cifras significativas y el flujo generado
+    # (x0 * SCALE_FACTOR * M0_crudo) coincide exacto (razon 1.000000, Δmag=
+    # -0.0000) -- con -19.3 sale 0.065 mag mas TENUE que la convencion real de
+    # SNANA (ver fase20_verify_mabs.py, no versionado, y NOTES.md Fase 20).
+    # Importante: corregir esto NO cierra el residuo de brillo de Fase 16-17
+    # (LightCurveLynx ~0.12-0.24 mag mas brillante que SNANA) -- va en
+    # direccion CONTRARIA (mas brillante todavia, no mas tenue), asi que el
+    # residuo real sigue sin explicarse; este cambio es una correccion de
+    # calibracion real, no un intento de cerrar la brecha.
+    m_abs_func = NumpyRandomFunc("normal", loc=-19.365, scale=SIGMA_INT, seed=seed_base + 4)
     x0_func = X0FromDistMod(
         distmod=distmod_func, x1=x1_func, c=c_func, alpha=ALPHA, beta=BETA, m_abs=m_abs_func,
     )
