@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "27&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "29&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-26</span>
+      <span class="verdict-badge critical">Actualización Fases 22-27</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1297,7 +1297,19 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       Fase 23. <strong>Descartado</strong>, con la evidencia más fuerte de toda la investigación. Con
       esto se agotan los 5 candidatos concretos de la cadena SALT2 (color law, M_abs, interpolación 2D,
       extinción MW, integración de banda) — el patrón cromático de Fase 23 queda sin causa identificada
-      dentro de esta cadena. Ver pestaña "28 fases" (Fases 22-26) para el detalle completo.</p>
+      dentro de esta cadena.</p>
+      <p><strong>Fase 27 (matiz importante — Fase 26 no generalizaba):</strong> Fase 26 solo probó
+      <code>z=0.15</code>. Extendiendo la misma prueba código-real-contra-código-real a
+      <code>z=0.6</code> y <code>z=0.9</code>, la diferencia de integración de banda
+      <strong>crece a 0.09-0.20 mag</strong> — dos órdenes de magnitud más que en <code>z=0.15</code>, ya
+      comparable al propio patrón de Fase 23. Pero el signo es el <strong>opuesto</strong>: el patrón de
+      Fase 23 crece positivo hacia el rojo (relativo a <code>r</code>), mientras que el efecto medido acá
+      crece negativo hacia el rojo — no puede ser la explicación aislada, aunque sí "cancela" parte de la
+      señal real a <code>z</code> alto. También descartados por lectura de código real: extinción de host
+      (<code>SNIa</code> no usa <code>GENTAU_AV</code> en esta campaña) y el modelo de dispersión
+      cromática <code>GENMAG_SMEAR_MODELNAME: G10</code> (activo, pero de media cero por construcción —
+      no puede sesgar una mediana poblacional). El patrón de Fase 23 sigue sin causa identificada. Ver
+      pestaña "29 fases" (Fases 22-27) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1557,7 +1569,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintiocho fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintinueve fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1879,6 +1891,41 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           integración de banda) — el patrón cromático de Fase 23 queda <strong>sin causa identificada</strong>
           dentro de esta cadena, un resultado válido en sí mismo que acota el espacio de búsqueda para
           cualquier continuación futura.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">27</span>
+        <div class="step-body">
+          <p><strong>Integración de banda: reabierta en magnitud, descartada en dirección — resultado
+          genuinamente mixto</strong> — Fase 26 solo probó <code>z=0.15</code> y generalizó "despreciable"
+          a toda la cadena SALT2 sin verificarlo a otros <code>z</code>. Paso A (dato ya simulado, sin
+          <code>sbatch</code> nuevo): el offset relativo a <code>r</code> de la población de
+          <code>compare_brightness_truth_salt2.py</code> <strong>no es plano en <code>z</code></strong> —
+          crece en magnitud desde <code>z</code> bajo hasta <code>z≈0.6-0.8</code>. Motiva extender la
+          prueba código-real-contra-código-real de Fase 26 (Paso B1) a <code>z=0.6</code> y
+          <code>z=0.9</code> — mismo <code>snlc_sim.exe</code> real vs.
+          <code>compute_noise_free_lightcurves()</code> real, mismo objeto SALT2 exacto reconstruido de
+          ambos lados. <strong>El efecto SÍ crece fuertemente con <code>z</code></strong>: de
+          0.0002-0.002 mag en <code>z=0.15</code> a <strong>0.09-0.20 mag en <code>z=0.6-0.9</code></strong>
+          — dos órdenes de magnitud, ya comparable al propio patrón de Fase 23. Fase 26 no generalizaba.
+          Pero traduciendo el patrón poblacional de Fase 23 a la misma convención "relativo a
+          <code>r</code>": creciente y <strong>positivo</strong> hacia el rojo
+          (<code>g:-0.074, i:+0.050, z:+0.084, y:+0.137</code>). El efecto medido acá en
+          <code>z=0.6-0.9</code> es decreciente y <strong>negativo</strong> hacia el rojo
+          (<code>i:-0.09/-0.12, z:-0.10/-0.18, y:-0.10/-0.20</code>) — <strong>signo contrario</strong>.
+          Un mecanismo que empuja en la dirección opuesta no puede ser la explicación aislada del patrón
+          de Fase 23; a lo sumo cancela parte de la señal real a <code>z</code> alto. Verificado además
+          (lectura de código real, sin corridas nuevas) que <code>GENMAG_SMEAR_MODELNAME: G10</code>
+          (dispersión intrínseca cromática) está activo en el <code>.INPUT</code> real de <code>SNIa</code>
+          — simplificación ya señalada como conocida, nunca antes verificada — pero
+          <code>init_genSmear_SALT2()</code> real construye el smear como un draw Gaussiano de media
+          cero, y <code>PEAKMAG_&lt;filt&gt;</code> del <code>.DUMP</code> ni siquiera lo incluye (es la
+          magnitud teórica sin ruido, Fase 22) — no puede producir un sesgo sistemático de mediana.
+          Extinción de host (<code>HOSTXT_FRAC</code>) también descartada por lectura directa del
+          <code>.INPUT</code> real (<code>SNIa</code> no declara <code>GENTAU_AV</code>, a diferencia de
+          <code>SNIax</code>/<code>TDE-MOSFIT</code>). El patrón de Fase 23 sigue sin causa identificada
+          — la integración de banda pasa de "descartada" a "real pero de signo opuesto, insuficiente
+          como única explicación".</p>
         </div>
       </li>
     </ol>
@@ -2210,7 +2257,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "28 fases" },
+    { id: "fases", label: "29 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

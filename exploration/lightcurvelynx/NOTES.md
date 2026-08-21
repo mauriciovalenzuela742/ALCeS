@@ -3983,3 +3983,132 @@ Exploratorios, no versionados, borrados de NLHPC tras usarlos: `fase26_bandflux_
 `fase26_flat_control.py` (1b), `sim_fase26_bandflux_test.INPUT` + `run_fase26_bandflux_test.sh` (1c,
 SNANA real), `fase26_lcl_vs_real_snana.py` + `fase26_check2.py` (1c, LightCurveLynx real). Sin cambios a
 scripts del pipeline -- candidato descartado, nada que corregir.
+
+## Fase 27 — la integración de banda SÍ crece con z, pero de signo contrario al patrón de Fase 23
+
+Fase 26 cerró el candidato "integración de flujo en banda" probándolo en un único punto, `z=0.15`, y
+generalizó esa conclusión (diferencia despreciable) a toda la cadena SALT2. Pero el patrón cromático de
+Fase 23 es un promedio poblacional sobre `z≈0.18` a `z≈1.2` — nunca se verificó si la diferencia (chica
+a `z` bajo) se mantiene chica a `z` alto. Antes de asumir eso, se revisaron dos candidatos más por
+lectura de código, sin necesitar corridas:
+
+- **Extinción de host (`HOSTXT_FRAC`)**: descartado. El `.INPUT` real de la clase `SNIa` de esta campaña
+  (`include_model_SNIa.INPUT` → `SIMGEN_INCLUDE_SNIa-SALT2.INPUT`) no declara `GENTAU_AV`/`GENRANGE_AV`
+  — a diferencia de `SNIax`/`TDE-MOSFIT` (Fases previas), SNANA no aplica extinción de host a `SNIa` en
+  este modelo. No puede ser la fuente de una diferencia con LightCurveLynx (que tampoco la aplica).
+- **`kcor_LSST.fits` vs. preset `LSST`**: ya descartado con evidencia numérica concluyente en **Fase 12**
+  (`ZPoff=0`, curvas idénticas a 4 decimales, mismo release v1.9) — no hacía falta repetirlo.
+
+### Paso A — el offset relativo a `r` NO es plano en `z` (dato ya simulado, sin `sbatch` de simulación)
+
+Se extendió `compare_brightness_truth_salt2.py` (mismo `seed_base=20260812`, mismos 2000 objetos) para
+capturar las 6 bandas vía `compute_noise_free_lightcurves()` (rest_phase=0) en vez de solo `r`, y se
+comparó contra `PEAKMAG_u/g/r/i/z/Y` real del `.DUMP` de producción
+(`SNIa_DDF_baseline_v5.3.1_10yrs.DUMP`), binned en los mismos 7 bins equi-anchos de `z` de Fases 20/22/23
+(`np.linspace(0.011, 1.2, 8)`). Corrección de metodología real encontrada en el propio análisis:
+`PEAKMAG_<filt>=-9` es el flag real de SNANA para "banda no definida en este `z`" (Fase 13 — el borde del
+`RESTLAMBDA_RANGE`, `u`/`g` observados mapean a rest-frame por debajo de 2000 Å a `z` alto) — hay que
+enmascarar esos valores ANTES de tomar la mediana, no después, o contaminan el resultado con outliers de
+`-9` mag (un bug real cometido y corregido en el primer intento de este mismo script).
+
+| bin `z` (centro) | `u−r` | `g−r` | `i−r` | `z−r` | `y−r` |
+|---:|---:|---:|---:|---:|---:|
+| 0.10 | nan | nan | +0.066 | nan | nan |
+| 0.27 | nan | -0.182 | 0.000 | +0.037 | nan |
+| 0.44 | nan | -0.099 | -0.026 | -0.037 | +0.285 |
+| 0.61 | nan | -0.015 | -0.083 | -0.109 | +0.376 |
+| 0.78 | nan | nan | -0.138 | -0.173 | nan |
+| 0.95 | nan | nan | -0.074 | -0.096 | nan |
+| 1.12 | nan | nan | +0.012 | -0.065 | nan |
+
+*(`u`/`g`/`y` quedan mayormente indefinidos en `PEAKMAG` real fuera de `z` bajo — mismo fenómeno de
+borde de template ya señalado en Fase 23; `i` y `z` son las únicas columnas con cobertura completa en
+los 7 bins.)* El offset relativo a `r` **no es plano** — crece en magnitud desde los bins bajos hacia
+`z≈0.6-0.8` (`i−r`: `+0.066 → 0.000 → -0.026 → -0.083 → -0.138`) y luego se revierte parcialmente hacia
+`z` alto. No es una función limpia y monótona de `z`, pero tampoco es constante — suficiente para
+justificar extender la prueba código-real-contra-código-real de Fase 26 a más valores de `z`, en vez de
+asumir que el resultado de `z=0.15` generaliza.
+
+### Paso B1 — extender Fase 26 (código real vs. código real) a `z=0.6` y `z=0.9`
+
+Mismo método exacto de Fase 26 (1c): `snlc_sim.exe` real (`SNANA/11.05p`) con `GENRANGE_REDSHIFT`/
+`GENRANGE_SALT2c`/`GENRANGE_SALT2x1` colapsados a un punto (`x1=0.973`, `c=-0.054`, valores pico
+nominales de la campaña), `OPT_MWEBV: 0`, mismo modelo `SALT2.WFIRST-H17`, mismo SIMLIB DDF real,
+`NGENTOT_LC: 5`. **Bug real de sintaxis `.INPUT` nuevo, distinto a los dos de Fase 26**: SNANA aborta con
+`'GENRANGE_REDSHIFT:' keys exceeds limit=1` si se incluye el `.INPUT` completo del modelo real
+(`SIMGEN_INCLUDE_SNIa-SALT2.INPUT`, que ya declara `GENRANGE_REDSHIFT`/`SALT2c`/`SALT2x1`) y ADEMÁS se
+re-declaran esas mismas keys para colapsarlas a un punto — `checkStringUnique` con `limit=1` no permite
+keys duplicadas, ni siquiera para "sobreescribir". Corregido copiando a mano solo las keys necesarias
+(`GENMODEL`, `DNDZ`, `GENRANGE_TREST`, `GENMEAN_SALT2ALPHA/BETA`) sin incluir el archivo completo del
+modelo — coherente con la nota de Fase 26 de que no hay una vía de "override" directa en este release.
+
+Del lado LightCurveLynx: se tomó el objeto `CID=1` de cada `.DUMP` real (mismo RA/Dec/PEAKMJD en ambos
+`z` porque el `LIBID` de SIMLIB quedó fijo entre corridas) y se reconstruyó exacto vía
+`SncosmoWrapperModel` + `compute_noise_free_lightcurves()` real, con `x0` calculado por
+`X0FromDistMod` usando el `MU` real que generó SNANA (no una cosmología propia recalculada) — mismo
+patrón que Fase 26.
+
+**Resultado, banda por banda, relativo a `r` (misma convención de Fase 26: `diff = (LCL−r) − (SNANA−r)`):**
+
+| `z` | banda | LCL−r | SNANA−r | diff |
+|---:|---|---:|---:|---:|
+| 0.15 (Fase 26, referencia) | u/g/i | — | — | `-0.0020` / `-0.0002` / `+0.0005` |
+| 0.6 | g | +1.3132 | +1.2197 | **+0.0935** |
+| 0.6 | i | -0.0270 | +0.0594 | **-0.0864** |
+| 0.6 | z | +0.0144 | +0.1141 | **-0.0997** |
+| 0.6 | y | +0.1041 | +0.2019 | **-0.0978** |
+| 0.9 | i | -0.7188 | -0.5987 | **-0.1201** |
+| 0.9 | z | -0.7546 | -0.5775 | **-0.1771** |
+| 0.9 | y | -0.6263 | -0.4288 | **-0.1975** |
+
+(`u` queda indefinido en el `.DUMP` real a ambos `z` — banda `u` observada mapea por debajo de 2000 Å
+rest-frame ya a `z=0.6`; `g` queda indefinido también a `z=0.9`, mismo mecanismo de borde de Fase 13,
+consistente con el patrón de `nan` del Paso A.)
+
+**El efecto SÍ crece fuertemente con `z`**: de `~0.0002-0.002` mag en `z=0.15` (Fase 26) a `~0.09-0.20`
+mag en `z=0.6-0.9` — dos órdenes de magnitud, y en `z=0.9` la magnitud (`i:-0.12, z:-0.18, y:-0.20`) es
+comparable o mayor a la del propio patrón de Fase 23 (`~0.07-0.12` mag entre bandas adyacentes). **Fase
+26 no generalizaba**: su descarte era válido solo en el punto que probó, no para toda la cadena SALT2
+como se documentó entonces.
+
+### Pero el signo es el opuesto al patrón que hay que explicar
+
+Traduciendo el patrón poblacional de Fase 23 (`Δmag(LCL−SNANA)` por banda) a la misma convención "relativo
+a `r`" que esta prueba (`Δ_Fase23(banda) − Δ_Fase23(r)`): `g: -0.074, i: +0.050, z: +0.084, y: +0.137` —
+**creciente y positivo** de `g` a `y` (LCL relativamente cada vez MÁS brillante que SNANA hacia el rojo,
+respecto de `r`). El efecto medido acá en `z=0.6-0.9` es **decreciente y negativo** hacia el rojo
+(`i:-0.09/-0.12, z:-0.10/-0.18, y:-0.10/-0.20`) — **signo contrario**, no solo en `y` sino en `i`/`z`
+también. Un mecanismo que empuja en la dirección opuesta a la observada no puede ser la explicación
+(directa, aislada) del patrón de Fase 23 — como mucho, **cancela parcialmente** parte de la señal real a
+`z` alto, lo que implica que la causa verdadera (aún no identificada) debe ser de magnitud mayor a la ya
+medida en Fase 23 para sobrevivir a esta cancelación parcial.
+
+### Conclusión Fase 27 — reabierto en magnitud, descartado en dirección; resultado genuinamente mixto
+
+No es un descarte limpio ni una confirmación limpia, y se documenta así en vez de forzar una lectura
+simple (mismo criterio de honestidad que Fase 25): la integración de banda **no es despreciable a todo
+`z`** (Fase 26 generalizaba de más), pero tampoco puede ser la causa (aislada) del patrón de Fase 23
+porque el signo no coincide. Verificado además, por lectura de código real sin necesitar corridas
+nuevas, que el modelo de dispersión intrínseca cromática real de esta campaña
+(`GENMAG_SMEAR_MODELNAME: G10` en `SIMGEN_INCLUDE_SNIa-SALT2.INPUT`, confirmado activo — simplificación
+ya señalada como conocida en `NOTES.md` desde las primeras fases, nunca antes verificada) tampoco puede
+ser la causa de un sesgo sistemático de mediana: `init_genSmear_SALT2()`
+(`sntools_genSmear.c` real) construye el smear como `SIGCOH * RANGauss_LIST[...]` — un draw Gaussiano de
+media cero por construcción, no una función determinista con sesgo direccional; además `PEAKMAG_<filt>`
+en el `.DUMP` es la magnitud teórica/sin ruido (Fase 22 — epoch sintético en `PEAKMJD`), que no incluye
+el smear en absoluto, consistente con el match exacto a 4 decimales de Fase 26 en `z=0.15`. Con esto se
+agotan también estos dos candidatos adicionales. El patrón cromático de Fase 23 **sigue sin causa
+identificada**, ahora con un candidato adicional (integración de banda) reclasificado de "descartado" a
+"real pero de signo opuesto, insuficiente como única explicación" — y con el espacio de búsqueda para
+una continuación futura reducido a mecanismos fuera de la cadena SALT2 propiamente dicha (p.ej. algo en
+el modelo de ruido/PSF por banda, aunque eso no debería afectar una comparación sin ruido como esta).
+
+### Archivos de esta fase
+
+Exploratorios, no versionados, borrados de NLHPC tras usarlos: `fase27_paso_a_zbins.py` +
+`fase27_paso_a.sbatch` (Paso A, población completa 6 bandas), `sim_fase27_bandflux_z06.INPUT` +
+`sim_fase27_bandflux_z09.INPUT` + `run_fase27_bandflux_test.sbatch` (Paso B1, SNANA real),
+`fase27_lcl_vs_real_snana.py` + `fase27_lcl_check.sbatch` (Paso B1, LightCurveLynx real). GENVERSIONs
+`TEST_FASE27_bandflux_z06`/`z09` generados en `SNDATA_ROOT/SIM/` y borrados tras extraer el `.DUMP`. Sin
+cambios a scripts del pipeline -- diagnóstico puro, ningún candidato quedó en condición de accionar una
+corrección.
