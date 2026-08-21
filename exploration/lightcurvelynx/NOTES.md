@@ -3291,3 +3291,40 @@ antes, ~180MB instalados, sin impacto real en la cuota). **Verificado end-to-end
 -- las 9 celdas de código ejecutaron sin error (incluidas las 3 celdas "guardia" que hoy reportan datos
 faltantes en vez de fallar), las 4 celdas de gráficos generaron imagen real. La versión commiteada es
 la ejecutada (con outputs reales embebidos, ~510KB), no una plantilla vacía.
+
+## Fase 18 — síntesis de los 9 puntos de la reunión con el profe
+
+El usuario trajo una lista de 9 puntos de una conversación con su profesor sobre por qué
+LightCurveLynx difiere de SNANA. Esta fase no investigó nada nuevo -- cruzó cada punto contra la
+evidencia ya acumulada en Fases 0-17 y armó una síntesis (documento HTML, no versionado en el repo,
+publicado como artifact para llevar a la reunión). Resultado: **8 de los 9 puntos quedan cerrados con
+evidencia directa de código real de ambos lados**:
+
+1. Campo angular -- Fase 1 punto 4 (footprint DDF real vía `ObsTableRADECSampler`) + Fase 17 (WFD).
+2. Propiedades del telescopio -- Fase 12 (throughput/zeropoint, `kcor_LSST.fits` real, `ZPoff=0`,
+   mismo release v1.9) + Fase 2A (SKYSIG/PSF/ZPT reales del `.SIMLIB`).
+3. Criterio de detección -- mismo criterio (Fase 1 punto 5, Fase 6), **con un bug real identificado
+   y ya corregido que el usuario confirmó que hay que reportar formalmente**: Fase 4 encontró que
+   `searcheff.py` contaba observaciones individuales en vez de épocas reales agrupadas
+   (`NEWMJD_DIF=0.007d`) antes del trigger `>=2` -- afectaba a las 14 clases SIMSED por igual, ya
+   corregido (`group_into_epochs()`), verificado formalmente como subconjunto estricto del método
+   viejo.
+4. Ruido -- Fase 16 paso 1 (`gen_fluxNoise_calc()` reconstruida, `fluxerr` coincide 0.9986-1.0000).
+5. Tasa DNDZ(z) por clase -- 5 modelos reales (`POWERLAW2`/`MD14`/`CC_S15`/TDE/`PISN_PLK12`) de
+   Fases 2B/6/7, tabla completa de 20 configs (SIMSED+NON1ASED+SALT2) verificada en esta síntesis.
+6. z máximo por clase -- misma tabla del punto 5; caso `SLSN-I` reconfirmado explícitamente en Fase 17.
+7. Ley de extinción R_V -- MW (Fase 1 punto 6, Fase 10, fórmula `gen_MWEBV()` verificada línea por
+   línea) + color law SALT2 (Fase 16, coincide a precisión de máquina con `sncosmo`).
+8. A_V por clase (extinción de host) -- 3 variantes reales (`exp`/`exp_halfgauss`/`wv07`) de Fase 3 y
+   Fase 2B rondas 2-3, tabla completa por clase.
+9. **Parámetros SALT2 -- el único punto que queda abierto**, y es el más importante: alpha/beta/x1/c
+   y sus sigmas coinciden EXACTOS con el `.INPUT` real (Fase 16 paso 3), pero `M_abs`/`M_B0` nunca se
+   verificó contra la convención interna real de SNANA (el `.INPUT` no declara `GENMAG_OFF`) -- sigue
+   siendo el candidato más fuerte, con evidencia cuantitativa consistente en signo y magnitud
+   (0.12-0.24 mag de exceso de brillo sin ruido, Fase 16 paso 3), para el residuo que queda tras
+   cerrar los otros 8 puntos.
+
+**Acciones que salen de esta síntesis** (no ejecutadas en esta fase): (a) reportar formalmente el bug
+del punto 3 como hallazgo documentado; (b) el siguiente paso técnico real del proyecto sigue siendo el
+que ya recomendaba el cierre de Fase 16 -- leer `sncosmo.SALT2Source`/`X0FromDistMod` para encontrar
+la convención de M_B0 y compararla contra cómo SNANA deriva `x0` internamente sin `GENMAG_OFF`.
