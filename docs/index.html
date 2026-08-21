@@ -260,6 +260,41 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
+  /* ---------------------------------------------------------- lcl sub-nav */
+  .lcl-subnav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 4px 0 26px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lcl-subnav-btn {
+    flex: 0 0 auto;
+    padding: 7px 13px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-dim);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+
+  .lcl-subnav-btn:hover { color: var(--ink); border-color: var(--border-strong); }
+
+  .lcl-subnav-btn.active {
+    color: var(--accent-ink);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .lcl-subpanel { display: none; }
+  .lcl-subpanel.active { display: block; }
+
   /* ---------------------------------------------------------- fact strip */
   .facts {
     display: grid;
@@ -800,6 +835,11 @@
 
   .cause-card.confirmed .cause-label { color: var(--accent); }
   .cause-card.refuted .cause-label { color: var(--warn); }
+  .cause-card.critical .cause-label { color: var(--critical); }
+  .cause-card.critical { border-color: var(--critical); }
+
+  .verdict-badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .verdict-badge.critical { background: var(--critical-bg); color: var(--critical); }
 
   .cause-card h3 { margin: 0 0 8px; font-size: 0.92rem; }
   .cause-card p { margin: 0; font-size: 0.84rem; color: var(--ink-dim); }
@@ -921,8 +961,8 @@
   .recipe .step-body p { margin: 0 0 6px; font-size: 0.86rem; color: var(--ink-dim); }
   .recipe .step-body strong { color: var(--ink); }
 
-  .recipe pre {
-    margin: 6px 0 0;
+  .recipe pre, .howto pre {
+    margin: 6px 0 14px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: 3px;
@@ -934,6 +974,14 @@
   }
 
   ol.recipe { margin: 0; padding: 0; }
+
+  .howto h3 { margin: 26px 0 6px; font-size: 0.98rem; }
+  .howto h3:first-child { margin-top: 4px; }
+  .howto h4 { margin: 16px 0 4px; font-size: 0.86rem; color: var(--ink-dim); }
+  .howto p { font-size: 0.87rem; color: var(--ink-dim); max-width: 74ch; margin: 0 0 10px; }
+  .howto ul, .howto ol { font-size: 0.87rem; color: var(--ink-dim); max-width: 74ch; margin: 0 0 12px; padding-left: 20px; }
+  .howto li { margin-bottom: 5px; }
+  .howto strong { color: var(--ink); }
 
   /* ---------------------------------------------------------- footer */
   footer {
@@ -1125,6 +1173,240 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     no forma parte del pipeline de producción. Detalle completo, con hallazgos honestos en ambas direcciones
     (confirmados y refutados), en <code>exploration/lightcurvelynx/NOTES.md</code>.</p>
 
+    <nav class="lcl-subnav" id="lclSubnav"></nav>
+
+    <div class="lcl-subpanel" id="lcl-sub-resumen">
+    <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
+    difiere de SNANA (Fase 18-19 de <code>NOTES.md</code>), cruzados contra la evidencia de las Fases 0-17.
+    Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
+    "21&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+
+    <div class="callout accent">
+      <span class="verdict-badge">8 / 9 puntos cerrados</span>
+      <p><strong>Campo angular, telescopio, ruido, tasas <code>DNDZ(z)</code> por clase, <code>z</code> máximo
+      por clase, ley de extinción R_V y A_V por clase</strong> quedan cerrados con evidencia directa de código
+      real de ambos lados — footprint, throughput/zeropoint, ruido fotométrico, tasas de explosión y rangos de
+      redshift ya se verificaron clase por clase contra los <code>.INPUT</code> reales de producción.</p>
+      <p>El único punto que sigue abierto — y es el importante — son los <strong>parámetros SALT2</strong>
+      (punto 9): <code>alpha</code>/<code>beta</code>/<code>x1</code>/<code>c</code> coinciden exactos, pero
+      <code>M_abs</code>/<code>M_B0</code> nunca se verificó contra la convención interna real de SNANA — es el
+      candidato más fuerte, con evidencia cuantitativa (0.12-0.24 mag de exceso de brillo sin ruido), para el
+      residuo que queda.</p>
+    </div>
+
+    <div class="causes" style="margin-top:20px;">
+      <div class="cause-card confirmed">
+        <p class="cause-label">01 · Resuelto</p>
+        <h3>Campo angular diferente</h3>
+        <p>Footprint real de OpSim (<code>ObsTableRADECSampler</code>, ponderado por visitas) en vez de una caja
+        uniforme de cielo — DDF ya validado desde Fase 1, WFD extendido en Fase 17 (sin campos fijos, grilla
+        real de E(B-V) por posición).</p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">02 · Resuelto</p>
+        <h3>Propiedades del telescopio</h3>
+        <p>Throughput/zeropoint idénticos a precisión de máquina contra el <code>kcor_LSST.fits</code> real
+        (Fase 12, <code>ZPoff=0</code>, mismo release v1.9). Ruido por época inyectado con SKYSIG/PSF/ZPT reales
+        del <code>.SIMLIB</code> (Fase 2A).</p>
+      </div>
+      <div class="cause-card refuted">
+        <p class="cause-label">03 · Mismo criterio — bug a reportar</p>
+        <h3>Criterio de detección</h3>
+        <p><code>SEARCHEFF</code> real, verificado (Fase 1/6). Pero Fase 4 encontró un bug real: el trigger
+        contaba observaciones individuales en vez de épocas reales agrupadas (<code>NEWMJD_DIF</code>) — ya
+        corregido, afectaba a las 14 clases por igual. <strong>100% local</strong> (<code>SEARCHEFF</code> no
+        existe en LightCurveLynx) — no hay nada que reportarle al programa por este hallazgo.</p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">04 · Resuelto</p>
+        <h3>Ruidos diferentes</h3>
+        <p>Fórmulas matemáticamente equivalentes (Fase 16: <code>gen_fluxNoise_calc()</code> real vs.
+        <code>poisson_bandflux_std()</code>, razón 0.9986-1.0000 con los mismos parámetros reales).</p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">05 · Resuelto</p>
+        <h3>Tasa de explosión (DNDZ) por clase</h3>
+        <p>5 modelos reales (<code>POWERLAW2</code>/<code>MD14</code>/<code>CC_S15</code>/TDE/<code>PISN_PLK12</code>)
+        verificados clase por clase contra el <code>.INPUT</code> real de cada una (Fases 2B/6/7).</p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">06 · Resuelto</p>
+        <h3>Redshift máximo por clase</h3>
+        <p>Auditado dos veces (Fase 17 para <code>SLSN-I</code>, Fase 19 para las 19 clases contra el
+        <code>INPUT_INCLUDE_FILE</code> real que de verdad compiló cada <code>GENVERSION</code>) — sin cambios
+        de código necesarios en ningún caso.</p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">07 · Resuelto</p>
+        <h3>Ley de extinción (R_V)</h3>
+        <p>MW: misma familia que <code>OPT_MWCOLORLAW</code> real (O94/CCM89), dispersión verificada línea por
+        línea (Fase 10). Color law SALT2: coincide a precisión de máquina con <code>sncosmo</code> (Fase 16).</p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">08 · Resuelto</p>
+        <h3>Distribución de A_V por clase</h3>
+        <p>3 variantes reales (<code>exp</code>/<code>exp_halfgauss</code>/<code>wv07</code>) implementadas y
+        verificadas línea por línea contra <code>snlc_sim.c</code> (Fase 3, Fase 2B rondas 2-3).</p>
+      </div>
+      <div class="cause-card critical">
+        <p class="cause-label">09 · Abierto — el cabo suelto real</p>
+        <h3>Parámetros SALT2 — M_abs/M_B0</h3>
+        <p><code>alpha</code>/<code>beta</code>/<code>x1</code>/<code>c</code> exactos. <code>M_abs</code> nunca
+        verificado: el <code>.INPUT</code> real no declara <code>GENMAG_OFF</code>. Fase 19 encontró que
+        <code>X0SCALE_SALT2=1e-12</code> de SNANA es bookkeeping puro (se cancela en el flujo real) — el
+        <code>-19.365</code> despejado algebraicamente era un espejismo. Calibración empírica de reemplazo:
+        <code>M_abs ≈ -19.13</code>, pendiente de verificar con primeros principios (ver pestaña "21 fases",
+        Fase 20).</p>
+      </div>
+    </div>
+    </div>
+
+    <div class="lcl-subpanel" id="lcl-sub-howto">
+    <p class="section-sub">Instructivo operativo — cómo hacer funcionar LightCurveLynx desde cero, sin depender
+    de ninguna sesión previa. Fuente completa y siempre actualizada:
+    <code>exploration/lightcurvelynx/HOWTO.md</code>. Este es el mismo contenido, portado al dashboard.</p>
+
+    <div class="howto">
+
+    <h3>1. Qué es LightCurveLynx en este proyecto</h3>
+    <p><a href="https://github.com/lincc-frameworks/LightCurveLynx" target="_blank" rel="noopener">LightCurveLynx</a>
+    (LINCC Frameworks) es un simulador de curvas de luz en Python — la pregunta que este proyecto investiga desde
+    la Fase 0 es si puede reemplazar a SNANA (el simulador real de producción, en C, capas 1-4 del pipeline) como
+    motor de simulación. Todo lo de esta pestaña es <strong>exploratorio</strong>, no forma parte del pipeline de
+    producción (<code>pipeline/</code>) — no toca <code>campaigns/</code>, <code>models.yaml</code> ni corre
+    dentro de <code>run_campaign.py</code>.</p>
+
+    <h3>2. Entorno — cómo se instaló</h3>
+    <p>Vive en un venv <strong>aislado</strong> en NLHPC, separado del venv del pipeline SNANA real:</p>
+    <pre>cd ~/AUTOSIM/exploration/lightcurvelynx
+module load python/3.12.3-legacy-skylake
+python3 -m venv venv
+source venv/bin/activate
+pip install "lightcurvelynx[all]"   # jax, dask, hats, dust_extinction, synphot, etc.</pre>
+    <p>Desde Fase 17 el mismo venv también tiene <code>jupyter</code>/<code>nbconvert</code>/<code>ipykernel</code>
+    (para <code>analyze_phot_df.ipynb</code>) y <code>pandas</code>/<code>pyarrow</code>/<code>matplotlib</code>.
+    <strong>Nunca trabajar en el login node</strong> para nada que no sea trivial — todo lo que simula o lee
+    datos reales va por <code>sbatch</code>, mismo criterio que el resto del pipeline.</p>
+
+    <h3>3. Conceptos mínimos (lo que este proyecto realmente usa)</h3>
+    <p>LightCurveLynx arma un <strong>grafo de nodos</strong> — cada parámetro del objeto simulado (redshift,
+    RA/Dec, t0, parámetros del modelo, extinción...) sabe samplear su propio valor, conectado a sus dependencias.
+    Piezas reales usadas en este proyecto:</p>
+    <ul>
+      <li><strong><code>OpSim</code></strong> — envuelve la tabla de observaciones reales del survey (leída
+      directo del <code>.db</code> de OpSim, no de un SIMLIB pre-construido).</li>
+      <li><strong><code>ObsTableRADECSampler</code></strong> — samplea posiciones reales de los pointings de un
+      <code>OpSim</code> ya filtrado (DDF o WFD), ponderado por visitas.</li>
+      <li><strong>Modelos de fuente</strong> — <code>SIMSEDModel</code>/<code>MultiSEDTemplateModel</code>
+      (templates reales SIMSED/NON1ASED de SNANA) o <code>SncosmoWrapperModel</code> sobre
+      <code>sncosmo.SALT2Source</code> (SALT2 real, <code>SALT2.WFIRST-H17</code>).</li>
+      <li><strong>Efectos</strong> (<code>ClippedExtinctionEffect</code>/<code>ExtinctionEffect</code>) —
+      extinción MW y de host encadenadas sobre el modelo de fuente.</li>
+      <li><strong><code>PassbandGroup.from_preset(preset="LSST")</code></strong> — curvas reales de Rubin
+      (verificado en Fase 12 que coinciden con el <code>kcor_LSST.fits</code> real).</li>
+      <li><strong><code>simulate_lightcurves(...)</code></strong> — el punto de entrada real, genera
+      <code>ngentot</code> objetos con su curva de luz en las épocas reales que le tocaron.</li>
+      <li><strong>Samplers custom</strong> (<code>snana_params.py</code>, no nativos) — DNDZ, x1/c bifurcada,
+      atenuación de host, dispersión MWEBV, y desde Fase 17 el lookup de E(B-V) real para WFD.</li>
+    </ul>
+
+    <h4>Trampas reales de la librería (confirmadas leyendo el código instalado, no la documentación)</h4>
+    <ol>
+      <li><code>ObsTableRADECSampler</code> aplica jitter de posición sin semilla si <code>radius &gt; 0</code> →
+      siempre pasar <code>radius=0.0</code> para pointings fijos.</li>
+      <li><code>TableSampler.__init__</code> arma su índice de fila interno <strong>sin heredar</strong> el
+      <code>seed=</code> externo → sembrarlo a mano:
+      <code>radec_sampler.setters["selected_table_index"].dependency.set_seed(seed_base + 5)</code>.</li>
+      <li><code>SIMSEDModel.from_dir()</code>/<code>MultiSEDTemplateModel.__init__</code> arman su sampler de
+      template sin <code>seed=</code> → <code>source_model._sampler_node.set_seed(seed_base + 9)</code>.</li>
+      <li><code>simulate_lightcurves()</code> necesita <code>rng=np.random.default_rng(seed_base + N)</code>
+      explícito, si no el ruido fotométrico cae en un generador sin semilla.</li>
+    </ol>
+    <p>Los 3 scripts <code>run_*_poc.py</code> ya aplican estos 4 fixes (ver pestaña "Causas investigadas" y
+    <code>NOTES.md</code> Fases 4-5 para el detalle real de cada bug).</p>
+
+    <h3>4. Los 3 scripts reales de este proyecto</h3>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Script</th><th>Modelo</th><th>Clases</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td><code>run_simsed_poc.py</code></td><td><code>SIMSEDModel</code></td><td>14</td>
+          <td><code>python3 run_simsed_poc.py &lt;clase&gt; [seed_index] [--wfd]</code></td></tr>
+          <tr><td><code>run_non1ased_poc.py</code></td><td><code>MultiSEDTemplateModel</code> (NON1ASED)</td>
+          <td>5: <code>SNIa-91bg</code>, <code>SNIax</code>, <code>TDE</code>, <code>SLSN-I</code>,
+          <code>KN-BULLA-BNS-M2COMP</code></td>
+          <td><code>python3 run_non1ased_poc.py &lt;clase&gt; [seed_index] [--wfd]</code></td></tr>
+          <tr><td><code>run_snia_ddf_poc.py</code></td><td><code>SncosmoWrapperModel</code>/SALT2</td>
+          <td>1: <code>SNIa</code></td>
+          <td><code>python3 run_snia_ddf_poc.py [seed_index] [--wfd]</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:10px;"><code>--wfd</code> (Fase 17) corre a escala WFD (footprint completo, E(B-V) real
+    por posición) en vez de DDF (6 campos fijos) — mismo <code>NGENTOT</code> en ambos casos (2000/clase, salvo
+    <code>PISN-STELLA-HYDROGENIC</code> en 20000). <code>seed_index</code> (0 = corrida principal; 1-4 = semillas
+    extra) es siempre el 2do argumento posicional; <code>--wfd</code> puede ir en cualquier posición.</p>
+
+    <h3>5. Cómo correr una simulación real</h3>
+    <p>Nunca directo en el login node — siempre <code>sbatch</code>, desde la raíz del repo
+    (<code>~/AUTOSIM</code>):</p>
+    <pre>cd ~/AUTOSIM
+sbatch exploration/lightcurvelynx/run_simsed_poc.sbatch SNIa-91bg-elastic          # DDF, seed 0
+sbatch exploration/lightcurvelynx/run_simsed_poc.sbatch SNIa-91bg-elastic 0 --wfd  # WFD, seed 0
+sbatch exploration/lightcurvelynx/run_non1ased_poc.sbatch SLSN-I 2                 # DDF, seed 2
+sbatch exploration/lightcurvelynx/run_snia_ddf_poc.sbatch 0 --wfd                  # SNIa/SALT2, WFD</pre>
+    <p>Verificar progreso: <code>squeue -u $USER</code>, logs en <code>logs/lcl_*_%j.out</code>/<code>.err</code>.
+    <strong>Antes de cualquier corrida real, verificar headroom de disco</strong> (la cuota de NLHPC es el
+    recurso más frágil del proyecto, ya hubo un incidente real en Fase 8):</p>
+    <pre>du -sh ~/                                                  # uso actual
+dd if=/dev/zero of=~/.headroom_test bs=1M count=500        # prueba de escritura real
+rm -f ~/.headroom_test</pre>
+
+    <h3>6. Qué produce y cómo leerlo</h3>
+    <p>Cada corrida crea <code>poc_output_&lt;clase&gt;[_seed&lt;N&gt;][_wfd]/</code> con:</p>
+    <ul>
+      <li><strong><code>summary.json</code></strong> — la "comprobación" agregada: <code>ngentot_lc</code>,
+      <code>n_with_obs</code>, <code>n_detected</code>, <code>detection_efficiency_pct</code>,
+      <code>snr_median</code>/<code>snr_p90</code>, <code>strategy</code> (<code>DDF</code>/<code>WFD</code>) —
+      lo único que se conserva siempre, incluso para las corridas de semilla extra.</li>
+      <li><strong><code>head_df.parquet</code></strong> — una fila por objeto simulado con observación:
+      <code>SNID</code>, <code>SNTYPE</code>, <code>RA</code>, <code>DEC</code>, <code>REDSHIFT_HELIO</code>,
+      <code>PEAKMJD</code>, <code>NOBS</code>, <code>DETECTED</code>.</li>
+      <li><strong><code>phot_df.parquet</code></strong> — una fila por observación individual:
+      <code>SNID</code>, <code>MJD</code>, <code>FLT</code>, <code>FLUXCAL</code>/<code>FLUXCALERR</code> (nJy),
+      <code>MAG</code>, <code>PHOTFLAG</code>. El más pesado — no se versiona en git.</li>
+      <li><strong><code>qc/*.png</code></strong> — 4 gráficos de control (mismo módulo que SNANA real):
+      detecciones, curvas de luz, magnitudes, redshift.</li>
+    </ul>
+    <p>Para explorar sin escribir código nuevo cada vez:
+    <code>exploration/lightcurvelynx/analyze_phot_df.ipynb</code> (Fase 17) — escanea automáticamente qué
+    corridas hay disponibles y arma los gráficos/estadísticas estándar.</p>
+    <pre>cd ~/AUTOSIM/exploration/lightcurvelynx
+sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un job real</pre>
+
+    <h3>7. Dónde está cada cosa real que estos scripts leen</h3>
+    <p>Todo bajo <code>/home/mvalenzuela/</code> en NLHPC — nunca hardcodear un valor sin verificar contra el
+    archivo real primero:</p>
+    <ul>
+      <li><code>.INPUT</code> reales: <code>run_SNANA/model_config/SIMGEN_INCLUDE_&lt;clase&gt;.INPUT</code>
+      (base) o <code>run_SNANA/elastic/model_config/...</code> (árbol "elastic", NON1ASED). La fuente de verdad
+      de cuál usa cada <code>GENVERSION</code> real es
+      <code>AUTOSIM/build/full_v5.3_10yrs/includes/include_model_&lt;clase&gt;.INPUT</code> — no asumir por el
+      nombre de carpeta (Fase 19).</li>
+      <li>SIMLIB/OpSim real: <code>AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db</code> (<code>target_name LIKE
+      '%ddf_%'</code> filtra DDF, el resto es WFD).</li>
+      <li>SEARCHEFF real: <code>run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT</code> +
+      <code>run_SNANA/LSST_PIPELINE_LOGIC.DAT</code>.</li>
+      <li>SALT2 real: <code>run_SNANA/plasticc_models/SALT2.WFIRST-H17/</code> (+ <code>SALT2.INFO</code>).</li>
+      <li>.DUMP/FITS de una campaña ya corrida: buscar bajo
+      <code>/home/mvalenzuela/DATASIM_LSST_1/&lt;DDF|WFD&gt;/&lt;versión&gt;/&lt;GENVERSION&gt;/</code> — no es
+      un path fijo, cambia con cada versión de campaña.</li>
+    </ul>
+
+    </div>
+    </div>
+
+    <div class="lcl-subpanel" id="lcl-sub-evaluacion">
     <div class="callout accent">
       <span class="verdict-badge">GO condicional</span>
       <p><strong>La mecánica funciona en las 14 clases del catálogo</strong> — parámetros reales, extinción MW,
@@ -1232,8 +1514,10 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         </div>
       </div>
     </details>
+    </div>
 
-    <h3 style="margin:26px 0 12px; font-size:1rem;">Diecinueve fases, cada una con una decisión real</h3>
+    <div class="lcl-subpanel" id="lcl-sub-fases">
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintiuna fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1349,8 +1633,48 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
           <p><strong>Comparación pointwise ruido→SNR→trigger para <code>SNIa</code>/SALT2 — el hallazgo más sólido desde Fase 7</strong> — se retoma una brecha real que Fase 1 dejó documentada y sin cerrar: SNR de LightCurveLynx sistemáticamente más alto que el de SNANA para la misma campaña. <strong>Paso 1:</strong> se reconstruyó línea por línea <code>gen_fluxNoise_calc()</code> (fórmula real de ruido de SNANA) y se comparó numéricamente contra <code>poisson_bandflux_std()</code> real de LightCurveLynx con condiciones de observación reales del <code>.SIMLIB</code> — con los mismos parámetros reales las dos fórmulas coinciden casi exactamente (razón 0.999-1.000); el único defecto real encontrado (LightCurveLynx usa <code>readout_noise=8.8</code>/<code>dark_current=0.2</code>, defaults genéricos de LSSTCam, en vez de los <code>0.25</code>/<code>0</code> reales y simplificados de esta campaña) va en dirección <em>contraria</em> al sobre-conteo. <strong>Paso 2:</strong> remedido el SNR hoy con todo el código acumulado — la brecha de Fase 1 (mediana +29%, p90 +151%) se achicó mucho (+11.3%/+30.4%) pero no desapareció, y como el ruido ya se confirmó equivalente, el residuo tiene que venir del numerador. <strong>Paso 3, el hallazgo real:</strong> nunca se había hecho la comparación de brillo sin ruido de Fase 7 para SALT2 (solo se hizo para SIMSED) — hecha ahora contra el <code>.DUMP</code> real de producción, LightCurveLynx sale sistemáticamente <strong>más brillante</strong> que SNANA en casi todo el rango de redshift (~0.12-0.24 mag), <em>lo opuesto</em> de Fase 7 y en la dirección correcta para explicar el sobre-conteo — cuantitativamente consistente con el exceso de SNR del Paso 2. <strong>Paso 4:</strong> se leyó el código fuente real de la conversión x0↔magnitud absoluta en ambos lados (<code>X0FromDistMod</code> de LightCurveLynx, <code>SALT2x0calc()</code> de SNANA) — la constante de referencia (<code>mBoff=10.635</code>) coincide exactamente en ambos códigos, y despejando el M_abs <em>implícito</em> que usa SNANA (vía <code>X0SCALE_SALT2=1e-12</code>) da <strong>-19.365</strong>, contra <code>-19.3</code> que usa el PoC — una diferencia real de 0.065 mag, pero <strong>con el signo contrario al necesario</strong>: -19.365 es más brillante, así que corregirlo empeoraría la discrepancia observada, no la explicaría. M_abs queda descartado como causa. La discrepancia real de brillo, sin este pequeño efecto compensador, sería aún mayor (~0.19-0.30 mag). <strong>Paso 5:</strong> se verificó el color law hasta el fondo — se descargó el código fuente Cython real de <code>sncosmo.salt2utils.SALT2ColorLaw</code> (el paquete instalado solo trae el binario compilado) y se comparó numéricamente contra la reconstrucción exacta de <code>SALT2colorlaw1</code> de SNANA en un grid de λ dentro y fuera de <code>[2800,9500]</code>&nbsp;Å con <code>c=-0.054</code> real — misma normalización, mismo polinomio, mismo mecanismo de extrapolación lineal tangente: <strong>razón 1.000000 en todos los puntos probados</strong>, coincide a precisión de máquina. Con esto los dos candidatos concretos identificados (M_abs, color law) quedan descartados. Candidato residual sin verificar: la normalización/interpolación 2D (fase×longitud de onda) del propio flujo del template SALT2 mismo — requiere una comparación de flujo crudo punto a punto, pendiente.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">18</span>
+        <div class="step-body">
+          <p><strong>Síntesis de los 9 puntos discutidos con el profesor</strong> — se cruzó cada punto de esa
+          lista (campo angular, propiedades del telescopio, criterio de detección, ruido, tasa <code>DNDZ(z)</code>
+          por clase, <code>z</code> máximo por clase, ley de extinción R_V, A_V por clase, parámetros SALT2)
+          contra la evidencia ya acumulada en Fases 0-17, sin investigación nueva. <strong>8 de 9 puntos
+          cerrados</strong> con evidencia directa de código real de ambos lados. El único que queda abierto —
+          y el más importante — es el punto 9 (parámetros SALT2): <code>alpha</code>/<code>beta</code>/
+          <code>x1</code>/<code>c</code> coinciden exactos, pero <code>M_abs</code>/<code>M_B0</code> nunca se
+          verificó contra la convención interna real de SNANA. Se confirmó además que el bug de Fase 4 (trigger
+          de detección) es <strong>local</strong> (<code>SEARCHEFF</code> no existe en LightCurveLynx, se
+          escribió para este proyecto), no un bug del programa.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">19</span>
+        <div class="step-body">
+          <p><strong>Auditoría real de <code>z</code> máximo, y por qué el M_abs de Fase 17 (paso 4) era un
+          espejismo</strong> — <strong>(a)</strong> se encontró la fuente de verdad real de cada
+          <code>GENVERSION</code> de producción (<code>AUTOSIM/build/full_v5.3_10yrs/includes/
+          include_model_&lt;clase&gt;.INPUT</code>, el <code>INPUT_INCLUDE_FILE:</code> que de verdad se
+          compiló, no solo el <code>.INPUT</code> template) y se re-verificaron las 19 clases del proyecto —
+          todas coinciden exactas, sin cambios de código necesarios, y DDF/WFD comparten el mismo <code>z</code>
+          real. <strong>(b)</strong> Se rastreó <code>SALT2x0calc()</code>/<code>mBoff_SALT2=10.635</code> real
+          de SNANA hasta el fondo: la constante <code>10.635</code> coincide exacta con la que usa
+          LightCurveLynx (confirma forma/signo correctos), pero <code>X0SCALE_SALT2=1e-12</code> resultó ser
+          <strong>bookkeeping puro que se cancela en el flujo físico real</strong> (confirmado rastreando
+          <code>INTEG_zSED_SALT2()</code>) — el <code>M_abs=-19.365</code> despejado en el Paso 4 de Fase 17 es
+          un artefacto de esa convención interna, no una calibración física real (de hecho iba en la dirección
+          contraria al residuo medido). Calibración empírica de reemplazo, usando el residuo ya medido en
+          Fase 17 (0.12-0.24 mag): <code>M_abs ≈ -19.13</code> — no aplicada todavía, queda pendiente de
+          verificar con primeros principios (Fase 20). <strong>(c)</strong> Se separaron los bugs reales de la
+          librería LightCurveLynx (4 samplers internos sin heredar <code>seed=</code>, Fases 4-5 — candidatos
+          reales para un issue en el repo) del bug local de Fase 4 (<code>SEARCHEFF</code>, no existe en
+          LightCurveLynx).</p>
+        </div>
+      </li>
     </ol>
+    </div>
 
+    <div class="lcl-subpanel" id="lcl-sub-tabla">
     <div class="lcl-stats" id="lcl-stats"></div>
 
     <div class="table-scroll">
@@ -1374,8 +1698,10 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     semilla 0. Verde ≤2x (banda residual sistémica ya diagnosticada, ver Fase 2 parte A), ámbar 2–4x, rojo &gt;4x. Extinción de host
     <code>WV07</code> implementada en Fase 3; trigger de detección corregido a épocas reales en Fase 4; 3 bugs de reproducibilidad
     (posición/pointing y ruido fotométrico sin semilla) corregidos en Fase 5 — los cuatro aplicados a las 14 clases.</p>
+    </div>
 
-    <h3 style="margin:30px 0 12px; font-size:1rem;">Diagnóstico: dos hipótesis reales, ninguna explica la brecha dominante</h3>
+    <div class="lcl-subpanel" id="lcl-sub-causas">
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Diagnóstico: dos hipótesis reales, ninguna explica la brecha dominante</h3>
     <div class="causes">
       <div class="cause-card confirmed">
         <p class="cause-label">Causa confirmada — las 14 clases</p>
@@ -1615,10 +1941,13 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       sistémico multiplicativo sigue siendo la prioridad para cualquier trabajo futuro, ahora con una hipótesis
       menos en la lista y una dirección más concreta hacia dónde mirar.</p>
     </div>
+    </div>
 
-    <p class="section-sub" style="margin-top:30px;">Mismos 4 gráficos de control que la sección 03, generados por el PoC de cada clase.</p>
+    <div class="lcl-subpanel" id="lcl-sub-qc">
+    <p class="section-sub" style="margin-top:10px;">Mismos 4 gráficos de control que la sección 03, generados por el PoC de cada clase.</p>
     <div class="qc-selector" id="lcl-selector"></div>
     <div class="qc-panels" id="lcl-panels"></div>
+    </div>
   </section>
 
   <footer>
@@ -1664,11 +1993,51 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     `<span class="tabnav-num">${t.num}</span>${t.label}</button>`
   ).join("");
 
+  // sub-navegación de la pestaña LightCurveLynx (06) -- mismo mecanismo que
+  // TABS/activateTab arriba, un nivel más adentro, con hash compuesto
+  // "lcl:<subtab>" para que cada sub-pestaña siga siendo enlazable.
+  const LCL_SUBTABS = [
+    { id: "resumen", label: "Resumen" },
+    { id: "howto", label: "Cómo correrlo" },
+    { id: "evaluacion", label: "Evaluación y glosario" },
+    { id: "fases", label: "21 fases" },
+    { id: "tabla", label: "Tabla de clases" },
+    { id: "causas", label: "Causas investigadas" },
+    { id: "qc", label: "QC" },
+  ];
+  const lclSubnav = document.getElementById("lclSubnav");
+  lclSubnav.innerHTML = LCL_SUBTABS.map(t =>
+    `<button class="lcl-subnav-btn" data-subtab="${t.id}" type="button">${t.label}</button>`
+  ).join("");
+
+  let currentTab = TABS[0].id;
+  let currentLclSubtab = LCL_SUBTABS[0].id;
+
+  function writeHash() {
+    const hash = currentTab === "lcl" ? `lcl:${currentLclSubtab}` : currentTab;
+    history.replaceState(null, "", "#" + hash);
+  }
+
+  function paintLclSubtab() {
+    document.querySelectorAll(".lcl-subpanel").forEach(el =>
+      el.classList.toggle("active", el.id === "lcl-sub-" + currentLclSubtab));
+    document.querySelectorAll(".lcl-subnav-btn").forEach(btn =>
+      btn.classList.toggle("active", btn.dataset.subtab === currentLclSubtab));
+  }
+
   function activateTab(id, opts = {}) {
-    const valid = TABS.some(t => t.id === id) ? id : TABS[0].id;
-    document.querySelectorAll(".tab-panel").forEach(el => el.classList.toggle("active", el.id === valid));
-    document.querySelectorAll(".tabnav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === valid));
-    history.replaceState(null, "", "#" + valid);
+    currentTab = TABS.some(t => t.id === id) ? id : TABS[0].id;
+    document.querySelectorAll(".tab-panel").forEach(el => el.classList.toggle("active", el.id === currentTab));
+    document.querySelectorAll(".tabnav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === currentTab));
+    if (currentTab === "lcl") paintLclSubtab();
+    writeHash();
+    if (opts.scroll) window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function activateLclSubtab(id, opts = {}) {
+    currentLclSubtab = LCL_SUBTABS.some(t => t.id === id) ? id : LCL_SUBTABS[0].id;
+    paintLclSubtab();
+    writeHash();
     if (opts.scroll) window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -1678,9 +2047,20 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     activateTab(btn.dataset.tab, { scroll: true });
   });
 
-  window.addEventListener("hashchange", () => activateTab(location.hash.slice(1)));
+  lclSubnav.addEventListener("click", e => {
+    const btn = e.target.closest(".lcl-subnav-btn");
+    if (!btn) return;
+    activateLclSubtab(btn.dataset.subtab, { scroll: true });
+  });
 
-  activateTab(location.hash.slice(1));
+  function activateFromHash() {
+    const [top, sub] = location.hash.slice(1).split(":");
+    activateTab(top);
+    if (currentTab === "lcl" && sub) activateLclSubtab(sub);
+  }
+
+  window.addEventListener("hashchange", activateFromHash);
+  activateFromHash();
 
   // -------------------------------------------------- masthead timestamp
   document.getElementById("snapshot-time").textContent =
