@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "26&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "27&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1549,7 +1549,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintiséis fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintisiete fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1817,6 +1817,30 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           cromático de Fase 23 sigue sin explicarse; candidato que queda: la convención de integración
           de flujo en banda (photon-counting vs. energy-flux) entre SNANA y <code>sncosmo</code>, nunca
           comparada término a término (a diferencia de la forma estática del passband, Fase 12).</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">25</span>
+        <div class="step-body">
+          <p><strong>Integración de flujo en banda — intento sin resultado confiable (documentado
+          honesto)</strong> — se confirmó por lectura de código real que SNANA
+          (<code>INTEG_zSED_SALT2()</code>) pesa por <code>λ</code> (photon-counting sobre longitud de
+          onda observada) mientras que LightCurveLynx
+          (<code>Passband.compute_system_response_table()</code>, cita real "eq. 8, On the Choice of
+          LSST Flux Units") pesa por <code>1/λ</code> — pesos de signo opuesto en <code>λ</code>, real y
+          verificado. Pero al intentar reconstruir la fórmula literal de SNANA a mano y compararla
+          contra <code>Passband.fluxes_to_bandflux()</code> real (mismo patrón que funcionó bien en
+          Fases 16/20/21), el resultado salió <strong>implausible y no monótono</strong> entre bandas
+          (hasta ~3 mag en <code>u</code>, con signos que se invertían entre intentos sucesivos al
+          corregir un bug de normalización circular encontrado en el propio script) — probablemente
+          contaminado por el borde del template SALT2 (<code>λ_rest≈2000</code> Å coincide con el
+          límite crudo justo dentro de la banda <code>u</code> a <code>z=0.6</code>). <strong>No se
+          reporta un número porque no se confía en él</strong> — a diferencia de las fases anteriores,
+          esta reconstrucción manual resultó demasiado frágil para esta pregunta específica. El
+          candidato queda <strong>abierto, ni confirmado ni descartado</strong>. Camino confiable que
+          queda (no intentado): correr el binario real <code>snlc_sim.exe</code> (ya disponible en
+          NLHPC) con un objeto de prueba controlado y comparar directo, código real contra código real,
+          en vez de una reconstrucción manual.</p>
         </div>
       </li>
     </ol>
@@ -2148,7 +2172,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "26 fases" },
+    { id: "fases", label: "27 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

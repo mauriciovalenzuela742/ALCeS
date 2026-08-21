@@ -3831,3 +3831,65 @@ término, a diferencia de la forma estática del passband (Fase 12, sí verifica
 `run_simsed_poc.py`, `run_non1ased_poc.py`, `run_snia_ddf_poc.py`, `compare_brightness_truth.py`,
 `compare_brightness_truth_salt2.py`: `extinction_model` corregido de `"O94"` a `"F99"`.
 `fase24_verify_extinction.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo).
+
+## Fase 25 -- integración de flujo en banda: intento sin resultado confiable (documentado honesto)
+
+Ataca el candidato que dejó abierto Fase 24: la convención de integración de flujo en banda
+(photon-counting vs. energy-flux) entre SNANA y `sncosmo`/LightCurveLynx.
+
+### Lo que se confirmó con lectura de código real (sólido)
+
+- **SNANA** (`INTEG_zSED_SALT2()` real, `genmag_SALT2.c`): `Fbin_forFlux = FTMP * CCOR * HOSTXT_FRAC *
+  MWXT_FRAC * LAMSED * TRANS`, con `LAMSED` = longitud de onda REST-FRAME (`LAMOBS/(1+z)`) y `TRANS` =
+  transmisión real del filtro en `LAMOBS`. Pesa por `λ` (photon-counting), consistente con la
+  convención estándar de fotometría de conteo de fotones.
+- **LightCurveLynx** (`Passband.compute_system_response_table()` real,
+  `astro_utils/passbands.py`): `φ_b(λ) = S_b(λ)/λ / ∫[S_b(λ)/λ]dλ` -- cita explícita "eq. 8, On the
+  Choice of LSST Flux Units (Ivezić et al.)" -- pesa por `1/λ`, no por `λ`. Documentado como una
+  convención real y deliberada (no un bug), con referencia a un paper técnico real de LSST.
+
+Que ambas fórmulas tengan un peso de signo opuesto en `λ` (uno `+λ`, el otro `1/λ`) es real y
+verificado -- **pero no se pudo determinar de forma confiable si esto produce una diferencia neta
+significativa**, por lo que sigue abajo.
+
+### Intento de verificación numérica: resultado NO confiable, documentado en vez de ocultado
+
+Se intentó reconstruir "a mano" la fórmula literal de SNANA (mismo patrón exitoso de Fases 16/19-21)
+y compararla contra `Passband.fluxes_to_bandflux()` real de LightCurveLynx, usando el mismo `M0`/`M1`
+crudo real y el mismo color law real (`sncosmo.SALT2ColorLaw`), en las 6 bandas LSST reales, a `z=0.6`
+(representativo de la población de Fase 23). **Primer intento**: bug real encontrado y corregido en el
+propio script (reconstruir `S_b(λ)` desde `normalized_system_response` de LightCurveLynx es circular --
+ya trae horneada la normalización `1/λ` de LCL con una constante DISTINTA por banda, contaminando la
+comparación). Corregido usando la tabla de transmisión cruda real (`transmission_table`, sin normalizar)
+interpolada a la grilla de cada banda.
+
+**Resultado tras la corrección: sigue sin ser confiable.** Los números salen implausiblemente grandes
+(hasta ~3 mag en banda `u`) y **no monótonos** entre bandas (`u:+2.97, g:+0.36, r:0, i:-0.22, z:-0.15,
+y:+0.58`) -- ni de lejos compatible con el patrón suave y monótono de Fase 23 (`g→y`, ~0.21 mag total).
+Diagnóstico probable: a `z=0.6`, el borde azul de la banda `u` observada mapea a `λ_rest≈2000` Å --
+exactamente el límite crudo del template SALT2 (`wave_grid[0]=2000`) -- el corte duro que aplica el
+script ahí (`wave_rest >= wave_grid[0]`) introduce una discontinuidad artificial justo dentro de la
+banda `u`, y el resultado inestable en las otras bandas (el signo de `y` se invirtió por completo entre
+el primer y segundo intento, solo por corregir el bug de normalización circular) sugiere que la
+reconstrucción manual, aislada de la ejecución real de ninguno de los dos códigos, es demasiado frágil
+para esta pregunta específica -- **no aporta evidencia confiable en ninguna dirección.**
+
+### Conclusión Fase 25 -- honesta: candidato ni confirmado ni descartado
+
+A diferencia de Fases 16/20/21/24 (donde la reconstrucción manual sí dio resultados limpios y
+verificables), este intento no llegó a un resultado defendible. No se reporta un número porque no se
+confía en él -- **el candidato de la convención de integración de banda queda abierto, sin resolver**,
+ni confirmado ni descartado. La forma correcta y confiable de cerrar esto (no intentada en esta sesión,
+requiere más tiempo/alcance): correr el binario REAL de `snlc_sim.exe` (`SNANA_DIR` real ya disponible
+en NLHPC, confirmado en fases anteriores) con un objeto de prueba controlado (`x1`/`c`/`z`/`t0` fijos,
+`NGENTOT_LC` chico) y comparar su flujo por banda real, epoch por epoch, directo contra
+`compute_noise_free_lightcurves()` real de LightCurveLynx para el mismo objeto -- comparación código
+real contra código real, no una reconstrucción manual de la fórmula de SNANA que ya mostró ser frágil
+en este caso específico (a diferencia de `SALT2x0calc`/interpolación 2D/color law, donde sí funcionó
+bien en Fases 16/20/21).
+
+### Archivos de esta fase
+
+`fase25_bandflux_convention.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo -- 2
+versiones, la primera con el bug de normalización circular ya documentado arriba). Sin cambios a
+scripts del pipeline -- ningún hallazgo lo suficientemente confiable como para actuar sobre él.
