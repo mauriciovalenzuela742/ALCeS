@@ -3457,6 +3457,15 @@ en `github.com/lincc-frameworks/LightCurveLynx` -- "seed= passed to the parent n
 to internal samplers in ObsTableRADECSampler/SIMSEDModel/MultiSEDTemplateModel", con los 4 puntos de
 arriba como reproducción. No se abrió el issue en esta fase (el usuario pidió la nota, no la acción).
 
+**Seguimiento (Fase 20)**: se evaluó formalmente publicarlo -- `gh issue list` contra el repo real
+(`lincc-frameworks/LightCurveLynx`) confirmó que no es duplicado, y se verificó contra `main` en GitHub
+(no solo la versión `0.5.2` instalada) que los 3 bugs (`ObsTableRADECSampler`, `TableSampler`,
+`SIMSEDModel`) siguen presentes hoy, sin arreglar. Se redactó el issue completo (título + cuerpo,
+formato calibrado contra issues reales del repo) y se le mostró al usuario para confirmación explícita
+antes de publicarlo -- **el usuario decidió no publicarlo por ahora**. El borrador completo queda
+guardado en `exploration/lightcurvelynx/ISSUE_DRAFT_seed_propagation.md`, listo para publicar más
+adelante si se decide (no correr `gh issue create` sin una confirmación explícita nueva).
+
 ## Fase 20 -- M_abs de SALT2 cerrado con primeros principios: la Fase 19 se corrige a sí misma
 
 Retoma el pendiente explícito de Fase 19: leer `sncosmo.SALT2Source`/`X0FromDistMod` para encontrar la
