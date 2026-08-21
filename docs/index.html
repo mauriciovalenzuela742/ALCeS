@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "22&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "23&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1519,7 +1519,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintidós fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintitrés fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1693,6 +1693,27 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           residuo, con la evidencia más sólida de todo el proyecto. La "calibración empírica -19.13" que
           proponía la Fase 19 queda descartada. Candidato que sigue sin investigar: la
           normalización/interpolación 2D (fase×longitud de onda) del propio flujo del template SALT2.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">21</span>
+        <div class="step-body">
+          <p><strong>Interpolación 2D del template SALT2 — verificada y descartada</strong> — el
+          <code>SALT2.INFO</code> real de <code>SALT2.WFIRST-H17</code> confirma
+          <code>SEDFLUX_INTERP_OPT: 1</code> (lineal, no el default <code>2</code>/spline del código):
+          SNANA evalúa el flujo con <strong>interpolación bilineal real</strong> (2×2 vecinos), mientras
+          que <code>sncosmo.salt2utils.BicubicInterpolator</code> (descargado el <code>.pyx</code> real,
+          mismo método de Fase 16) es una <strong>convolución bicúbica real</strong> (kernel de Keys,
+          4×4 vecinos, "Grid2DFunction" de snfit) — dos algoritmos genuinamente distintos, nunca antes
+          comparados. Reimplementada la fórmula bilineal exacta de SNANA y comparada contra el
+          <code>BicubicInterpolator</code> real sobre el <code>M0</code> crudo real (grilla nativa
+          <code>DAYSTEP=1</code> día, <code>LAMSTEP=10</code> Å): diferencia máxima medida
+          <strong>0.0022 mag</strong>, en el pico y en un barrido completo de fase — tres órdenes de
+          magnitud más chico que el residuo de -0.235 mag. Descartado como causa, con evidencia
+          numérica directa. Con esto se agotan los tres candidatos concretos de la cadena SALT2 (color
+          law, M_abs, interpolación 2D) — los tres verificados y descartados; el residuo no viene de la
+          física del modelo SALT2 en sí. Candidato metodológico nuevo, sin investigar: si "brillo pico"
+          se mide igual en ambos lados (cadencia observada vs. escaneo continuo de fase).</p>
         </div>
       </li>
     </ol>
@@ -2024,7 +2045,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "22 fases" },
+    { id: "fases", label: "23 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

@@ -3570,3 +3570,62 @@ El desplazamiento medio real (-0.235 − (-0.166) = -0.069 mag) coincide con la 
   tras usarlos -- mismo criterio del proyecto para scripts de verificación puntual).
 - `docs/index.html`: pestañas "Resumen"/"21 fases" de LightCurveLynx actualizadas para reflejar este
   cierre (reemplaza la recomendación de `-19.13` de Fase 19, ya superada).
+
+## Fase 21 -- interpolación 2D del template SALT2: verificada y descartada como causa
+
+Retoma el último candidato concreto que dejó pendiente Fase 16/20: la normalización/interpolación 2D
+(fase × longitud de onda) del propio flujo del template SALT2 -- nunca antes comparada directamente
+entre `sncosmo`/LightCurveLynx y SNANA.
+
+### Hallazgo real: los dos simuladores usan esquemas de interpolación genuinamente distintos
+
+Leyendo `fill_SALT2_TABLE_SED()`/`INTEG_zSED_SALT2()` reales (`genmag_SALT2.c`) y el `SALT2.INFO` real
+de `SALT2.WFIRST-H17` (`SEDFLUX_INTERP_OPT: 1  # 1=>linear, 2=>spline` -- **confirmado LINEAR activo
+para esta campaña**, no el default `2` (spline) del código): SNANA evalúa el flujo en cualquier
+`(Trest, LAMSED)` con **interpolación bilinear real** (2×2 vecinos, lineal en día y en longitud de
+onda, fórmulas `FSED = VAL0+(VAL1-VAL0)*FRAC_INTERP_LAMSED` y `FTMP = FSED[0]+FDIF*FRAC_INTERP_DAY`).
+
+`sncosmo.salt2utils.BicubicInterpolator` (descargado el `.pyx` real, mismo método de Fase 16 --
+`sncosmo/salt2utils.pyx` en GitHub, el paquete instalado solo trae el binario compilado) es
+literalmente el <em>"Grid2DFunction" de snfit</em> -- **convolución bicúbica real** (kernel de Keys,
+`a=-0.5`, ventana de 4×4 vecinos), con fallback a bilineal solo cerca de los bordes de la grilla. Son
+dos algoritmos de interpolación genuinamente distintos, nunca antes comparados en este proyecto.
+
+### Verificación numérica: la diferencia es real, pero 100x demasiado chica
+
+`fase21_verify_interp.py` (no versionado) reimplementó la fórmula bilineal exacta de SNANA y la
+comparó contra el `BicubicInterpolator` real de `sncosmo` (mismo objeto interno que usa
+`SALT2Source._model['M0']`), sobre el `M0` crudo real (grilla nativa real: `DAYSTEP=1.0` día,
+`LAMSTEP=10` Å) -- en el pico (`phase=0`) para la longitud de onda rest-frame real de la banda `r` en
+los 7 `z` de Fase 16/20, y en un barrido fino de fase (`-10` a `+30` días) en B rest-frame:
+
+| Punto de prueba | Δmag (bicúbico − bilineal) |
+|---|---|
+| pico, 7 valores de z reales (rest-frame r) | entre -0.0017 y +0.0022 mag |
+| barrido de fase completo (B rest-frame, -10 a +30 d) | entre -0.0017 y +0.0022 mag |
+
+**Máximo absoluto medido: 0.0022 mag** -- tres órdenes de magnitud más chico que el residuo de
+`-0.235` mag (Fase 20). Con `DAYSTEP=1` día y `LAMSTEP=10` Å (grilla fina respecto a la escala de
+variación real de la superficie SALT2), bilineal y bicúbico convergen -- **descartado como causa, con
+evidencia numérica directa, no solo argumento de plausibilidad.**
+
+### Conclusión Fase 21
+
+Con esto se agotan los tres candidatos concretos de la cadena de generación de flujo SALT2 (color law
+-- Fase 16 --, M_abs/M_B0 -- Fase 20 --, e interpolación 2D del template -- esta fase): **los tres
+verificados directamente contra código y archivos reales, los tres descartados como causa del residuo
+de ~0.235 mag.** La cadena SALT2 (`x0`↔magnitud, ley de color, superficie M0/M1) está ahora verificada
+de punta a punta -- el residuo no viene de la física del modelo SALT2 en sí.
+
+**Candidato metodológico nuevo, no descartado, no investigado todavía**: la comparación de "brillo
+pico" (Fase 7/16/20) toma `flux_perfect.max()` sobre las épocas realmente observadas (cadencia real de
+`OpSim`) del lado LightCurveLynx, no un escaneo continuo de fase -- si SNANA computa `PEAKMAG_r` de
+forma distinta (evaluación directa en el verdadero pico de la curva, no limitada a la cadencia
+observada), una diferencia de método -- no de física -- podría sesgar la comparación. No verificado en
+esta sesión; requeriría leer cómo SNANA calcula `PEAKMAG_<filtro>` en el `.DUMP` real (`snlc_sim.c`).
+
+### Archivos de esta fase
+
+`fase21_verify_interp.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo). Sin cambios de
+código en los scripts del proyecto -- esta fase es diagnóstico puro, sin fix que aplicar (candidato
+descartado, no una causa a corregir).
