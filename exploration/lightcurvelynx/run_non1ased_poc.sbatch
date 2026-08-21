@@ -4,8 +4,8 @@
 # ----------------------------------------------------------------------------
 # Uso:
 #     cd ~/AUTOSIM
-#     sbatch exploration/lightcurvelynx/run_non1ased_poc.sbatch <clase>
-#     (clases: SNIa-91bg, SNIax, TDE, SLSN-I, KN-BULLA-BNS-M2COMP)
+#     sbatch exploration/lightcurvelynx/run_non1ased_poc.sbatch <clase> [seed_index] [--wfd]
+#     (clases: SNIa-91bg, SNIax, TDE, SLSN-I, KN-BULLA-BNS-M2COMP -- Fase 17: --wfd corre WFD)
 # ============================================================================
 #SBATCH -J lcl_non1ased_poc
 #SBATCH -p general
@@ -21,17 +21,18 @@
 #SBATCH --mail-type=END,FAIL
 
 set -euo pipefail
-CLASS_KEY="${1:?uso: sbatch run_non1ased_poc.sbatch <clase> [seed_index]  (SNIa-91bg)}"
+CLASS_KEY="${1:?uso: sbatch run_non1ased_poc.sbatch <clase> [seed_index] [--wfd]  (SNIa-91bg)}"
 SEED_INDEX="${2:-0}"
+WFD_FLAG="${3:-}"
 
 cd "$SLURM_SUBMIT_DIR"
 module load python/3.12.3-legacy-skylake
 source exploration/lightcurvelynx/venv/bin/activate
 
-echo "=== Fase 6: NON1ASED $CLASS_KEY DDF PoC (seed_index=$SEED_INDEX) · job=$SLURM_JOB_ID · nodo=$(hostname) ==="
+echo "=== Fase 6: NON1ASED $CLASS_KEY DDF PoC (seed_index=$SEED_INDEX, wfd=${WFD_FLAG:-no}) · job=$SLURM_JOB_ID · nodo=$(hostname) ==="
 date
 cd exploration/lightcurvelynx
-python3 run_non1ased_poc.py "$CLASS_KEY" "$SEED_INDEX"
+python3 run_non1ased_poc.py "$CLASS_KEY" "$SEED_INDEX" $WFD_FLAG
 
 echo "=== terminado ==="
 date

@@ -3328,3 +3328,131 @@ evidencia directa de código real de ambos lados**:
 del punto 3 como hallazgo documentado; (b) el siguiente paso técnico real del proyecto sigue siendo el
 que ya recomendaba el cierre de Fase 16 -- leer `sncosmo.SALT2Source`/`X0FromDistMod` para encontrar
 la convención de M_B0 y compararla contra cómo SNANA deriva `x0` internamente sin `GENMAG_OFF`.
+
+## Fase 19 -- auditoría real de z máximo por clase, convención M_B0/SALT2, instructivo, y nota de bugs
+
+Continuación directa de Fase 18: (1) auditoría fresca de `GENRANGE_REDSHIFT` contra la fuente de
+verdad real de producción (no solo los `.INPUT` template, sino qué `.INPUT` **de verdad** compiló cada
+`GENVERSION`), (2) el seguimiento técnico que Fase 16/18 dejó pendiente -- la convención real de
+`M_B0`/`x0` de SNANA para SALT2 --, (3) un instructivo operativo (`HOWTO.md`), y (4) la nota pedida
+sobre qué bug es local y cuál amerita reportarse a la comunidad de LightCurveLynx.
+
+### Auditoría de z máximo -- resultado: ningún cambio de código hizo falta
+
+Fase 17/18 ya habían verificado `GENRANGE_REDSHIFT` por clase contra los `.INPUT` template
+(`run_SNANA/model_config/`, `run_SNANA/elastic/model_config/`) -- pero esos árboles tienen variantes
+sin usar (p.ej. `elastic/model_config/SIMGEN_INCLUDE_SNIa-SALT2.INPUT` con `z=1.65`, que nunca se
+compila a ningún `GENVERSION` real de esta campaña). Esta fase fue más allá: se encontró la fuente de
+verdad real -- `AUTOSIM/build/full_v5.3_10yrs/includes/include_model_<clase>.INPUT`, el archivo
+`INPUT_INCLUDE_FILE:` que **de verdad** referencia cada `GENVERSION` compilado (confirmado leyendo
+`sim_SNIa_DDF_baseline_v5.3.1_10yrs.INPUT` real, que a su vez incluye
+`includes/include_model_SNIa.INPUT`, que apunta a
+`run_SNANA/model_config/SIMGEN_INCLUDE_SNIa-SALT2.INPUT`, NO al árbol elastic). Se grepeó
+`INPUT_INCLUDE_FILE` de los 40 `include_model_*.INPUT` reales y se cruzó contra el `GENRANGE_REDSHIFT`
+real de cada uno, comparado clase por clase contra `CLASS_CONFIGS` de los 3 scripts:
+
+**Las 19 clases dentro del alcance del proyecto (14 SIMSED + 5 NON1ASED + SALT2) coinciden EXACTAS
+con el `z` real de producción, sin excepción** -- incluidas las variantes NON1ASED (que usan el árbol
+`elastic/`, confirmado que ESA sí es la fuente real para ellas vía su propio `include_model_*.INPUT`).
+Confirmado además que el include de modelo es **el mismo para DDF y WFD** (`include_model_SNIa.INPUT`
+aparece igual en `sim_SNIa_DDF_...INPUT` y `sim_SNIa_WFD_...INPUT`) -- no hay `z` distinto por
+estrategia en la campaña real, así que los scripts WFD (Fase 17, comparten `CLASS_CONFIGS` con DDF)
+ya están alineados por construcción, sin necesitar overrides nuevos.
+
+Las dos entradas `-elastic` de `run_simsed_poc.py` (`SNIa-91bg-elastic`, `SNIax-elastic`) siguen sin
+corresponder a ningún `GENVERSION` real -- son variantes deliberadas creadas en Fase 6/7 para el
+bake-off de codificación SIMSED-vs-NON1ASED (probar el efecto de un `z` más ancho), nunca tuvieron la
+intención de igualar una corrida SNANA real, así que no aplican a este punto.
+
+**Conclusión: no se modificó ningún `CLASS_CONFIGS`** -- la petición del usuario ("que cada clase
+quede simulada hasta el mismo z que SNANA") ya estaba cumplida, con una verificación ahora más
+rigurosa que confirma no solo que el valor está bien sino que se leyó del archivo correcto.
+
+### Convención real de M_B0/x0 de SNANA para SALT2 (seguimiento de Fase 16/18, punto 9)
+
+Se leyó el código fuente real de SNANA (`genmag_SALT2.c`) para encontrar `SALT2x0calc()`/
+`SALT2mBcalc()`/`load_mBoff_SALT2()` -- la pieza que Fase 16 dejó pendiente.
+
+**Fórmula real de SNANA:**
+```c
+// genmag_SALT2.c
+mBoff_SALT2 = 10.635;                                   // load_mBoff_SALT2(), hardcoded real
+arg   = 0.4 * (dlmag - alpha*x1 + beta*c);               // dlmag = GENLC.DLMU, distmod COSMOLÓGICO
+                                                           // puro (gen_distanceMag() real, SIN M_abs)
+x0inv = X0SCALE_SALT2 * pow(10, arg);   x0 = 1/x0inv;     // X0SCALE_SALT2 = 1.0E-12 ("arbitrary
+                                                           // normalization", genmag_SALT2.h)
+mB    = mBoff_SALT2 - 2.5*log10(x0);                      // SALT2mBcalc() -- SOLO diagnóstico/
+                                                           // referencia, "not used to generate
+                                                           // fluxes" (comentario real del código)
+```
+**Hallazgo real 1 -- coincide la constante `10.635`**: `mBoff_SALT2 = 10.635` (SNANA, hardcoded
+"Aug 11, 2010... hard-wire to value based on SNLS VEGA system") es EXACTAMENTE la misma constante que
+usa `X0FromDistMod`/`_x0_from_distmod` de LightCurveLynx (`astro_utils/snia_utils.py`:
+`x0 = 10^(-0.4*(distmod - alpha*x1 + beta*c + m_abs - 10.635))`) -- misma forma funcional, mismo signo
+en cada término (`alpha*x1` resta de `mB`, `beta*c` suma), evidencia sólida de que ambos códigos
+implementan la MISMA relación de Tripp/SALT2 estándar, no hay bug estructural de signo ni de forma.
+
+**Hallazgo real 2 -- `X0SCALE_SALT2` es puro bookkeeping, NO un M_abs real (trampa algebraica real,
+encontrada y corregida en esta misma fase)**: un primer intento de igualar las dos fórmulas
+algebraicamente (despejar qué `m_abs` haría que `X0FromDistMod` reproduzca la `mB` de SNANA) da
+`m_abs_equiv = 10.635 + 2.5*log10(1e-12) = -19.365` -- pero esto resultó ser un espejismo. Se rastreó
+`X0SCALE_SALT2` hasta `INTEG_zSED_SALT2()` (misma función que integra el flujo real): `SEDMODEL.FLUXSCALE
+= X0SCALE_SALT2` se aplica AL FLUJO GENERADO (`*Finteg *= x0; *Finteg *= MODELNORM_Finteg` con
+`MODELNORM_Finteg` que carga el mismo factor `X0SCALE_SALT2`) -- es decir, `X0SCALE_SALT2` aparece una
+vez en `x0` (como `1/X0SCALE_SALT2`) y otra vez en el flujo (`× X0SCALE_SALT2`), **se cancela
+exactamente** en el flujo físico real. La `mB`/`x0` que SNANA reporta como diagnóstico (`SIM_SALT2mB`,
+`SIM_SALT2x0` en el `.DUMP`/FITS) vive en una escala corrida ~30 mag por esta convención de
+bookkeeping -- consistente con el propio comentario del código ("mB is not used to generate fluxes").
+**Cualquier `M_abs` derivado igualando esa fórmula de `mB` directamente es indistinguible de un
+artefacto de esta convención interna, no de una calibración física real** -- confirmado indirectamente
+porque el signo resultante (`-19.365`, más brillante que el `-19.3` actual) va en la dirección
+CONTRARIA a la necesaria para cerrar el exceso de brillo ya medido en Fase 16 (LightCurveLynx ya sale
+más brillante, no más tenue).
+
+**Camino que sí es confiable -- calibración empírica usando el residuo ya medido**: dado que resolver
+esto de punta a punta requeriría además inspeccionar la normalización física interna de los templates
+`salt2_template_0/1.dat` tal como los lee `sncosmo.SALT2Source` (tercera convención de unidades, no
+inspeccionada en esta fase), el camino confiable es usar directamente el residuo YA MEDIDO
+end-to-end en Fase 16 (que sí compara brillo físico real, no una fórmula intermedia): 6 bins bien
+poblados (excluyendo el primero, con poca estadística) dieron
+`Δmag = LCL - SNANA = {-0.234, -0.137, -0.128, -0.239, -0.140, -0.116}`, media `-0.166` mag (LCL más
+brillante). Como `mB` y `m_abs` se mueven 1:1 en la fórmula de LightCurveLynx (confirmado arriba,
+misma forma que SNANA), la corrección calibrada es
+**`m_abs ≈ -19.3 + 0.166 ≈ -19.13`** (más tenue que el valor actual, para compensar el exceso).
+**No se aplicó este cambio a `run_snia_ddf_poc.py`** -- es una calibración empírica ajustada al
+residuo medido, no una derivación de primeros principios, y cambiar `m_abs` invalidaría/recalcularía
+todos los resultados de Fase 16 ya documentados como el hallazgo principal; queda como recomendación
+concreta para la próxima sesión, junto con el paso pendiente real (inspeccionar
+`sncosmo.SALT2Source`/normalización de los archivos `.dat` para cerrar esto con evidencia de primeros
+principios en vez de un ajuste empírico).
+
+### Nota -- bug local vs. bug real de LightCurveLynx (qué reportar al foro de la comunidad)
+
+El usuario pidió aclarar si el bug de Fase 4 (trigger de detección contando observaciones individuales
+en vez de épocas reales) es un bug **local** (de este proyecto) o del **programa** LightCurveLynx. Es
+**100% local**: `SEARCHEFF` (curvas de eficiencia de detección, lógica de trigger) no existe en
+absoluto dentro de LightCurveLynx -- es un módulo propio de este proyecto (`searcheff.py`) escrito
+para replicar el comportamiento real de `snlc_sim.exe`. El bug estaba en nuestra propia
+reimplementación del trigger, no en ningún código de LightCurveLynx -- **no hay nada que reportar al
+foro de la comunidad por este hallazgo específico.**
+
+Dicho esto, esta investigación SÍ encontró bugs reales **dentro del propio paquete instalado**
+(`lightcurvelynx==0.5.2`, confirmado leyendo `inspect.getsource()` del código real en NLHPC, no
+supuesto) que sí ameritan reportarse -- mismo patrón en los 3: un nodo interno arma su propio
+generador aleatorio y nunca hereda el `seed=` del constructor externo, rompiendo reproducibilidad
+para cualquier usuario que dependa de semillas fijas (no solo este proyecto):
+
+1. **`ObsTableRADECSampler.compute()`** (`lightcurvelynx/math_nodes/ra_dec_sampler.py`) -- aplica
+   jitter de posición sub-FOV con `np.random.default_rng()` sin semilla cuando `self.radius > 0`.
+2. **`TableSampler.__init__`** (`lightcurvelynx/math_nodes/given_sampler.py`, clase base del
+   anterior) -- arma su sampler de índice de fila (`NumpyRandomFunc("integers", ...)`) sin pasarle el
+   `seed=` que sí llegó al constructor externo.
+3. **`SIMSEDModel.from_dir()`** (`lightcurvelynx/models/sed_template_model.py`) -- arma su
+   `GivenValueSampler` de selección de template sin `seed=`.
+4. **`MultiSEDTemplateModel.__init__`** (mismo módulo, usado por NON1ASED) -- mismo problema.
+
+Los 4 se confirmaron con un test real (Fase 5: dos procesos Python separados, misma semilla,
+resultados distintos hasta corregirlos; byte-idénticos después). Son candidatos reales para un issue
+en `github.com/lincc-frameworks/LightCurveLynx` -- "seed= passed to the parent node doesn't propagate
+to internal samplers in ObsTableRADECSampler/SIMSEDModel/MultiSEDTemplateModel", con los 4 puntos de
+arriba como reproducción. No se abrió el issue en esta fase (el usuario pidió la nota, no la acción).

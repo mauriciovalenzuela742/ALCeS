@@ -4,8 +4,8 @@
 # ----------------------------------------------------------------------------
 # Uso:
 #     cd ~/AUTOSIM
-#     sbatch exploration/lightcurvelynx/run_simsed_poc.sbatch <clase>
-#     (clases: KN-K17, CaRT, SLSN-I)
+#     sbatch exploration/lightcurvelynx/run_simsed_poc.sbatch <clase> [seed_index] [--wfd]
+#     (clases: KN-K17, CaRT, SLSN-I, ...  -- Fase 17: agregar --wfd corre WFD en vez de DDF)
 # ============================================================================
 #SBATCH -J lcl_simsed_poc
 #SBATCH -p general
@@ -22,17 +22,18 @@
 #SBATCH --mail-type=END,FAIL
 
 set -euo pipefail
-CLASS_KEY="${1:?uso: sbatch run_simsed_poc.sbatch <clase> [seed_index]  (KN-K17, CaRT, SLSN-I, ...)}"
+CLASS_KEY="${1:?uso: sbatch run_simsed_poc.sbatch <clase> [seed_index] [--wfd]  (KN-K17, CaRT, SLSN-I, ...)}"
 SEED_INDEX="${2:-0}"
+WFD_FLAG="${3:-}"
 
 cd "$SLURM_SUBMIT_DIR"
 module load python/3.12.3-legacy-skylake
 source exploration/lightcurvelynx/venv/bin/activate
 
-echo "=== Fase 2 parte B: SIMSED $CLASS_KEY DDF PoC (seed_index=$SEED_INDEX) · job=$SLURM_JOB_ID · nodo=$(hostname) ==="
+echo "=== Fase 2 parte B: SIMSED $CLASS_KEY DDF PoC (seed_index=$SEED_INDEX, wfd=${WFD_FLAG:-no}) · job=$SLURM_JOB_ID · nodo=$(hostname) ==="
 date
 cd exploration/lightcurvelynx
-python3 run_simsed_poc.py "$CLASS_KEY" "$SEED_INDEX"
+python3 run_simsed_poc.py "$CLASS_KEY" "$SEED_INDEX" $WFD_FLAG
 
 echo "=== terminado ==="
 date

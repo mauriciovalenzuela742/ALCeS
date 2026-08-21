@@ -4,11 +4,11 @@
 # ----------------------------------------------------------------------------
 # Uso:
 #     cd ~/AUTOSIM
-#     sbatch exploration/lightcurvelynx/run_snia_ddf_poc.sbatch [seed_index]
+#     sbatch exploration/lightcurvelynx/run_snia_ddf_poc.sbatch [seed_index] [--wfd]
 #
 # Liviano (NGENTOT_LC=2000, DDF, ~seg de simulacion segun bench_snia.py) pero
 # via SLURM de todas formas, nunca en el login node para nada no trivial
-# (misma convencion que el resto del pipeline).
+# (misma convencion que el resto del pipeline). Fase 17: --wfd corre WFD.
 # ============================================================================
 #SBATCH -J lcl_snia_ddf_poc
 #SBATCH -p general
@@ -22,15 +22,16 @@
 
 set -euo pipefail
 SEED_INDEX="${1:-0}"
+WFD_FLAG="${2:-}"
 
 cd "$SLURM_SUBMIT_DIR"
 module load python/3.12.3-legacy-skylake
 source exploration/lightcurvelynx/venv/bin/activate
 
-echo "=== Fase 1 LightCurveLynx: SNIa_DDF PoC (seed_index=$SEED_INDEX) · job=$SLURM_JOB_ID · nodo=$(hostname) ==="
+echo "=== Fase 1 LightCurveLynx: SNIa_DDF PoC (seed_index=$SEED_INDEX, wfd=${WFD_FLAG:-no}) · job=$SLURM_JOB_ID · nodo=$(hostname) ==="
 date
 cd exploration/lightcurvelynx
-python3 run_snia_ddf_poc.py "$SEED_INDEX"
+python3 run_snia_ddf_poc.py "$SEED_INDEX" $WFD_FLAG
 
 echo "=== terminado ==="
 date
