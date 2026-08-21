@@ -209,9 +209,56 @@
   .section-sub {
     margin: -10px 0 20px;
     color: var(--ink-dim);
-    font-size: 0.88rem;
     max-width: 70ch;
+    font-size: 0.88rem;
   }
+
+  /* ---------------------------------------------------------- tab nav */
+  .tabnav {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border-strong);
+    margin: 0 -28px 40px;
+    padding: 0 28px;
+  }
+
+  .tabnav-btn {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 13px 15px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .tabnav-btn:hover { color: var(--ink); }
+
+  .tabnav-btn .tabnav-num {
+    color: var(--ink-faint);
+    font-size: 0.7rem;
+  }
+
+  .tabnav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tabnav-btn.active .tabnav-num { color: var(--accent); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
 
   /* ---------------------------------------------------------- fact strip */
   .facts {
@@ -930,13 +977,15 @@
     <div class="fact"><div class="num">80</div><div class="label">GENVERSION por campaña</div></div>
   </div>
 
-  <section id="architecture">
+  <nav class="tabnav" id="tabnav"></nav>
+
+  <section id="architecture" class="tab-panel">
     <div class="section-head"><span class="section-num">01</span><h2>Arquitectura por capas</h2></div>
     <p class="section-sub">Cómputo real → SLURM. Orquestación/IO liviano → login node. Las capas 1 y 4 se niegan a correr fuera de un job SLURM (guardia automática).</p>
     <div class="flow" id="flow"></div>
   </section>
 
-  <section id="campaign">
+  <section id="campaign" class="tab-panel">
     <div class="section-head"><span class="section-num">02</span><h2>Campaña activa — full_v5.3_10yrs (v8)</h2></div>
     <p class="section-sub">40 clases × WFD + DDF, survey completo (10 años). <code>Cepheid</code> y
     <code>VC25_SNII</code> quedaron pausadas para esta campaña (ver nota abajo) — el catálogo completo
@@ -998,7 +1047,7 @@
     </div>
   </section>
 
-  <section id="qc">
+  <section id="qc" class="tab-panel">
     <div class="section-head"><span class="section-num">03</span><h2>Quality Controls</h2></div>
     <p class="section-sub">Salida real de la Capa 4 (<code>pipeline/postproc/qc.py</code>) — leída directo de los FITS de
     cada GENVERSION, no simulada. Elegí un campo (WFD/DDF) y una clase para ver sus 4 gráficos de control.
@@ -1014,13 +1063,13 @@
 
   <div class="qc-lightbox" id="qc-lightbox"><img id="qc-lightbox-img" src="" alt=""></div>
 
-  <section id="catalog">
+  <section id="catalog" class="tab-panel">
     <div class="section-head"><span class="section-num">04</span><h2>Catálogo de clases (42)</h2></div>
     <p class="section-sub">Cada clase referencia un <code>SIMGEN_INCLUDE_*.INPUT</code> ya curado — ver <code>pipeline/models.yaml</code>. <code>Cepheid</code> y <code>VC25_SNII</code> están en el catálogo pero pausadas para la campaña v8 activa (no aparecen en la tabla de arriba).</p>
     <div class="families" id="families"></div>
   </section>
 
-  <section id="recipe">
+  <section id="recipe" class="tab-panel">
     <div class="section-head"><span class="section-num">05</span><h2>Agregar una base OpSim nueva</h2></div>
     <p class="section-sub">Receta de una sola instrucción para Claude — ver el detalle completo en <code>README.md</code>.</p>
     <ol class="recipe">
@@ -1069,7 +1118,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </ol>
   </section>
 
-  <section id="lcl">
+  <section id="lcl" class="tab-panel">
     <div class="section-head"><span class="section-num">06</span><h2>Evaluación LightCurveLynx — ¿puede reemplazar a SNANA?</h2></div>
     <p class="section-sub">¿Puede <a href="https://github.com/lincc-frameworks/lightcurvelynx" target="_blank" rel="noopener">LightCurveLynx</a> (LINCC Frameworks) reemplazar a SNANA como motor de simulación? Evaluación clase por clase con parámetros reales de cada
     <code>SIMGEN_INCLUDE_*.INPUT</code>, comparada contra los baselines DDF reales de <code>full_v5.3_10yrs</code> —
@@ -1599,6 +1648,39 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
   };
   const familyOf = {};
   Object.entries(FAMILIES).forEach(([fam, models]) => models.forEach(m => familyOf[m] = fam));
+
+  // -------------------------------------------------- tab navigation
+  const TABS = [
+    { id: "architecture", num: "01", label: "Arquitectura" },
+    { id: "campaign", num: "02", label: "Campaña" },
+    { id: "qc", num: "03", label: "Quality Controls" },
+    { id: "catalog", num: "04", label: "Catálogo" },
+    { id: "recipe", num: "05", label: "Agregar OpSim" },
+    { id: "lcl", num: "06", label: "LightCurveLynx" },
+  ];
+  const tabnav = document.getElementById("tabnav");
+  tabnav.innerHTML = TABS.map(t =>
+    `<button class="tabnav-btn" data-tab="${t.id}" type="button">` +
+    `<span class="tabnav-num">${t.num}</span>${t.label}</button>`
+  ).join("");
+
+  function activateTab(id, opts = {}) {
+    const valid = TABS.some(t => t.id === id) ? id : TABS[0].id;
+    document.querySelectorAll(".tab-panel").forEach(el => el.classList.toggle("active", el.id === valid));
+    document.querySelectorAll(".tabnav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === valid));
+    history.replaceState(null, "", "#" + valid);
+    if (opts.scroll) window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  tabnav.addEventListener("click", e => {
+    const btn = e.target.closest(".tabnav-btn");
+    if (!btn) return;
+    activateTab(btn.dataset.tab, { scroll: true });
+  });
+
+  window.addEventListener("hashchange", () => activateTab(location.hash.slice(1)));
+
+  activateTab(location.hash.slice(1));
 
   // -------------------------------------------------- masthead timestamp
   document.getElementById("snapshot-time").textContent =
