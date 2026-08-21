@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "24&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "25&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1263,15 +1263,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fase 22</span>
+      <span class="verdict-badge critical">Actualización Fases 22-23</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
       cae cerca de su pico real. Corregido (evaluando en el pico verdadero, misma convención que usa
-      <code>PEAKMAG_r</code> real de SNANA), el residuo pasa de <strong>-0.235 a -0.519 mag</strong> de
-      media. Los descartes de M_abs/color law/interpolación 2D arriba siguen siendo válidos (comparaban
-      contra la misma métrica de forma consistente) — pero la magnitud real a explicar es más del doble.
-      Ver pestaña "24 fases" (Fase 22) para el detalle completo.</p>
+      <code>PEAKMAG_r</code> real de SNANA), el residuo en banda <code>r</code> pasa de
+      <strong>-0.235 a -0.519 mag</strong> de media. Los descartes de M_abs/color law/interpolación 2D
+      arriba siguen siendo válidos (comparaban contra la misma métrica de forma consistente) — pero la
+      magnitud real a explicar es más del doble.</p>
+      <p><strong>Además (Fase 23):</strong> extendido a las 6 bandas LSST, el residuo corregido
+      <strong>no es plano en longitud de onda</strong> — máximo en <code>g</code> (-0.593 mag), decrece
+      monótonamente hacia el rojo hasta <code>y</code> (-0.382 mag). Patrón cualitativamente igual al de
+      la extinción (más fuerte en azul) — candidato nuevo y concreto, nunca verificado a fondo: si la
+      extinción MW aplica la misma cantidad banda por banda que SNANA real. Ver pestaña "25 fases"
+      (Fases 22-23) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1531,7 +1537,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Veinticuatro fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Veinticinco fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1751,6 +1757,30 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           mayor. Nota para trabajo futuro: cualquier comparación de brillo pico debe usar
           <code>compute_noise_free_lightcurves()</code>, no <code>flux_perfect.max()</code> sobre
           cadencia.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">23</span>
+        <div class="step-body">
+          <p><strong>La otra arista: el residuo corregido depende de la banda — patrón tipo
+          extinción</strong> — se extendió la métrica corregida de Fase 22 (<code>rest_phase=0</code>,
+          sin sesgo de cadencia) de la banda <code>r</code> sola a las 6 bandas LSST reales, comparadas
+          contra <code>PEAKMAG_u/g/r/i/z/Y</code> reales del mismo <code>.DUMP</code> — nunca antes
+          comparado banda por banda con la métrica corregida. <strong>El residuo NO es plano en longitud
+          de onda</strong>: máximo en <code>g</code> (-0.593 mag), decrece monótonamente hacia el rojo —
+          <code>r</code> -0.519, <code>i</code> -0.469, <code>z</code> -0.435, <code>y</code> -0.382
+          (banda <code>u</code> sin estadística suficiente, <code>PEAKMAG_u</code> real queda indefinido
+          en la mayoría de los bins). Un patrón más fuerte en azul y más débil en rojo es
+          cualitativamente el mismo que produce la <strong>extinción</strong> — nunca visible antes
+          porque todas las comparaciones previas (Fases 7-22) se hicieron solo en banda <code>r</code>.
+          Esto no invalida los descartes de color law (Fase 16, sigue idéntico a precisión de máquina) ni
+          de <code>x0</code> (Fase 20, acromático, no puede producir dependencia de banda por sí solo) —
+          reabre un candidato real y concreto nunca verificado a fondo: si la extinción MW
+          (<code>ExtinctionEffect</code>/<code>O94</code>) aplica la misma cantidad de extinción, banda
+          por banda, que el <code>OPT_MWCOLORLAW</code>/<code>R_V</code> real de SNANA para el mismo
+          <code>E(B-V)</code> nominal (Fase 10 solo verificó la fórmula de dispersión sobre el valor
+          nominal, nunca la curva de extinción cromática aplicada al flujo en sí). Candidato más
+          concreto y accionable que queda, no investigado todavía.</p>
         </div>
       </li>
     </ol>
@@ -2082,7 +2112,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "24 fases" },
+    { id: "fases", label: "25 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

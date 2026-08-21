@@ -3719,3 +3719,57 @@ suficientemente densa para que el máximo observado sea una proxy confiable del 
 NLHPC tras usarlos). Sin cambios a `run_*_poc.py`/`compare_brightness_truth_salt2.py` -- este hallazgo
 es sobre la METODOLOGÍA de comparación (un script de análisis nuevo, no parte del pipeline de
 simulación), no sobre un parámetro a corregir en la simulación en sí.
+
+## Fase 23 -- la otra arista: el residuo corregido depende de la banda (patrón tipo extinción)
+
+Continuación directa de Fase 22 -- se extiende la métrica corregida (`compute_noise_free_lightcurves`
+en `rest_phase=0`, sin sesgo de cadencia) de la banda `r` sola a las **6 bandas LSST reales**
+(`u,g,r,i,z,y`), comparadas contra las columnas reales `PEAKMAG_u/g/r/i/z/Y` del mismo `.DUMP` de
+producción -- nunca antes comparado banda por banda con la métrica corregida.
+
+### Resultado: el residuo NO es plano en longitud de onda
+
+| Banda | Δmag medio (LCL−SNANA, bins 2-7, métrica corregida) |
+|---|---|
+| `g` | -0.593 |
+| `r` | -0.519 |
+| `i` | -0.469 |
+| `z` | -0.435 |
+| `y` | -0.382 |
+| `u` | (solo 1 bin con datos válidos -- `PEAKMAG_u` real queda indefinido en la mayoría de los bins de
+  `z`, banda muy angosta/tenue para SNIa a estos redshifts, sin estadística suficiente para concluir) |
+
+**Patrón claro y monótono**: el exceso de brillo de LightCurveLynx es MÁXIMO en `g` (banda más azul con
+estadística suficiente) y decrece sistemáticamente hacia el rojo (`r`→`i`→`z`→`y`) -- una diferencia de
+~0.21 mag entre `g` y `y`. Esto es cualitativamente **el mismo patrón que produce la extinción** (más
+fuerte en azul, más débil en rojo) -- un candidato real y concreto que no se había visto antes porque
+todas las comparaciones de brillo previas (Fases 7/16/20/21/22) se hicieron solo en banda `r`.
+
+### Lo que esto NO invalida (y lo que sí reabre)
+
+- El color law en sí (`SALT2colorlaw1`/`SALT2ColorLaw`, Fase 16) sigue verificado idéntico a precisión
+  de máquina -- ese mecanismo específico no es la causa.
+- `x0` (el factor acromático que escala toda la SED) también sigue verificado idéntico (Fase 20) -- no
+  puede producir por sí solo una dependencia de banda.
+- La interpolación 2D (Fase 21) ya se midió despreciable (`<0.0022` mag) en B rest-frame -- no se
+  volvió a medir explícitamente para las otras 5 bandas en este barrido, queda como cabo suelto menor.
+- **Candidato real que reabre esto**: la extinción MW (`ExtinctionEffect`/`O94`, aplicada
+  `frame="observer"`) es intrínsecamente cromática (más fuerte en azul) -- nunca se verificó si
+  LightCurveLynx aplica la MISMA cantidad de extinción, banda por banda, que el `OPT_MWCOLORLAW`/`R_V`
+  real de SNANA para el mismo `E(B-V)` nominal. Fase 10 solo verificó la FÓRMULA de dispersión
+  (`GENSIGMA_MWEBV_RATIO`) sobre el valor nominal de `E(B-V)`, nunca la curva de extinción cromática
+  aplicada al flujo en sí, banda por banda. Es el candidato más concreto y accionable que queda.
+
+### Conclusión Fase 23
+
+Confirma que la "otra arista" (comparar más allá de un solo número/banda) sí revela información nueva
+que el enfoque anterior (solo banda `r`) no podía ver: el residuo tiene estructura cromática real, no
+es un offset acromático global. El siguiente paso natural, no ejecutado en esta sesión, es comparar
+directamente la curva de extinción MW aplicada (`ClippedExtinctionEffect`/`dust_extinction` `O94` vs.
+`OPT_MWCOLORLAW` real de SNANA) evaluada en las 6 bandas para un `E(B-V)` fijo, aislando ese mecanismo
+específico del resto de la cadena.
+
+### Archivos de esta fase
+
+`fase23_multiband_peak.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo). Sin cambios a
+scripts del pipeline -- diagnóstico puro.
