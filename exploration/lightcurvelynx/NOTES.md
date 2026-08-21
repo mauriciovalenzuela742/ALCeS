@@ -3199,3 +3199,95 @@ ninguna corrida real verificable. `run_simsed_poc.py`/`run_non1ased_poc.py` ya u
 mismos rangos (`(0.02, 9.7)` y `(0.02, 2.95)` respectivamente) -- coinciden con la campaña real, no
 hay desalineamiento. **El usuario confirmó usar `z=9.7`** -- no se requirió ningún cambio de código,
 solo esta verificación explícita para que quede documentada y no se reabra la duda.
+
+### Soporte WFD en `run_simsed_poc.py`/`run_non1ased_poc.py`/`run_snia_ddf_poc.py` (scripts listos, campaña sin lanzar)
+
+El usuario pidió correr simulaciones a escala WFD (nunca antes probada por LightCurveLynx en este
+proyecto -- todo el trabajo previo, Fases 0-16, es DDF), pero a mitad de esta ronda pidió
+explícitamente **dejar los scripts escritos sin lanzar la campaña** (la cuota de NLHPC sigue siendo
+frágil incluso después de liberar los ~14.6GB de arriba). Este apartado documenta el diseño y la
+implementación; la ejecución queda pendiente para cuando el usuario decida lanzarla.
+
+**Problema de diseño**: a diferencia de DDF (6 campos fijos, `DDF_FIELD_EBV` como diccionario nombre→
+E(B-V)), WFD no tiene campos fijos -- el dithering real de LSST hace que casi ningún pointing comparta
+exactamente la misma posición (`SELECT COUNT(DISTINCT fieldRA || '_' || fieldDec) FROM observations
+WHERE target_name NOT LIKE '%ddf_%'` → **1,015,331** combinaciones únicas, confirmado). El SIMLIB real
+de WFD (`WFD_baseline_v5.3.1_10yrs.SIMLIB`, ~1.08GB, 20.000 LIBID) también escribe `MWEBV: 0.00` fijo
+en cada header (mismo default hardcodeado de `writer.py` que DDF), así que no sirve como fuente. El
+mapa SFD real (`dustmaps`/`sfdmap2`) sigue sin poder descargarse desde NLHPC (Fase 0/1: Harvard
+Dataverse devuelve cuerpo vacío, el mirror de GitHub solo tiene un README).
+
+**Solución**: `build_wfd_mwebv_grid.py` (nuevo) agrupa las posiciones reales de WFD en una grilla
+gruesa de 8° directamente en SQL (`ROUND(fieldRA/8.0)`, `ROUND(fieldDec/8.0)`, `GROUP BY` -- evita
+materializar >1M filas en pandas, que colgaba el primer intento con un `SELECT DISTINCT` sin agrupar),
+reduciendo a **671 celdas reales**. Consulta el mismo servicio REST IRSA Dust Extinction Service
+(`nph-dust`, columna `refPixelValueSFD`) ya usado para los 6 valores DDF, una vez por celda, y guarda
+`wfd_mwebv_grid.csv` (columnas `ra,dec,ebv_sfd`). Nuevo helper `snana_params.make_wfd_ebv_lookup()`
+hace nearest-neighbor angular (con wrap de RA en 0/360°) contra esa tabla usando el RA/DEC exacto de
+cada objeto simulado (no el nombre de campo), reusando `make_mwebv_ratio_scatter()` para el mismo
+`GENSIGMA_MWEBV_RATIO=0.16` real ya aplicado en DDF.
+
+**Cambios en los 3 scripts** (`run_simsed_poc.py`, `run_non1ased_poc.py`, `run_snia_ddf_poc.py`), todos
+detrás de un nuevo parámetro `wfd: bool = False` / flag CLI `--wfd` (en cualquier posición de los
+argumentos):
+- Filtro de `OpSim` invertido: `~df["target_name"].str.contains("ddf_", na=False)` en vez de sin la
+  negación, sobre el mismo `baseline_v5.3.1_10yrs.db` (mismo patrón ya establecido de leer directo del
+  `.db`, no del SIMLIB pre-construido).
+- Sin columna `field` para WFD (no se extrae, `ObsTableRADECSampler(..., extra_cols=[])` en vez de
+  `["field"]`).
+- `ebv_func` bifurcado: `_field_to_ebv` (dict fijo) para DDF, `make_wfd_ebv_lookup(...)` (nearest-
+  neighbor real) para WFD -- mismo `seed_base + 10` en ambos casos.
+- `NGENTOT`: **igual que DDF** (2000/clase, misma excepción `PISN-STELLA-HYDROGENIC`=20000) -- el
+  usuario eligió "NGENTOT chico, tipo DDF" en vez de la escala real de producción (200.000/clase) para
+  no volver a agotar la cuota.
+- Nuevo sufijo de directorio de salida `_wfd` (p.ej. `poc_output_91bg_wfd`, `poc_output_wfd` para
+  `run_snia_ddf_poc.py`) -- no pisa ninguna corrida DDF existente.
+- `summary.json` gana un campo `"strategy": "WFD"|"DDF"`; el label de QC (`qc.run_all_qc(...)`) pasa a
+  decir `..._WFD_poc` en vez de `..._DDF_poc`.
+
+**Verificado**: los 4 archivos (`snana_params.py` + los 3 `run_*_poc.py`) compilan (`py_compile`) sin
+error. **No verificado todavía** (pendiente de una corrida real, que el usuario pidió no lanzar en esta
+sesión): que `wfd_mwebv_grid.csv` cargue correctamente dentro de `simulate_lightcurves()` y que el
+nearest-neighbor produzca valores de E(B-V) razonables end-to-end. `build_wfd_mwebv_grid.py` corrió
+como job en background en NLHPC (`nohup`, ~671 celdas × ~1.1s/celda ≈ 12-13 min) -- confirmar que
+terminó y que `wfd_mwebv_grid.csv` tiene ~671 filas válidas antes de la primera corrida WFD real.
+
+**Cómo lanzar cuando se decida** (no ejecutado en esta sesión): `python3 run_simsed_poc.py
+SNIa-91bg-elastic --wfd` (smoke test sugerido, clase rápida ya familiar) desde un job sbatch, tras
+verificar headroom real con `dd if=/dev/zero of=... bs=1M count=N` antes de cada clase -- una clase a
+la vez, no las 19 en paralelo, dado que la cuota de NLHPC sigue siendo el recurso más frágil del
+proyecto.
+
+`build_wfd_mwebv_grid.py` sí terminó de correr en esta sesión (job en background en NLHPC, ~671
+celdas × ~1.1s/celda): `wfd_mwebv_grid.csv` quedó generado y versionado (671 filas, `ebv_sfd` real
+SFD98: mediana=0.090, p75=0.185, máx=22.53 -- rango correcto para un footprint que cruza el plano
+galáctico, a diferencia de los 6 campos DDF que se eligieron justamente por tener E(B-V) bajo).
+
+### Notebook Jupyter de análisis (`analyze_phot_df.ipynb`)
+
+Nuevo `exploration/lightcurvelynx/analyze_phot_df.ipynb`, 18 celdas (9 markdown + 9 código). Diseño
+clave: como el Paso 1 borró casi todos los `phot_df.parquet` reales (solo queda uno,
+`poc_output/phot_df.parquet` -- SNIa DDF/SALT2, 107MB, 3.8M filas de fotometría) y la campaña WFD no
+se lanzó (ver arriba), el notebook **escanea el disco en cada ejecución** (`poc_output*/summary.json`)
+en vez de asumir una lista fija de clases/estrategias, y separa el análisis en dos niveles:
+- Lo que **no** depende de `phot_df.parquet` (eficiencia de detección por clase, distribución de
+  redshift/NOBS, eficiencia vs. redshift binned) -- funciona hoy con las 25 corridas que sí conservan
+  `head_df.parquet` más los 106 `summary.json` que quedan en todas las carpetas.
+- Lo que sí depende de `phot_df.parquet` (SNR simulado, cobertura de bandas, curvas de luz de ejemplo)
+  -- se salta con un aviso explícito (no falla) en cualquier corrida que no lo tenga.
+- Una sección final de comparación DDF-vs-WFD que hoy imprime "todavía no hay ninguna clase con ambas"
+  (0 corridas WFD encontradas) pero se completa sola, sin editar el notebook, en cuanto se lance
+  cualquier clase con `--wfd`.
+
+Incluye un glosario condensado de columnas (`SNID`/`RA`/`DEC`/`REDSHIFT_HELIO`/`NOBS`/`DETECTED` en
+`head_df`; `MJD`/`FLT`/`FLUXCAL`/`FLUXCALERR`/`MAG`/`PHOTFLAG` en `phot_df`; los campos de
+`summary.json`) para que sea autocontenido, no solo remita al glosario del dashboard.
+
+**Jupyter no estaba instalado en el venv de NLHPC** (solo tenía `pandas`/`pyarrow`/`matplotlib`, las
+librerías de simulación) -- se instaló `jupyter`/`nbconvert`/`ipykernel` (verificado headroom con `dd`
+antes, ~180MB instalados, sin impacto real en la cuota). **Verificado end-to-end real**: se corrió
+`jupyter nbconvert --to notebook --execute --inplace` dentro de un job sbatch (nunca en el login node,
+`execute_analyze_notebook.sbatch`, job 11891199, `COMPLETED 0:0`) contra los datos reales ya en disco
+-- las 9 celdas de código ejecutaron sin error (incluidas las 3 celdas "guardia" que hoy reportan datos
+faltantes en vez de fallar), las 4 celdas de gráficos generaron imagen real. La versión commiteada es
+la ejecutada (con outputs reales embebidos, ~510KB), no una plantilla vacía.

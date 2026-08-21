@@ -77,7 +77,7 @@ from pipeline.simlib.formatobs import format_obs  # noqa: E402
 
 from snana_params import (
     build_dndz_powerlaw2_cdf, make_dndz_sampler, make_bifurcated_normal_sampler,
-    make_mwebv_ratio_scatter,
+    make_mwebv_ratio_scatter, make_wfd_ebv_lookup,
     SizeAwareFunctionNode,
 )
 from searcheff import (
@@ -116,6 +116,9 @@ DDF_FIELD_EBV = {
 MW_RV = 3.1  # promedio Galaxia estandar, misma familia que OPT_MWCOLORLAW de SNANA
 GENSIGMA_MWEBV_RATIO = 0.16  # Fase 10: real, activo en toda la campana (templates.py)
 PIXSIZE = 0.2  # arcsec/pixel, LSSTCam
+# Fase 17: ver run_simsed_poc.py -- WFD no tiene campos fijos, E(B-V) real
+# por nearest-neighbor angular contra esta grilla.
+WFD_MWEBV_GRID = HERE / "wfd_mwebv_grid.csv"
 
 
 def snana_noise_columns(df_ddf: pd.DataFrame) -> pd.DataFrame:
@@ -137,22 +140,29 @@ def snana_noise_columns(df_ddf: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def main(seed_index: int = 0):
+def main(seed_index: int = 0, wfd: bool = False):
     # Fase 5: seed_index != 0 corre una realizacion independiente con
     # semilla real distinta, en un directorio de salida separado -- mismo
     # patron que run_simsed_poc.py (ver comentario ahi).
     seed_base = SEED_BASE + seed_index * 1_000_000
-    out_dir = OUT_DIR if not seed_index else HERE / f"poc_output_seed{seed_index}"
+    seed_suffix = f"_seed{seed_index}" if seed_index else ""
+    wfd_suffix = "_wfd" if wfd else ""
+    out_dir = OUT_DIR if not (seed_suffix or wfd_suffix) else HERE / f"poc_output{seed_suffix}{wfd_suffix}"
     out_dir.mkdir(exist_ok=True)
     t_start = time.time()
 
     con = sqlite3.connect(str(OPSIM_DB))
     df = pd.read_sql_query("SELECT * FROM observations", con)
-    df_ddf = df[df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
-    # etiqueta de campo por fila (primer match ddf_<campo> en target_name) --
-    # se usa para asignar el E(B-V) real correcto a cada objeto simulado
-    # segun en que pointing cayo (ver ObsTableRADECSampler mas abajo).
-    df_ddf["field"] = df_ddf["target_name"].str.extract(r"ddf_(\w+)")
+    if wfd:
+        # Fase 17: ver run_simsed_poc.py -- WFD es "todo lo que no es DDF"
+        # en el mismo .db, sin columna "field" (no hay campos fijos).
+        df_ddf = df[~df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
+    else:
+        df_ddf = df[df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
+        # etiqueta de campo por fila (primer match ddf_<campo> en target_name) --
+        # se usa para asignar el E(B-V) real correcto a cada objeto simulado
+        # segun en que pointing cayo (ver ObsTableRADECSampler mas abajo).
+        df_ddf["field"] = df_ddf["target_name"].str.extract(r"ddf_(\w+)")
     # LightCurveLynx default zp_err_mag=1e-4 es ~50x mas chico que el
     # ZEROPT_ERR real de SNANA para esta campana (mediana=0.005, std=7.5e-5,
     # confirmado contra el phot_df real de SNIa_DDF) -- ese termino escala
@@ -164,8 +174,8 @@ def main(seed_index: int = 0):
     # simplificadas (ver snana_noise_columns() arriba, NOTES.md Fase 2 A).
     df_ddf = snana_noise_columns(df_ddf)
     obs_table = OpSim(df_ddf, zp_err_mag=0.005)
-    print(f"[{time.time()-t_start:.1f}s] OpSim DDF: {len(df_ddf):,} / {len(df):,} obs totales "
-          f"(zp_err_mag=0.005, calibrado contra ZEROPT_ERR real de SNANA)")
+    print(f"[{time.time()-t_start:.1f}s] OpSim {'WFD' if wfd else 'DDF'}: {len(df_ddf):,} / "
+          f"{len(df):,} obs totales (zp_err_mag=0.005, calibrado contra ZEROPT_ERR real de SNANA)")
 
     passband_group = PassbandGroup.from_preset(preset="LSST")
     print(f"[{time.time()-t_start:.1f}s] passbands cargados")
@@ -200,7 +210,9 @@ def main(seed_index: int = 0):
     # Fase 5: radius=0.0 explicito -- evita el jitter de posicion sub-FOV no
     # reproducible de ObsTableRADECSampler (usa np.random.default_rng() sin
     # seed cuando self.radius>0, bug de la libreria, ver run_simsed_poc.py).
-    radec_sampler = ObsTableRADECSampler(obs_table, extra_cols=["field"], seed=seed_base + 5, radius=0.0)
+    radec_sampler = ObsTableRADECSampler(
+        obs_table, extra_cols=[] if wfd else ["field"], seed=seed_base + 5, radius=0.0,
+    )
     # Segundo bug de la libreria: TableSampler.__init__ crea su muestreador
     # de indice de fila via NumpyRandomFunc("integers", ...) SIN seed= --
     # el seed del constructor nunca llega a ese nodo hijo. Fijarlo aqui
@@ -214,14 +226,20 @@ def main(seed_index: int = 0):
     # Fase 10: GENSIGMA_MWEBV_RATIO=0.16 real y activo (ver
     # snana_params.make_mwebv_ratio_scatter para la formula, verificada
     # contra snlc_sim.c::gen_MWEBV()).
-    _mwebv_scatter = make_mwebv_ratio_scatter(GENSIGMA_MWEBV_RATIO, seed=seed_base + 10)
+    if wfd:
+        _wfd_ebv_lookup = make_wfd_ebv_lookup(WFD_MWEBV_GRID, GENSIGMA_MWEBV_RATIO, seed=seed_base + 10)
+        ebv_func = SizeAwareFunctionNode(
+            _wfd_ebv_lookup, node_label="ebv", ra=radec_sampler.ra, dec=radec_sampler.dec,
+        )
+    else:
+        _mwebv_scatter = make_mwebv_ratio_scatter(GENSIGMA_MWEBV_RATIO, seed=seed_base + 10)
 
-    def _field_to_ebv(size=None, field=None, **_kwargs):
-        arr = np.asarray(field)
-        nominal = np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
-        return _mwebv_scatter(nominal)
+        def _field_to_ebv(size=None, field=None, **_kwargs):
+            arr = np.asarray(field)
+            nominal = np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+            return _mwebv_scatter(nominal)
 
-    ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
+        ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
     mw_extinction = ExtinctionEffect(
         extinction_model="O94", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
     )
@@ -319,6 +337,7 @@ def main(seed_index: int = 0):
           f"({len(head_df)} filas), phot_df.parquet ({len(phot_df)} filas)")
 
     (out_dir / "summary.json").write_text(json.dumps({
+        "strategy": "WFD" if wfd else "DDF",
         "seed_index": seed_index,
         "ngentot_lc": NGENTOT_LC,
         "n_with_obs": len(head_df),
@@ -333,13 +352,20 @@ def main(seed_index: int = 0):
     from pipeline.postproc import qc
 
     qc_dir = out_dir / "qc"
-    paths = qc.run_all_qc(head_df_detected, phot_df, qc_dir, "LightCurveLynx_SNIa_DDF_poc",
-                          dump_df=dump_df)
+    paths = qc.run_all_qc(
+        head_df_detected, phot_df, qc_dir,
+        f"LightCurveLynx_SNIa_{'WFD' if wfd else 'DDF'}_poc", dump_df=dump_df,
+    )
     print(f"[{time.time()-t_start:.1f}s] QC generado: {list(paths.keys())}")
 
     print(f"[{time.time()-t_start:.1f}s] TOTAL")
 
 
 if __name__ == "__main__":
-    _seed_index = int(sys.argv[1]) if len(sys.argv) == 2 else 0
-    main(seed_index=_seed_index)
+    # Fase 17: --wfd en cualquier posicion (ver run_simsed_poc.py).
+    _args = sys.argv[1:]
+    _wfd = "--wfd" in _args
+    if _wfd:
+        _args = [a for a in _args if a != "--wfd"]
+    _seed_index = int(_args[0]) if len(_args) == 1 else 0
+    main(seed_index=_seed_index, wfd=_wfd)

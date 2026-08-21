@@ -541,6 +541,46 @@ def make_mwebv_ratio_scatter(ratio: float, *, seed: int | None = None):
     return scatter
 
 
+def make_wfd_ebv_lookup(grid_csv_path, ratio: float, *, seed: int | None = None):
+    """Fase 17 (WFD): equivalente de DDF_FIELD_EBV/_field_to_ebv para WFD, que
+    no tiene campos fijos (ver build_wfd_mwebv_grid.py). En vez de un
+    diccionario de 6 valores por nombre de campo, hace nearest-neighbor
+    angular contra una grilla real de E(B-V) (SFD98 via IRSA Dust Extinction
+    Service, misma fuente/columna que los 6 valores DDF) sobre el RA/DEC
+    EXACTO de cada objeto simulado -- variacion espacial continua real, a
+    diferencia del valor fijo por campo que usa DDF. Reusa
+    make_mwebv_ratio_scatter() para el mismo GENSIGMA_MWEBV_RATIO real
+    aplicado a DDF (misma formula, mismo gen_MWEBV() de SNANA).
+
+    grid_csv_path: CSV con columnas ra,dec,ebv_sfd (build_wfd_mwebv_grid.py).
+    """
+    import pandas as pd
+
+    grid = pd.read_csv(grid_csv_path)
+    grid_ra = grid["ra"].to_numpy(dtype=float)
+    grid_dec = grid["dec"].to_numpy(dtype=float)
+    grid_ebv = grid["ebv_sfd"].to_numpy(dtype=float)
+    _scatter = make_mwebv_ratio_scatter(ratio, seed=seed)
+
+    def lookup(size=None, ra=None, dec=None, **_kwargs):
+        ra_arr = np.atleast_1d(np.asarray(ra, dtype=float))
+        dec_arr = np.atleast_1d(np.asarray(dec, dtype=float))
+        # separacion angular aproximada (valida para el espaciado de 8 grados
+        # de la grilla -- no hace falta la formula esferica exacta tipo
+        # haversine para elegir el vecino mas cercano a esta resolucion),
+        # con wrap de RA en el borde 0/360.
+        dra = (ra_arr[:, None] - grid_ra[None, :] + 180.0) % 360.0 - 180.0
+        dra *= np.cos(np.radians(dec_arr))[:, None]
+        ddec = dec_arr[:, None] - grid_dec[None, :]
+        d2 = dra ** 2 + ddec ** 2
+        nearest_idx = np.argmin(d2, axis=1)
+        nominal = grid_ebv[nearest_idx].reshape(np.asarray(ra).shape)
+        return _scatter(nominal)
+
+    lookup.__name__ = "wfd_ebv_lookup"
+    return lookup
+
+
 if __name__ == "__main__":
     # sanity check standalone (sin LightCurveLynx) -- corridas rapidas para
     # confirmar que las formas son razonables antes de conectarlas al grafo.

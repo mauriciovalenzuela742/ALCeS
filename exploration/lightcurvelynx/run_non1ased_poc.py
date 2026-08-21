@@ -61,7 +61,7 @@ from non1ased import load_non1ased_model
 from snana_params import (
     build_dndz_powerlaw2_cdf, build_dndz_md14_cdf, build_dndz_tde_cdf, make_dndz_sampler,
     make_exp_av_sampler, make_exp_halfgauss_av_sampler, make_wv07_av_sampler,
-    make_mwebv_ratio_scatter,
+    make_mwebv_ratio_scatter, make_wfd_ebv_lookup,
     SizeAwareFunctionNode, ClippedExtinctionEffect,
 )
 from searcheff import (
@@ -87,6 +87,9 @@ DDF_FIELD_EBV = {
 }
 MW_RV = 3.1
 GENSIGMA_MWEBV_RATIO = 0.16  # Fase 10: real, activo en toda la campana (templates.py)
+# Fase 17: ver run_simsed_poc.py -- WFD no tiene campos fijos, E(B-V) real
+# por nearest-neighbor angular contra esta grilla.
+WFD_MWEBV_GRID = HERE / "wfd_mwebv_grid.csv"
 
 # --- config por clase, parametros reales del .INPUT NON1ASED real ---
 CLASS_CONFIGS = {
@@ -197,23 +200,30 @@ def snana_noise_columns(df_ddf: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 0):
+def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 0, wfd: bool = False):
     cfg = CLASS_CONFIGS[class_key]
+    # Fase 17: WFD usa el mismo NGENTOT que DDF (ver run_simsed_poc.py).
     ngentot = ngentot_override if ngentot_override is not None else cfg.get("ngentot_lc", NGENTOT_LC)
     seed_base = SEED_BASE + seed_index * 1_000_000
-    suffix = f"_seed{seed_index}" if seed_index else ""
-    out_dir = HERE / f"poc_output_non1ased_{class_key.lower().replace('-', '')}{suffix}"
+    seed_suffix = f"_seed{seed_index}" if seed_index else ""
+    wfd_suffix = "_wfd" if wfd else ""
+    out_dir = HERE / f"poc_output_non1ased_{class_key.lower().replace('-', '')}{seed_suffix}{wfd_suffix}"
     out_dir.mkdir(exist_ok=True)
     t_start = time.time()
 
     con = sqlite3.connect(str(OPSIM_DB))
     df = pd.read_sql_query("SELECT * FROM observations", con)
-    df_ddf = df[df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
-    df_ddf["field"] = df_ddf["target_name"].str.extract(r"ddf_(\w+)")
+    if wfd:
+        # Fase 17: ver run_simsed_poc.py -- WFD es "todo lo que no es DDF"
+        # en el mismo .db, sin columna "field" (no hay campos fijos).
+        df_ddf = df[~df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
+    else:
+        df_ddf = df[df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
+        df_ddf["field"] = df_ddf["target_name"].str.extract(r"ddf_(\w+)")
     df_ddf = snana_noise_columns(df_ddf)
     obs_table = OpSim(df_ddf, zp_err_mag=0.005)
-    print(f"[{time.time()-t_start:.1f}s] [{class_key}] OpSim DDF: {len(df_ddf):,} obs, "
-          f"ruido real de SNANA inyectado")
+    print(f"[{time.time()-t_start:.1f}s] [{class_key}] OpSim {'WFD' if wfd else 'DDF'}: "
+          f"{len(df_ddf):,} obs, ruido real de SNANA inyectado")
 
     passband_group = PassbandGroup.from_preset(preset="LSST")
     print(f"[{time.time()-t_start:.1f}s] passbands cargados")
@@ -232,7 +242,9 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     # radius=0.0 explicito (mismo fix de Fase 5 que run_simsed_poc.py --
     # ver comentario alli): campos DDF son pointings fijos, evita el
     # jitter sub-FOV sin seed de ObsTableRADECSampler.compute().
-    radec_sampler = ObsTableRADECSampler(obs_table, extra_cols=["field"], seed=seed_base + 5, radius=0.0)
+    radec_sampler = ObsTableRADECSampler(
+        obs_table, extra_cols=[] if wfd else ["field"], seed=seed_base + 5, radius=0.0,
+    )
     # mismo segundo fix de Fase 5: TableSampler.__init__ crea su propio
     # muestreador de indice de fila sin heredar el seed del constructor.
     radec_sampler.setters["selected_table_index"].dependency.set_seed(seed_base + 5)
@@ -253,14 +265,20 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     # make_mwebv_ratio_scatter para la formula, verificada linea por linea
     # contra snlc_sim.c::gen_MWEBV()) -- antes de esta fase _field_to_ebv
     # devolvia el EBV nominal por campo sin scatter alguno.
-    _mwebv_scatter = make_mwebv_ratio_scatter(GENSIGMA_MWEBV_RATIO, seed=seed_base + 10)
+    if wfd:
+        _wfd_ebv_lookup = make_wfd_ebv_lookup(WFD_MWEBV_GRID, GENSIGMA_MWEBV_RATIO, seed=seed_base + 10)
+        ebv_func = SizeAwareFunctionNode(
+            _wfd_ebv_lookup, node_label="ebv", ra=radec_sampler.ra, dec=radec_sampler.dec,
+        )
+    else:
+        _mwebv_scatter = make_mwebv_ratio_scatter(GENSIGMA_MWEBV_RATIO, seed=seed_base + 10)
 
-    def _field_to_ebv(size=None, field=None, **_kwargs):
-        arr = np.asarray(field)
-        nominal = np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
-        return _mwebv_scatter(nominal)
+        def _field_to_ebv(size=None, field=None, **_kwargs):
+            arr = np.asarray(field)
+            nominal = np.array([DDF_FIELD_EBV.get(f, 0.0) for f in arr.ravel()]).reshape(arr.shape)
+            return _mwebv_scatter(nominal)
 
-    ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
+        ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
     mw_extinction = ClippedExtinctionEffect(
         extinction_model="O94", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
     )
@@ -372,6 +390,7 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     (out_dir / "summary.json").write_text(json.dumps({
         "class_key": class_key,
         "model_class": "NON1ASED",
+        "strategy": "WFD" if wfd else "DDF",
         "seed_index": seed_index,
         "ngentot_lc": ngentot,
         "n_with_obs": len(head_df),
@@ -387,7 +406,10 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     from pipeline.postproc import qc
     qc_dir = out_dir / "qc"
     if len(head_df_detected) > 0:
-        paths = qc.run_all_qc(head_df_detected, phot_df, qc_dir, f"LightCurveLynx_{class_key}_NON1ASED_DDF_poc", dump_df=dump_df)
+        paths = qc.run_all_qc(
+            head_df_detected, phot_df, qc_dir,
+            f"LightCurveLynx_{class_key}_NON1ASED_{'WFD' if wfd else 'DDF'}_poc", dump_df=dump_df,
+        )
         print(f"[{time.time()-t_start:.1f}s] QC generado: {list(paths.keys())}")
     else:
         print(f"[{time.time()-t_start:.1f}s] ! 0 objetos detectados, QC omitido")
@@ -395,8 +417,13 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (2, 3) or sys.argv[1] not in CLASS_CONFIGS:
-        print(f"uso: python3 run_non1ased_poc.py <clase> [seed_index]  (opciones: {list(CLASS_CONFIGS)})")
+    # Fase 17: ver run_simsed_poc.py -- --wfd en cualquier posicion.
+    _args = sys.argv[1:]
+    _wfd = "--wfd" in _args
+    if _wfd:
+        _args = [a for a in _args if a != "--wfd"]
+    if len(_args) not in (1, 2) or _args[0] not in CLASS_CONFIGS:
+        print(f"uso: python3 run_non1ased_poc.py <clase> [seed_index] [--wfd]  (opciones: {list(CLASS_CONFIGS)})")
         sys.exit(1)
-    _seed_index = int(sys.argv[2]) if len(sys.argv) == 3 else 0
-    main(sys.argv[1], seed_index=_seed_index)
+    _seed_index = int(_args[1]) if len(_args) == 2 else 0
+    main(_args[0], seed_index=_seed_index, wfd=_wfd)
