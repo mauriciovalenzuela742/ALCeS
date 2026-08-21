@@ -3629,3 +3629,93 @@ esta sesión; requeriría leer cómo SNANA calcula `PEAKMAG_<filtro>` en el `.DU
 `fase21_verify_interp.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo). Sin cambios de
 código en los scripts del proyecto -- esta fase es diagnóstico puro, sin fix que aplicar (candidato
 descartado, no una causa a corregir).
+
+## Fase 22 -- el residuo real es más grande de lo reportado: la metodología de "pico" subestimaba el brillo
+
+Retoma el candidato metodológico que dejó pendiente Fase 21: la comparación de "brillo pico" usada en
+Fases 7/16/20/21 (`flux_perfect.max()` sobre las épocas que la cadencia real de OpSim efectivamente
+observó) podría no ser la misma medición que `PEAKMAG_r` real de SNANA.
+
+### Confirmado: SNANA mide el pico verdadero, no uno limitado por cadencia
+
+Leyendo `snlc_sim.c` real (~línea 12857-12866, comentario real *"always add artificial PEAKMJD epoch
+to be last"*): SNANA inserta, para cada filtro, un epoch **sintético** exactamente en
+`GENLC.PEAKMJD` (`OBSFLAG_GEN=false` -- no es una observación real generada, solo bookkeeping interno)
+específicamente para que `PEAKMAG_<filtro>` sea el flujo evaluado en el pico verdadero/continuo
+(fase=0 rest-frame), **no** el máximo sobre las épocas realmente cadenciadas.
+
+### Herramienta real encontrada: `compute_noise_free_lightcurves()`/`compute_single_noise_free_lightcurve()`
+
+LightCurveLynx expone una API real y ya probada (`lightcurvelynx/simulate.py`) para evaluar curvas de
+luz sin ruido en fases rest-frame arbitrarias, **sin pasar por ningún `OpSim`/cadencia** -- reutiliza
+`model.evaluate_bandfluxes()`, la misma maquinaria interna real que usa `simulate_lightcurves()`, no
+una aproximación. Permite reusar el mismo `graph_state` (parámetros ya sampleados: z, x1, c, t0, ra,
+dec) para comparar de forma pareada, objeto por objeto, la métrica vieja (cadencia) contra la métrica
+correcta (`rest_frame_phase_min=0, rest_frame_phase_max=0.5, rest_frame_phase_step=1.0` → un solo
+punto exacto en `t0`).
+
+### Resultado: ~1/3 de los objetos tienen cobertura de cadencia pésima cerca de su propio pico
+
+Corrido sobre los mismos 2000 objetos de `compare_brightness_truth_salt2.py` (mismo `seed_base`, mismo
+`M_abs=-19.365` de Fase 20), comparando `flux_perfect.max()` (cadencia) vs. flujo evaluado en
+`rest_phase=0` (verdadero), objeto por objeto:
+
+- **33.6% de los objetos tienen `|Δmag| > 0.5`** entre ambas métricas -- la cadencia real de DDF
+  (pocas épocas por objeto) frecuentemente no cae cerca del pico real de un objeto dado.
+- Caso extremo real verificado (no un bug de cómputo -- confirmado comparando contra la distribución
+  completa de su bin de `z`, donde el valor "verdadero" cae justo en la mediana): un objeto con
+  `flux_cadence_max=0.000355` pero `flux_true_peak=8945.6` (mediana real de su bin de z: ~8095) -- la
+  cadencia simplemente nunca lo observó cerca de su pico real.
+- La dirección es sistemática, no aleatoria: la mediana por objeto de `Δmag(verdadero−cadencia)` es
+  **negativa** en los bins de `z` bajo (el pico verdadero es más brillante que el medido por cadencia,
+  como predice la lógica -- un máximo sobre un subconjunto discreto de épocas nunca puede superar al
+  máximo continuo) y se vuelve **positiva** hacia `z` alto (más complejo -- posición del pico real de
+  banda `r` observada, que a alto `z` mapea a longitudes de onda rest-frame más azules, no coincide
+  exactamente con `t0` definido en banda B).
+
+### Recalculado contra el `.DUMP` real: el residuo casi se duplica
+
+Repitiendo el binning de Fase 20 (mismos 7 bins de `z`, misma mediana poblacional por bin,
+`PEAKMAG_r` real de SNANA sin cambios) pero con la métrica corregida (`flux` en `rest_phase=0` en vez
+de `flux_perfect.max()` sobre cadencia):
+
+| z bin | Δmag Fase 20 (cadencia, método viejo) | Δmag Fase 22 (`rest_phase=0`, corregido) |
+|---|---|---|
+| [0.181,0.351) | -0.319 | -0.466 |
+| [0.351,0.521) | -0.196 | -0.480 |
+| [0.521,0.690) | -0.193 | -0.534 |
+| [0.690,0.860) | -0.310 | -0.599 |
+| [0.860,1.030) | -0.208 | -0.503 |
+| [1.030,1.200) | -0.181 | -0.534 |
+| **media** | **-0.235** | **-0.519** |
+
+**El residuo real (medido de forma consistente en ambos lados -- SNANA ya evalúa su `PEAKMAG_r` en el
+pico verdadero, no limitado por cadencia) es de ~-0.52 mag, más del doble de los ~-0.235 mag
+reportados desde Fase 16.** La metodología usada desde Fase 7 (incluyendo Fase 16/20/21, todas las
+verificaciones de color law/M_abs/interpolación 2D) subestimaba sistemáticamente el brillo real de
+LightCurveLynx por el sesgo de cadencia -- esas tres verificaciones (color law, M_abs, interpolación)
+siguen siendo válidas como descartes (todas comparaban contra la MISMA métrica vieja de forma
+consistente, así que sus conclusiones de "no explica la brecha" no cambian), pero la magnitud real de
+lo que hay que explicar es mayor de lo que se pensaba.
+
+### Conclusión Fase 22
+
+**Hallazgo metodológico real, no una causa física nueva**: el residuo sistémico de brillo de este
+proyecto es más grande de lo reportado en las Fases 7-21 (~-0.52 mag, no ~-0.235 mag), pero la causa
+raíz sigue sin identificarse -- de hecho ahora es un problema más grande de lo que parecía. Con color
+law, M_abs e interpolación 2D ya descartados (Fase 16/20/21) y ahora con la magnitud real confirmada
+más alta, el siguiente paso natural (Paso 2 de esta fase, pendiente) es comparar la curva de luz SALT2
+completa -- no solo el pico -- entre ambos simuladores, para localizar en qué fase/banda específica
+diverge la física, ya que "es más grande de lo pensado" por sí solo no dice dónde buscar.
+
+**Nota metodológica para trabajo futuro**: cualquier comparación de brillo "pico" en este proyecto de
+ahora en adelante debe usar `compute_noise_free_lightcurves()` (evaluado en `rest_phase=0`), no
+`flux_perfect.max()` sobre la cadencia real -- la cadencia real de DDF (pocas épocas por objeto) no es
+suficientemente densa para que el máximo observado sea una proxy confiable del pico verdadero.
+
+### Archivos de esta fase
+
+`fase22_paso1_peak_bias.py`/`fase22_paso1_vs_dump.py` (exploratorios, no versionados, borrados de
+NLHPC tras usarlos). Sin cambios a `run_*_poc.py`/`compare_brightness_truth_salt2.py` -- este hallazgo
+es sobre la METODOLOGÍA de comparación (un script de análisis nuevo, no parte del pipeline de
+simulación), no sobre un parámetro a corregir en la simulación en sí.

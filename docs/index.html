@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "23&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "24&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1260,6 +1260,18 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         "calibración empírica -19.13" que proponía la Fase 19 resultó ser un error propio (asumía que
         <code>X0SCALE_SALT2</code> se cancela igual en LightCurveLynx que en SNANA — no lo hace).</p>
       </div>
+    </div>
+
+    <div class="callout accent" style="margin-top:20px;">
+      <span class="verdict-badge critical">Actualización Fase 22</span>
+      <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
+      pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
+      subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
+      cae cerca de su pico real. Corregido (evaluando en el pico verdadero, misma convención que usa
+      <code>PEAKMAG_r</code> real de SNANA), el residuo pasa de <strong>-0.235 a -0.519 mag</strong> de
+      media. Los descartes de M_abs/color law/interpolación 2D arriba siguen siendo válidos (comparaban
+      contra la misma métrica de forma consistente) — pero la magnitud real a explicar es más del doble.
+      Ver pestaña "24 fases" (Fase 22) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1519,7 +1531,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintitrés fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Veinticuatro fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1714,6 +1726,31 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           law, M_abs, interpolación 2D) — los tres verificados y descartados; el residuo no viene de la
           física del modelo SALT2 en sí. Candidato metodológico nuevo, sin investigar: si "brillo pico"
           se mide igual en ambos lados (cadencia observada vs. escaneo continuo de fase).</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">22</span>
+        <div class="step-body">
+          <p><strong>El residuo real es más grande de lo reportado — la metodología de "pico"
+          subestimaba el brillo</strong> — se confirmó (leyendo <code>snlc_sim.c</code> real) que SNANA
+          inserta un epoch <strong>sintético</strong> exactamente en <code>PEAKMJD</code> para cada
+          filtro (<em>"always add artificial PEAKMJD epoch to be last"</em>), así que
+          <code>PEAKMAG_r</code> real es el pico verdadero/continuo, no limitado por cadencia — mientras
+          que la métrica usada en LightCurveLynx desde Fase 7 (<code>flux_perfect.max()</code> sobre las
+          épocas realmente cadenciadas) sí lo está. Usando la API real
+          <code>compute_noise_free_lightcurves()</code> (evalúa flujo en cualquier fase rest-frame sin
+          pasar por <code>OpSim</code>) se comparó, objeto por objeto, ambas métricas sobre el mismo
+          <code>graph_state</code>: <strong>33.6% de los objetos tienen <code>|Δmag|&gt;0.5</code></strong>
+          entre ellas — la cadencia real de DDF (pocas épocas por objeto) frecuentemente no cae cerca
+          del pico real de un objeto dado (caso extremo real verificado: un objeto con
+          <code>flux_cadencia=0.0004</code> pero <code>flux_verdadero=8946</code>, típico de su bin de
+          z). Recalculando el binning de Fase 20 con la métrica corregida, el residuo pasa de
+          <strong>-0.235 a -0.519 mag</strong> de media — <strong>más del doble</strong> de lo reportado
+          desde Fase 16. Los descartes de color law/M_abs/interpolación 2D siguen siendo válidos (todos
+          comparaban contra la métrica vieja de forma consistente), pero la magnitud real a explicar es
+          mayor. Nota para trabajo futuro: cualquier comparación de brillo pico debe usar
+          <code>compute_noise_free_lightcurves()</code>, no <code>flux_perfect.max()</code> sobre
+          cadencia.</p>
         </div>
       </li>
     </ol>
@@ -2045,7 +2082,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "23 fases" },
+    { id: "fases", label: "24 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
