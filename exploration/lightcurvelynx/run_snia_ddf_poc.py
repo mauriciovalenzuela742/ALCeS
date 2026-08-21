@@ -256,8 +256,12 @@ def main(seed_index: int = 0, wfd: bool = False):
             return _mwebv_scatter(nominal)
 
         ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
+    # Fase 24: OPT_MWCOLORLAW=99 real (Fitzpatrick99 exacto, confirmado en
+    # include_model_SNIa.INPUT -- ver NOTES.md) -- corregido de O94 a F99.
+    # Diferencia numerica O94-vs-F99 confirmada <0.005 mag a estos E(B-V)
+    # (campos DDF 0.006-0.025), no explica el patron cromatico de Fase 23.
     mw_extinction = ExtinctionEffect(
-        extinction_model="O94", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
+        extinction_model="F99", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
     )
 
     source = SncosmoWrapperModel(

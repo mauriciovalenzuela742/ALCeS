@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "25&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "26&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1237,10 +1237,15 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
         de código necesarios en ningún caso.</p>
       </div>
       <div class="cause-card confirmed">
-        <p class="cause-label">07 · Resuelto</p>
+        <p class="cause-label">07 · Resuelto (corregido en Fase 24)</p>
         <h3>Ley de extinción (R_V)</h3>
-        <p>MW: misma familia que <code>OPT_MWCOLORLAW</code> real (O94/CCM89), dispersión verificada línea por
-        línea (Fase 10). Color law SALT2: coincide a precisión de máquina con <code>sncosmo</code> (Fase 16).</p>
+        <p>MW: <code>OPT_MWCOLORLAW=99</code> real es <strong>Fitzpatrick99 exacto</strong>, no
+        O94/CCM89 como se asumió desde Fase 1 sin verificar el valor numérico — corregido en Fase 24
+        (<code>extinction_model="F99"</code> en los 5 scripts). Diferencia numérica O94-vs-F99
+        confirmada &lt;0.005 mag a los <code>E(B-V)</code> reales de DDF — no explica el patrón
+        cromático de Fase 23, pero es una corrección real. Dispersión (<code>GENSIGMA_MWEBV_RATIO</code>)
+        verificada línea por línea (Fase 10). Color law SALT2: coincide a precisión de máquina con
+        <code>sncosmo</code> (Fase 16).</p>
       </div>
       <div class="cause-card confirmed">
         <p class="cause-label">08 · Resuelto</p>
@@ -1263,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-23</span>
+      <span class="verdict-badge critical">Actualización Fases 22-24</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1272,12 +1277,19 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>-0.235 a -0.519 mag</strong> de media. Los descartes de M_abs/color law/interpolación 2D
       arriba siguen siendo válidos (comparaban contra la misma métrica de forma consistente) — pero la
       magnitud real a explicar es más del doble.</p>
-      <p><strong>Además (Fase 23):</strong> extendido a las 6 bandas LSST, el residuo corregido
+      <p><strong>Fase 23:</strong> extendido a las 6 bandas LSST, el residuo corregido
       <strong>no es plano en longitud de onda</strong> — máximo en <code>g</code> (-0.593 mag), decrece
       monótonamente hacia el rojo hasta <code>y</code> (-0.382 mag). Patrón cualitativamente igual al de
-      la extinción (más fuerte en azul) — candidato nuevo y concreto, nunca verificado a fondo: si la
-      extinción MW aplica la misma cantidad banda por banda que SNANA real. Ver pestaña "25 fases"
-      (Fases 22-23) para el detalle completo.</p>
+      la extinción (más fuerte en azul).</p>
+      <p><strong>Fase 24 (candidato accionado):</strong> el <code>.INPUT</code> real usa
+      <code>OPT_MWCOLORLAW=99</code> — <strong>Fitzpatrick99 exacto</strong>, no O94/CCM89 como se
+      asumió desde Fase 1 sin verificar el valor numérico. Corregido en los 5 scripts que aplican
+      extinción MW. Pero verificado numéricamente que la diferencia O94-vs-F99 es
+      <strong>&lt;0.005 mag</strong> a los <code>E(B-V)</code> reales de DDF — <strong>descartado</strong>
+      como causa del patrón cromático, aunque la corrección es real e importante igual. El patrón de
+      Fase 23 sigue sin explicarse — candidato que queda: la convención de integración de flujo en
+      banda (photon-counting vs. energy-flux) entre SNANA y <code>sncosmo</code>, nunca comparada
+      término a término. Ver pestaña "26 fases" (Fases 22-24) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1537,7 +1549,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Veinticinco fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Veintiséis fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -1781,6 +1793,30 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           <code>E(B-V)</code> nominal (Fase 10 solo verificó la fórmula de dispersión sobre el valor
           nominal, nunca la curva de extinción cromática aplicada al flujo en sí). Candidato más
           concreto y accionable que queda, no investigado todavía.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">24</span>
+        <div class="step-body">
+          <p><strong>Accionado el candidato de Fase 23 — ley de extinción MW real es Fitzpatrick99, no
+          O94</strong> — grepeando <code>include_model_&lt;clase&gt;.INPUT</code> reales (idéntico para
+          <code>SNIa</code>/<code>SLSN-I</code>/<code>SNIa-91bg</code>, campaña-wide):
+          <code>OPT_MWCOLORLAW: 99</code> — leyendo <code>MWgaldust.h</code> real,
+          <code>99 = OPT_MWCOLORLAW_FITZ99_EXACT</code> (Fitzpatrick 1999 exacto), <strong>no</strong>
+          CCM89 (89) ni O'Donnell94 (94). Los 5 scripts del proyecto usaban
+          <code>extinction_model="O94"</code> desde Fase 1 — un supuesto ("misma familia") nunca
+          verificado contra el valor numérico real, afectando a las 19 clases por igual. Corregido a
+          <code>"F99"</code> (<code>dust_extinction.F99</code>, disponible en el mismo paquete ya
+          usado) en los 5 scripts. <strong>Verificado numéricamente que esto NO explica el patrón de
+          Fase 23</strong>: comparando <code>O94(Rv=3.1)</code> vs <code>F99(Rv=3.1)</code> reales en
+          las 6 bandas LSST, para los <code>E(B-V)</code> reales de los 6 campos DDF (0.006-0.025) y un
+          valor de referencia 6x más alto (0.10): diferencia máxima medida <strong>&lt;0.005 mag</strong>
+          — tres órdenes de magnitud más chico que los ~0.21 mag (g→y) de Fase 23. Consistente con Fase
+          1 (los campos DDF se eligieron deliberadamente por su baja extinción). Descartado como causa,
+          pero corrección real aplicada de todas formas — mismo criterio que Fase 20 (M_abs). El patrón
+          cromático de Fase 23 sigue sin explicarse; candidato que queda: la convención de integración
+          de flujo en banda (photon-counting vs. energy-flux) entre SNANA y <code>sncosmo</code>, nunca
+          comparada término a término (a diferencia de la forma estática del passband, Fase 12).</p>
         </div>
       </li>
     </ol>
@@ -2112,7 +2148,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "25 fases" },
+    { id: "fases", label: "26 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

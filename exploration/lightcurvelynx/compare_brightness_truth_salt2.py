@@ -139,8 +139,9 @@ def main():
         return _mwebv_scatter(nominal)
 
     ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
+    # Fase 24: OPT_MWCOLORLAW=99 real -> F99, no O94 (ver run_snia_ddf_poc.py / NOTES.md).
     mw_extinction = ExtinctionEffect(
-        extinction_model="O94", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
+        extinction_model="F99", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
     )
 
     source = SncosmoWrapperModel(

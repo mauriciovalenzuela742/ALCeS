@@ -494,8 +494,16 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
             return _mwebv_scatter(nominal)
 
         ebv_func = SizeAwareFunctionNode(_field_to_ebv, node_label="ebv", field=radec_sampler.field)
+    # Fase 24: el .INPUT real de esta campana (inyectado por clase, confirmado
+    # identico para SNIa/SLSN-I/SNIa-91bg) usa OPT_MWCOLORLAW=99 (Fitzpatrick
+    # 1999 EXACTO, MWgaldust.h), no O94/CCM89 -- nunca antes verificado contra
+    # el valor numerico real (la Fase 1 solo asumio "misma familia"). Corregido
+    # a "F99" (dust_extinction.F99, misma familia real). Verificado numerica-
+    # mente que la diferencia O94-vs-F99 es <0.005 mag incluso a E(B-V)=0.10
+    # (los 6 campos DDF reales estan en 0.006-0.025) -- descartado como causa
+    # del patron cromatico de Fase 23, pero es una correccion real igual.
     mw_extinction = ClippedExtinctionEffect(
-        extinction_model="O94", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
+        extinction_model="F99", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
     )
 
     source_model = SIMSEDModel.from_dir(

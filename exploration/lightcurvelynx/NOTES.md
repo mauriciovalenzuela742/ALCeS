@@ -3773,3 +3773,61 @@ específico del resto de la cadena.
 
 `fase23_multiband_peak.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo). Sin cambios a
 scripts del pipeline -- diagnóstico puro.
+
+## Fase 24 -- accionado el candidato de Fase 23: ley de extinción MW real es Fitzpatrick99, no O94
+
+Acciona directamente el candidato que dejó abierto Fase 23 (extinción MW cromática).
+
+### Hallazgo real: el `.INPUT` real usa `OPT_MWCOLORLAW: 99` (Fitzpatrick99 exacto), nunca O94/CCM89
+
+Grepeando `AUTOSIM/build/full_v5.3_10yrs/includes/include_model_<clase>.INPUT` reales (confirmado
+idéntico para `SNIa`, `SLSN-I`, `SNIa-91bg` -- se inyecta por clase, campaña-wide, no varía):
+```
+OPT_MWEBV:  1
+OPT_MWCOLORLAW:  99
+```
+Leyendo `MWgaldust.h` real de SNANA: `OPT_MWCOLORLAW_FITZ99_EXACT = 99` ("exact Fitzpatrick (1999),
+S.Thorp 2024") -- **no** `OPT_MWCOLORLAW_CCM89=89` ni `OPT_MWCOLORLAW_ODON94=94`. Los 5 scripts del
+proyecto que aplican extinción MW (`run_simsed_poc.py`, `run_non1ased_poc.py`, `run_snia_ddf_poc.py`,
+`compare_brightness_truth.py`, `compare_brightness_truth_salt2.py`) usaban
+`extinction_model="O94"` desde Fase 1 -- un supuesto ("misma familia que SNANA") nunca antes verificado
+contra el valor numérico real del `.INPUT`. Afecta a las 19 clases por igual, no solo `SNIa`.
+
+### Verificado numéricamente: la diferencia es real, pero demasiado chica para explicar Fase 23
+
+`dust_extinction` (el mismo paquete que ya usa el proyecto) trae `F99` como clase nativa. Comparando
+`O94(Rv=3.1)` vs `F99(Rv=3.1)` -- `.extinguish()` real de ambas -- en las 6 bandas LSST, para los
+`E(B-V)` reales de los 6 campos DDF (`0.006-0.025`) y un valor de referencia 6x más alto (`0.10`):
+**diferencia máxima medida: <0.005 mag**, incluso en el caso de referencia con `E(B-V)` artificialmente
+alto -- tres órdenes de magnitud más chico que el patrón de ~0.21 mag (g→y) de Fase 23. Consistente con
+el hallazgo ya establecido en Fase 1 (los 6 campos DDF se eligieron deliberadamente por su baja
+extinción): con `E(B-V)` tan bajo, la elección de ley de extinción casi no importa en magnitud absoluta,
+sin importar cuál de las dos sea la "correcta". **Descartado como causa del patrón cromático de
+Fase 23**, con evidencia numérica directa -- pero es una corrección real de todas formas.
+
+### Corregido en los 5 scripts, sin necesidad de re-correr para verificar
+
+Se corrigió `extinction_model="O94"` → `extinction_model="F99"` en los 5 scripts. No se re-corrió el
+catálogo completo para confirmar el cambio -- la propia verificación numérica de arriba (<0.005 mag de
+diferencia máxima a estos `E(B-V)`) ya acota el efecto esperado muy por debajo del ruido estadístico de
+5 semillas ya reportado por clase (Fase 5), así que no hay nada que una re-corrida real pudiera revelar
+que la verificación directa no haya cerrado ya.
+
+### Conclusión Fase 24
+
+El candidato concreto de Fase 23 queda accionado (corrección real aplicada) pero **no explica el patrón
+cromático** -- descartado con la misma evidencia numérica directa que ya cerró color law (Fase 16),
+M_abs (Fase 20) e interpolación 2D (Fase 21). El patrón g→y de ~0.21 mag de Fase 23 sigue sin explicarse.
+**Candidato que queda, no investigado**: dado que el patrón correlaciona con la banda OBSERVADA (mismo
+orden descendente `g>r>i>z>y` en cada bin de `z` de Fase 23, no con la longitud de onda rest-frame que
+cada banda mapea según `z` -- lo que descartaría un artefacto ligado al redshift) el mecanismo más
+probable que queda sin verificar es la propia **convención de integración de flujo en banda**
+(photon-counting vs. energy-flux, factor `LAMSED*TRANS` visto en `INTEG_zSED_SALT2()` real de SNANA
+vs. la integración real de `sncosmo`/LightCurveLynx) -- nunca comparada explícitamente término a
+término, a diferencia de la forma estática del passband (Fase 12, sí verificada idéntica).
+
+### Archivos de esta fase
+
+`run_simsed_poc.py`, `run_non1ased_poc.py`, `run_snia_ddf_poc.py`, `compare_brightness_truth.py`,
+`compare_brightness_truth_salt2.py`: `extinction_model` corregido de `"O94"` a `"F99"`.
+`fase24_verify_extinction.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo).
