@@ -4357,3 +4357,140 @@ privado de SNANA del usuario, no versionado en este repo. Exploratorios en NLHPC
 `analyze_z06.py`/`analyze_z06_v2.py`/`analyze_z09.py` (análisis del volcado real). GENVERSIONs
 `TEST_FASE29_bandflux_z06`/`z06_dump`/`z09_dump` generados en `SNDATA_ROOT/SIM/` y borrados tras extraer
 el `.DUMP`/volcado. Sin cambios a scripts del pipeline de este repo -- diagnóstico puro.
+
+## Fase 30 — el punto cero real (espectro de referencia) añade una fracción real, pero no cierra el resto
+
+A pedido explícito del usuario ("sigamos cazando el resto de la magnitud"), se ataca el candidato que
+dejó abierto Fase 29: la definición exacta de punto cero/normalización de fotometría sintética de cada
+código, más allá del simple exponente de peso (`λ` vs. `1/λ`) ya aislado ahí.
+
+### El mecanismo real que Fase 29 nunca incluyó
+
+Leyendo `genmag_SEDtools.c` real (`init_filter_SEDMODEL()`, líneas ~270-350): SNANA no convierte flujo
+integrado a magnitud con un punto cero universal fijo -- lo calibra **por banda**, integrando un
+**espectro de referencia primario real** (`interp_primaryFlux_SEDMODEL(lam)`, la curva `PrimarySED` real
+de `kcor_LSST.fits`, ya leída como HDU real en Fase 12) con la **misma convención de pesado por `λ`**
+que usa para el objeto científico:
+
+```c
+fluxREF_sum  += transREF * fluxREF * lam ;        // linea 298
+...
+fluxREF_sum *= (lamstep/hc8) ;                     // linea 343
+FILTER_SEDMODEL[ifilt].ZP = 2.5*log10(fluxREF_sum) + magprimary ;   // linea 346
+```
+
+y luego (`genmag_SALT2.c` línea 3628, ya citado en Fase 29): `MAG = -2.5*log10(FTMP) + ZP`. El promedio
+ponderado normalizado que usó Fase 29 (`<F>=Σ(FTMP·TRANS·peso)/Σ(TRANS·peso)`) es equivalente, solo para
+fines de esa comparación relativa, a asumir que el espectro de referencia usado para calibrar el punto
+cero es plano dentro de la banda -- nunca contrastado contra el `PrimarySED` real, que no tiene por qué
+serlo (un espectro AB puro es plano en `f_ν`, lo que en `λ` es `f_λ∝1/λ²`).
+
+### El parche real
+
+Mismo patrón que Fase 29 (`getenv("ALCES_DUMP_INTEG")`), esta vez en `genmag_SEDtools.c`, volcando por
+bin del espectro de referencia y, al final de cada banda, el resumen real:
+
+```c
+    fluxREF_sum  += transREF * fluxREF * lam ;
+
+    // ALCES Fase30: volcado real de (lam,transREF,fluxREF) por bin del espectro
+    // de referencia primario, gateado por env var -- para recalcular el punto
+    // cero (ZP) bajo la convencion 1/lambda sin reconstruirlo a mano.
+    // Ver exploration/lightcurvelynx/NOTES.md Fase 30 en el repo ALCeS.
+    if ( getenv("ALCES_DUMP_INTEG") != NULL ) {
+      FILE *fp_alces_zp = fopen("/home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx/dump_zp_salt2.csv","a");
+      if ( fp_alces_zp != NULL ) {
+        fprintf(fp_alces_zp, "BIN,%s,%d,%.6f,%.8e,%.8e\n",
+                filter_name, ifilt_obs, lam, transREF, fluxREF);
+        fclose(fp_alces_zp);
+      }
+    }
+```
+```c
+  if( fluxREF_sum != 0.0 )
+    { FILTER_SEDMODEL[ifilt].ZP = 2.5*log10(fluxREF_sum) + magprimary ; }
+  else
+    { FILTER_SEDMODEL[ifilt].ZP = 0.0 ; }
+
+  // ALCES Fase30: volcado real de (magprimary,fluxREF_sum,ZP) final por banda,
+  // gateado por env var. Ver exploration/lightcurvelynx/NOTES.md Fase 30.
+  if ( getenv("ALCES_DUMP_INTEG") != NULL ) {
+    FILE *fp_alces_zp2 = fopen("/home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx/dump_zp_salt2.csv","a");
+    if ( fp_alces_zp2 != NULL ) {
+      fprintf(fp_alces_zp2, "SUMMARY,%s,%d,%.6f,%.8e,%.6f\n",
+              filter_name, ifilt_obs, magprimary, fluxREF_sum, FILTER_SEDMODEL[ifilt].ZP);
+      fclose(fp_alces_zp2);
+    }
+  }
+```
+
+Vive solo en el clon privado de SNANA del usuario (`~/github/SNANA_src`), no versionado en este repo.
+Reconstruir el binario recicló toda la cadena de dependencias de build ya resuelta en Fase 29 (perl,
+`python3-config`, GSL/cfitsio/gettext vía rutas reales del árbol `spack`, esta vez además con
+`LD_LIBRARY_PATH` en tiempo de ejecución, no solo de build, porque el binario recompilado enlaza contra
+`libcfitsio.so.10` dinámica).
+
+**No-regresión verificada**: mismo objeto controlado de Fase 27/29 (`z=0.6`) corrido con y sin
+`ALCES_DUMP_INTEG` -- `.DUMP` real resultante byte-idéntico (`diff` vacío).
+
+### El experimento: `ZP` real de SNANA bajo ambas convenciones, combinado con el `Finteg` real de Fase 29
+
+Objeto controlado real (mismo patrón de Fase 26/27/29: `GENRANGE_REDSHIFT`/`SALT2c`/`SALT2x1` colapsados
+a un punto, `x1=0.973`, `c=-0.054`, `OPT_MWEBV:0`, `OPT_MWCOLORLAW:99`, `NGENTOT_LC:5`) corrido a `z=0.6`
+y `z=0.9` con el binario doblemente instrumentado y `ALCES_DUMP_INTEG=1`. El volcado de `ZP` da, para
+cada banda, `(magprimary, fluxREF_sum, ZP)` reales -- `magprimary=0` en las 6 bandas (consistente con
+`ZPoff=0` de Fase 12), pero `fluxREF_sum` real con forma no trivial (no un simple factor por banda).
+
+Con las `(lam,transREF,fluxREF)` reales volcadas por bin: se recalculó `fluxREF_sum` bajo la convención
+`1/λ` (`Σ transREF·fluxREF/lam`, reescalado por la misma constante `lamstep/hc8` derivada empíricamente
+de la propia banda -- verificado que la reconstrucción de la convención `λ` original coincide con el
+`fluxREF_sum` real a precisión de máquina, sanity-check pasado) → `ZP_alt`. Con el `Fbin_forFlux` real ya
+volcado por Fase 29 (evaluado en `Trest=0`, el epoch sintético del pico verdadero de Fase 22, deduplicado
+entre los 4-5 objetos idénticos generados por `NGENTOT_LC:5`): `Finteg_λ = Σ Fbin_forFlux` (la integral
+real que usa SNANA) y `Finteg_alt = Σ Fbin_forFlux/LAMSED²` (equivalente exacto bajo `1/λ`, ya que
+`Fbin_forFlux=FTMP·CCOR·LAMSED·TRANS` con `HOSTXT_FRAC=MWXT_FRAC=1`).
+
+`MAG_SNANA_real = -2.5·log10(Finteg_λ) + ZP_SNANA` vs. `MAG_alt = -2.5·log10(Finteg_alt) + ZP_alt`,
+comparado relativo a `r` contra el `diff` real de Fase 27:
+
+| `z` | banda | Fase 27 (`diff` real) | Fase 29 (solo forma del peso) | Fase 30 (forma + punto cero real) | fracción explicada |
+|---:|---|---:|---:|---:|---:|
+| 0.6 | g | +0.0935 | +0.1011 | **+0.1026** | 110% |
+| 0.6 | i | -0.0864 | -0.0229 | **-0.0334** | 39% |
+| 0.6 | z | -0.0997 | -0.0094 | **-0.0288** | 29% |
+| 0.6 | y | -0.0978 | -0.0151 | **-0.0309** | 32% |
+| 0.9 | i | -0.1201 | -0.0373 | **-0.0443** | 37% |
+| 0.9 | z | -0.1771 | -0.0517 | **-0.0639** | 36% |
+| 0.9 | y | -0.1975 | -0.0462 | **-0.0585** | 30% |
+
+### Conclusión Fase 30 -- el punto cero real es una pieza real y adicional, pero insuficiente
+
+Incluir la forma real del espectro de referencia (`PrimarySED`) en el punto cero, en vez de asumirlo
+plano como hacía implícitamente Fase 29, **aumenta consistentemente la magnitud explicada** en las 6
+combinaciones donde Fase 29 dejaba más margen (`i`/`z`/`y` en ambos `z`): de un rango de ~9%-31% (Fase
+29, excluyendo `g`) a un rango más estrecho y más alto de ~29%-39% -- una mejora real, más marcada en
+`z@0.6` (9.4%→28.9%, el peor explicado por Fase 29). La banda `g` ya estaba esencialmente explicada por
+Fase 29 sola (108%) y el término de punto cero no la cambia de forma apreciable (110%). **Con esto, los
+dos mecanismos aislados de la convención de integración de banda (forma del peso + punto cero) explican
+en conjunto ~29%-39% de la magnitud del `diff` de Fase 27 en las bandas más difíciles**, dejando todavía
+~60%-70% sin identificar. El patrón cromático poblacional de Fase 23 sigue **sin causa identificada** --
+sigue de signo opuesto al `diff` de Fase 27 (ya establecido en Fase 27/29), así que este avance tampoco
+lo explica directamente. Con la cadena SALT2 exhaustivamente descompuesta término a término (Fase 28) y
+ahora también la convención de integración de banda descompuesta en sus dos sub-mecanismos (forma +
+punto cero, Fases 29-30), el resto de la magnitud del `diff` de Fase 27 queda como una pregunta abierta
+genuina que ya no tiene un candidato concreto identificado dentro de la fórmula de integración SALT2 de
+SNANA -- cualquier candidato adicional requeriría mirar fuera de `genmag_SALT2.c`/`genmag_SEDtools.c`
+(p.ej. el propio tratamiento de `CCOR`/color law evaluado en la grilla discreta, ya verificado idéntico
+en Fase 16 pero no re-verificado en este régimen de `z` alto específico) o aceptar que la comparación
+entre `PEAKMAG_<filt>` real y `compute_noise_free_lightcurves()` real, aun usando el mismo objeto exacto,
+compara dos implementaciones de fotometría sintética suficientemente distintas en su núcleo (no solo en
+la convención de pesado) como para no cerrar del todo con descomposición término a término.
+
+### Archivos de esta fase
+
+Parche real a `~/github/SNANA_src/src/genmag_SEDtools.c` (contenido completo arriba) -- vive en el clon
+privado de SNANA del usuario, no versionado en este repo. Exploratorios en NLHPC, borrados tras usarlos:
+`sim_fase30_z06.INPUT`/`sim_fase30_z09.INPUT` (objetos controlados), `fase30_analyze.py` (análisis del
+volcado real, combina `dump_zp_salt2.csv` y el `dump_integ_salt2.csv` ya generado por el parche de Fase
+29). GENVERSIONs `TEST_FASE30_zp_z06`/`z09` generados en `SNDATA_ROOT/SIM/` y borrados tras extraer el
+`.DUMP`. Sin cambios a scripts del pipeline de este repo -- diagnóstico puro.

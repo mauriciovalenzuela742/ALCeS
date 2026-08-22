@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "31&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "32&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-29</span>
+      <span class="verdict-badge critical">Actualización Fases 22-30</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1337,7 +1337,22 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       queda así <strong>confirmada</strong> (no descartada) como un componente real del mecanismo,
       insuficiente por sí sola — el resto de la magnitud (definición exacta de punto cero de cada código,
       más allá del exponente de peso) queda sin aislar. El patrón cromático de Fase 23 sigue sin causa
-      identificada. Ver pestaña "31 fases" (Fases 22-29) para el detalle completo.</p>
+      identificada.</p>
+      <p><strong>Fase 30 (el punto cero real añade una fracción, pero no cierra el resto):</strong>
+      segundo parche real (mismo patrón, esta vez en <code>genmag_SEDtools.c</code>) para volcar el
+      espectro de referencia real (<code>PrimarySED</code> de <code>kcor_LSST.fits</code>) que SNANA usa
+      para calibrar el punto cero por banda, en vez de asumirlo plano (como hacía implícitamente Fase
+      29). Recalculando el punto cero bajo <code>1/λ</code> con la forma real del espectro de
+      referencia y combinándolo con el flujo real ya volcado por Fase 29: la magnitud explicada en
+      <code>i/z/y</code> (las bandas peor cubiertas por Fase 29) sube de <strong>~9%-31% a
+      ~29%-39%</strong> — mejora real, más marcada en <code>z@z=0.6</code> (9.4%→28.9%). En conjunto,
+      los dos mecanismos de la integración de banda (forma del peso + punto cero real) explican
+      <strong>~29%-39%</strong> del <code>diff</code> de Fase 27 en las bandas más difíciles, dejando
+      <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
+      (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
+      ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
+      de Fase 23 sigue sin causa identificada. Ver pestaña "32 fases" (Fases 22-30) para el detalle
+      completo.</p>
     </div>
     </div>
 
@@ -1597,7 +1612,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y dos fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2027,6 +2042,38 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           Fase 23 <strong>sigue sin causa identificada</strong>.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">30</span>
+        <div class="step-body">
+          <p><strong>El punto cero real (espectro de referencia) añade una fracción real, pero no cierra
+          el resto</strong> — ataca el candidato que dejó abierto Fase 29. Leyendo
+          <code>genmag_SEDtools.c</code> real (<code>init_filter_SEDMODEL()</code>): SNANA no usa un
+          punto cero universal, lo calibra por banda integrando el <strong>espectro de referencia
+          primario real</strong> (<code>PrimarySED</code> de <code>kcor_LSST.fits</code>, ya leído en
+          Fase 12) con la <strong>misma convención de pesado por <code>λ</code></strong> que el objeto
+          científico (<code>ZP = 2.5·log10(fluxREF_sum) + magprimary</code>). El promedio ponderado de
+          Fase 29 asumía implícitamente ese espectro de referencia plano dentro de la banda — nunca
+          contrastado contra el real. Segundo parche real (mismo patrón <code>getenv</code>) agregado a
+          <code>init_filter_SEDMODEL()</code>, recompilado sobre la misma cadena de build ya resuelta en
+          Fase 29 (esta vez con <code>LD_LIBRARY_PATH</code> también en tiempo de ejecución). No-regresión
+          verificada de nuevo. Con <code>(lam,transREF,fluxREF)</code> reales volcados: se recalculó el
+          punto cero bajo <code>1/λ</code> y se combinó con el <code>Fbin_forFlux</code> real ya volcado
+          por Fase 29 para obtener <code>MAG_alt</code> vs. <code>MAG_SNANA_real</code> completos (no solo
+          la forma del peso). Resultado: la magnitud explicada en <code>i/z/y</code> (las bandas peor
+          explicadas por Fase 29) sube de un rango de <strong>~9%-31% a ~29%-39%</strong> — mejora real,
+          más marcada en <code>z@z=0.6</code> (9.4%→28.9%). <code>g</code> ya estaba esencialmente
+          explicada por Fase 29 sola (108%→110%, sin cambio apreciable). En conjunto, los dos mecanismos
+          de la integración de banda (forma del peso + punto cero real) explican
+          <strong>~29%-39%</strong> de la magnitud del <code>diff</code> de Fase 27 en las bandas más
+          difíciles, dejando <strong>~60%-70% sin identificar</strong>. El patrón cromático de Fase 23
+          <strong>sigue sin causa identificada</strong> — con la cadena SALT2 descompuesta término a
+          término (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases
+          29-30), el resto ya no tiene un candidato concreto dentro de <code>genmag_SALT2.c</code>/
+          <code>genmag_SEDtools.c</code> — cualquier candidato adicional requeriría mirar fuera de esa
+          fórmula, o aceptar que la comparación compara dos implementaciones de fotometría sintética
+          distintas en su núcleo, no solo en la convención de pesado.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2356,7 +2403,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "31 fases" },
+    { id: "fases", label: "32 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
