@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "36&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "37&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "36 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "37 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "36 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "37 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1673,7 +1673,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y seis fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y siete fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2247,6 +2247,29 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           en el <code>.INPUT</code> real de <code>SNIa</code>.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">35</span>
+        <div class="step-body">
+          <p><strong>El fix de <code>Om0=0.315</code> (Fase 34), extendido a los otros 6 scripts que lo
+          tenían hardcodeado en <code>0.3</code>.</strong> A pedido explícito del usuario: de los 8
+          archivos del proyecto con cosmología hardcodeada, Fase 34 solo corrigió los 2 de la cadena
+          SNIa/SALT2 (<code>compare_brightness_truth_salt2.py</code>, <code>run_snia_ddf_poc.py</code>).
+          Antes de aplicar <code>0.315</code> a ciegas a los 6 restantes (clases <code>SNIa-91bg</code>
+          SIMSED, <code>NON1ASED</code>, <code>SIMSED</code> genérico), se grepeó
+          <code>OMEGA_MATTER</code>/<code>OMEGA_LAMBDA</code>/<code>H0</code> en los 34
+          <code>include_model_&lt;clase&gt;.INPUT</code> reales de la campaña: ninguno sobreescribe la
+          cosmología — el default global de SNANA aplica sin excepción. <code>bench_snia.py</code> y
+          <code>run_dask_poc.py</code> además tenían <code>H0=73.0</code> (no <code>70.0</code>) — mismo
+          bug de placeholder ya descartado para <code>SNIa</code> en Fase 34, confirmado aplicable
+          porque ambos simulan la misma clase SALT2.</p>
+          <p>Corregidos los 6: <code>bench_snia.py</code>, <code>compare_brightness_truth.py</code>,
+          <code>run_dask_poc.py</code>, <code>run_non1ased_poc.py</code>,
+          <code>run_simsed_91bg_ddf_poc.py</code>, <code>run_simsed_poc.py</code> — verificado con
+          <code>py_compile</code>. No se re-corrieron las poblaciones completas de estas otras clases
+          (tienen su propio historial en Fases 5-9, fuera del hilo SNIa de esta sesión) — corrección de
+          precisión de calibración, mismo criterio que Fase 24. El residuo SNIa/SALT2 no cambia.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2576,7 +2599,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "36 fases" },
+    { id: "fases", label: "37 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

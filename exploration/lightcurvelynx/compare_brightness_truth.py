@@ -122,7 +122,9 @@ def main():
     def _luminosity_distance_pc(size=None, redshift=None, **_kwargs):
         from astropy.cosmology import FlatLambdaCDM
         import astropy.units as u
-        cosmo = FlatLambdaCDM(H0=70.0, Om0=0.3)
+        # Fase 34/35: Om0=0.315 es OMEGA_MATTER_DEFAULT real de SNANA (sntools.h),
+        # no 0.3 -- ver NOTES.md Fase 34.
+        cosmo = FlatLambdaCDM(H0=70.0, Om0=0.315)
         z = np.asarray(redshift)
         return cosmo.luminosity_distance(z).to(u.pc).value
 

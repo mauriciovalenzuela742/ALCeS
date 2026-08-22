@@ -86,7 +86,9 @@ def simulate_chunk(seed_base: int, n_objects: int) -> int:
     redshift_func = SizeAwareFunctionNode(make_dndz_sampler(z_grid, cdf, seed=seed_base + 1), node_label="redshift")
     c_func = SizeAwareFunctionNode(make_bifurcated_normal_sampler(**SALT2C, seed=seed_base + 2), node_label="c")
     x1_func = SizeAwareFunctionNode(make_bifurcated_normal_sampler(**SALT2X1, seed=seed_base + 3), node_label="x1")
-    distmod_func = DistModFromRedshift(redshift_func, H0=73.0, Omega_m=0.3)
+    # Fase 34/35: H0=70/Om0=0.315 son los valores reales de SNANA (OMEGA_MATTER_DEFAULT,
+    # sntools.h), no 73/0.3 -- ver NOTES.md Fase 34.
+    distmod_func = DistModFromRedshift(redshift_func, H0=70.0, Omega_m=0.315)
     m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=SIGMA_INT, seed=seed_base + 4)
     x0_func = X0FromDistMod(distmod=distmod_func, x1=x1_func, c=c_func, alpha=ALPHA, beta=BETA, m_abs=m_abs_func)
     radec_sampler = ObsTableRADECSampler(obs_table, seed=seed_base + 5)

@@ -4920,3 +4920,59 @@ viene persiguiendo.
 borrados tras usarlos: `fase34_paso1_mu.py` (Paso 1, con su verificación de ajuste de `Om0`/`H0` inline),
 `fase34_population_6band.py`/`.sbatch` (Paso 3, output `fase34_population_6band_output.parquet` también
 borrado tras extraer los números).
+
+## Fase 35 — el fix de `Om0=0.315` (Fase 34), extendido a los otros 6 scripts que lo tenían hardcodeado en `0.3`
+
+A pedido explícito del usuario, se extiende el fix de cosmología de Fase 34 (`Om0=0.315`,
+`OMEGA_MATTER_DEFAULT` real de SNANA, `sntools.h`) a los 6 archivos del proyecto que quedaron fuera de
+esa fase (grep real confirmó 8 archivos con `Om0=0.3`/`Omega_m=0.3` hardcodeado en total; Fase 34 solo
+corrigió `compare_brightness_truth_salt2.py`/`run_snia_ddf_poc.py`). Además, `bench_snia.py` y
+`run_dask_poc.py` tenían `H0=73.0` (no `70.0`) -- el mismo bug de placeholder que Fase 34 encontró y
+descartó para la clase `SNIa`.
+
+### Verificación previa: `Om0=0.315` es correcto para las 6 clases, no solo `SNIa`
+
+`OMEGA_MATTER_DEFAULT=0.315` (`sntools.h`) es un default GLOBAL de SNANA, no específico de una clase --
+pero antes de asumir que ninguna clase lo sobreescribe, se grepeó `OMEGA_MATTER`/`OMEGA_LAMBDA`/`H0:`/
+`H0_REF` en los 34 `include_model_<clase>.INPUT` reales de la campaña
+(`~/AUTOSIM/build/full_v5.3_10yrs/includes/`) y en los `include_survey_*.INPUT`: **ninguno declara una
+cosmología propia** -- el default global aplica sin excepción a las 6 clases que tocan estos scripts
+(`SNIa` vía `bench_snia.py`/`run_dask_poc.py` -- ambos usan el mismo `SncosmoWrapperModel`/SALT2 que
+`run_snia_ddf_poc.py`, confirmado leyendo su código --, `SNIa-91bg` SIMSED vía
+`compare_brightness_truth.py`/`run_simsed_91bg_ddf_poc.py`, y las clases genéricas `NON1ASED`/`SIMSED`
+vía `run_non1ased_poc.py`/`run_simsed_poc.py`). `H0=70.0` (ya confirmado real para `SNIa` en Fase 34)
+también aplica sin cambios a `bench_snia.py`/`run_dask_poc.py`, ya que ambos simulan la misma clase
+`SNIa`/SALT2.
+
+### Corrección aplicada
+
+| archivo | antes | después |
+|---|---|---|
+| `bench_snia.py` | `H0=73.0, Omega_m=0.3` | `H0=70.0, Omega_m=0.315` |
+| `compare_brightness_truth.py` | `H0=70.0, Om0=0.3` | `H0=70.0, Om0=0.315` |
+| `run_dask_poc.py` | `H0=73.0, Omega_m=0.3` | `H0=70.0, Omega_m=0.315` |
+| `run_non1ased_poc.py` | `H0=70.0, Om0=0.3` | `H0=70.0, Om0=0.315` |
+| `run_simsed_91bg_ddf_poc.py` | `H0=70.0, Om0=0.3` | `H0=70.0, Om0=0.315` |
+| `run_simsed_poc.py` | `H0=70.0, Om0=0.3` | `H0=70.0, Om0=0.315` |
+
+Verificado con `python3 -m py_compile` sobre los 6 archivos -- compila limpio. No se re-corrieron las
+poblaciones completas de estas otras clases (`SNIa-91bg`/`NON1ASED`/`SIMSED` tienen su propio historial
+de resultados reportados en Fases 5-9, sweeps de 5 semillas por clase -- fuera del hilo principal de esta
+sesión, que es el residuo `SNIa`/SALT2) -- mismo criterio que Fase 24: se corrige por precisión de
+calibración aunque no se mida el impacto numérico completo en cada clase.
+
+### Conclusión Fase 35
+
+Corrección de seguimiento, no una investigación nueva: cierra el hallazgo de Fase 34 en los 8 archivos
+del proyecto que usan cosmología (2 ya corregidos ahí, 6 acá), con la misma diligencia de verificar
+contra los `.INPUT` reales antes de aplicar el valor a ciegas. El residuo `SNIa`/SALT2 (~0.33 mag
+acromático, ~0.081 mag cromático `g−y`) no cambia -- esta fase no lo toca, solo extiende la precisión de
+calibración ya establecida al resto del proyecto.
+
+### Archivos de esta fase
+
+`bench_snia.py`, `compare_brightness_truth.py`, `run_dask_poc.py`, `run_non1ased_poc.py`,
+`run_simsed_91bg_ddf_poc.py`, `run_simsed_poc.py`: `Om0`/`Omega_m` corregido de `0.3` a `0.315`
+(y `H0` de `73.0` a `70.0` en `bench_snia.py`/`run_dask_poc.py`), con comentario citando `NOTES.md`
+Fase 34. Sin scripts exploratorios nuevos -- la verificación de `.INPUT` fue grep directo, sin necesidad
+de un script.

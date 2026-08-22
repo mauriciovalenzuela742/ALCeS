@@ -158,11 +158,12 @@ def main():
 
     def _luminosity_distance_pc(size=None, redshift=None, **_kwargs):
         # SIMSEDModel.compute_sed() usa "distance" (pc), no "redshift"
-        # directamente -- convertir con la misma cosmologia H0=70/Om=0.3
-        # de Fase 2 parte A.
+        # directamente -- convertir con la misma cosmologia H0=70/Om0=0.315
+        # (Fase 34/35: Om0=0.315 es OMEGA_MATTER_DEFAULT real de SNANA,
+        # sntools.h, no el 0.3 de Fase 2 parte A -- ver NOTES.md Fase 34).
         from astropy.cosmology import FlatLambdaCDM
         import astropy.units as u
-        cosmo = FlatLambdaCDM(H0=70.0, Om0=0.3)
+        cosmo = FlatLambdaCDM(H0=70.0, Om0=0.315)
         z = np.asarray(redshift)
         return cosmo.luminosity_distance(z).to(u.pc).value
 

@@ -23,7 +23,9 @@ passband_group = PassbandGroup.from_preset(preset="LSST")
 print(f"[{time.time()-t_start:.1f}s] passbands loaded")
 
 redshift_sampler = NumpyRandomFunc("uniform", low=0.01, high=0.6)
-distmod_func = DistModFromRedshift(redshift_sampler, H0=73.0, Omega_m=0.3)
+# Fase 34/35: H0=70/Om0=0.315 son los valores reales de SNANA (OMEGA_MATTER_DEFAULT,
+# sntools.h), no 73/0.3 -- ver NOTES.md Fase 34.
+distmod_func = DistModFromRedshift(redshift_sampler, H0=70.0, Omega_m=0.315)
 x1_func = NumpyRandomFunc("normal", loc=0, scale=2.0)
 c_func = NumpyRandomFunc("normal", loc=0, scale=0.02)
 m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=0.1)
