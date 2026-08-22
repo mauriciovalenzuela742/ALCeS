@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "34&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "35&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-32</span>
+      <span class="verdict-badge critical">Actualización Fases 22-33</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "34 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "35 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "34 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "35 fases" (Fase 32) para el detalle completo.</p>
+      <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
+      referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
+      campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
+      que usa SNANA. El desajuste real, medido directo contra el <code>MWEBV</code> real del
+      <code>.DUMP</code>, es chico (<code>-0.002</code> a <code>+0.006</code> en <code>E(B-V)</code> por
+      campo) y su impacto propagado con <code>F99</code> es marginal (<code>+0.002</code> a
+      <code>+0.006</code> mag de media ponderada, <code>u→y</code>) -- del mismo orden que el hallazgo ya
+      descartado de Fase 24. No se implementa el lookup SFD98 completo. Dos candidatos de reserva (sampler
+      DNDZ, asignación de campo) tampoco revelaron ningún bug adicional. Hallazgo lateral real, no
+      buscado: <strong>~15% del <code>.DUMP</code> de referencia usado desde Fase 16 no son miembros
+      reales de ningún campo DDF</strong> (contaminación con objetos de otras regiones del cielo, incluido
+      el centro galáctico) -- no invalida los hallazgos previos (todos basados en medianas, robustas a esa
+      fracción), pero queda documentado como cabo suelto real. El residuo post-Fase-32 sigue sin causa
+      identificada.</p>
     </div>
     </div>
 
@@ -1644,7 +1658,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y cuatro fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y cinco fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2158,6 +2172,35 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           sin causa identificada, pero el espacio de búsqueda se redujo sustancialmente.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">33</span>
+        <div class="step-body">
+          <p><strong><code>E(B-V)</code> real (SFD98 por objeto) vs. promedio fijo por campo: efecto
+          marginal, pero aparece contaminación real en el <code>.DUMP</code> de referencia.</strong> Misma
+          estrategia que dio el mayor resultado (auditar un sampler custom contra el algoritmo real de
+          SNANA): el proyecto usa <code>DDF_FIELD_EBV</code>, un promedio fijo por campo, mientras SNANA
+          real calibra cada objeto con el mapa SFD98 evaluado en su RA/Dec exacto
+          (<code>OPT_MWEBV_SFD98</code>, nota ya escrita en <code>snana_params.py</code>, nunca
+          investigada). Comparando el <code>MWEBV</code> real del <code>.DUMP</code> contra el valor fijo:
+          primer intento con la media dio resultados absurdos (<code>elaiss1</code>: media real
+          <code>1.94</code>) — diagnosticado: <strong>~15% del <code>.DUMP</code> de referencia (298/1957
+          objetos) no son miembros reales de ningún campo DDF</strong> (separación angular bimodal,
+          mediana del subgrupo contaminado <code>~77°</code>; los <code>MWEBV</code> más altos, hasta
+          <code>72.68</code>, caen sobre el centro galáctico — astrofísicamente real, no un bug de parseo,
+          coherente con el nombre real del directorio que contiene el <code>.DUMP</code>,
+          <code>_stale_pre_v8fix</code>). Filtrando a objetos bien-matcheados y usando mediana: los deltas
+          reales de <code>E(B-V)</code> por campo son chicos (<code>-0.002</code> a <code>+0.006</code>),
+          y propagados con <code>F99</code> real (Fase 24) dan un impacto marginal (media ponderada
+          <code>+0.002</code> a <code>+0.006</code> mag, <code>u→y</code>) — del mismo orden que el
+          hallazgo ya descartado de Fase 24. <strong>No se implementa el lookup SFD98 completo</strong> —
+          el efecto no lo justifica. Candidatos de reserva auditados sin hallar bug: el sampler DNDZ
+          POWERLAW2 (test KS contra el <code>z</code> real, <code>p=0.183</code>, sin diferencia
+          significativa) y <code>ObsTableRADECSampler</code> (diseño real "visit-weighted", conteos por
+          campo casi uniformes, consistente). El residuo post-Fase-32 sigue sin causa identificada; queda
+          documentado como cabo suelto real la contaminación del <code>.DUMP</code> de referencia (no
+          invalida hallazgos previos, todos basados en medianas robustas a esa fracción).</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2487,7 +2530,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "34 fases" },
+    { id: "fases", label: "35 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

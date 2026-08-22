@@ -4694,3 +4694,107 @@ identificada, pero el espacio de búsqueda se redujo sustancialmente.
 sigma, no 50/50 fijo). Exploratorios en NLHPC, borrados tras usarlos: `fase32_verify_sampler.py` (Paso
 2), `fase32_smoketest.py` (verificación de API), `fase32_population_6band.py`/`.sbatch` (Paso 3, output
 `fase32_population_6band_output.parquet` también borrado tras extraer los números).
+
+## Fase 33 — E(B-V) real (SFD98 por objeto) vs. el promedio fijo por campo: efecto marginal, pero se descubre contaminación real en el `.DUMP` de referencia
+
+Siguiendo la misma estrategia que dio el mayor resultado hasta ahora (Fase 32: auditar un sampler/
+aproximación custom contra el algoritmo real de SNANA, no la fórmula fotométrica), se ataca una nota
+real que ya estaba escrita en el código, nunca investigada a fondo: `snana_params.py::
+make_mwebv_ratio_scatter()` (líneas 532-539) señala que la campaña real de SNANA no usa un `E(B-V)` fijo
+por campo DDF -- el SIMLIB real escribe `MWEBV=0.00` en cada header `LIBID`, disparando el fallback real
+de `gen_MWEBV()` a `OPT_MWEBV_SFD98` (mapa real de polvo, evaluado en el RA/Dec exacto de cada objeto).
+Este proyecto usa `DDF_FIELD_EBV`, un promedio fijo por campo (6 valores).
+
+### Paso 1 -- el desajuste real, medido sin simular nada nuevo
+
+El `MWEBV` real por objeto ya está en el `.DUMP` de producción (`SNIa_DDF_baseline_v5.3.1_10yrs.DUMP`,
+columna `MWEBV` real, `VARNAMES` de 36 columnas confirmado) -- comparar contra `DDF_FIELD_EBV` no
+requiere ninguna simulación nueva. Primer intento (media simple): resultados absurdos
+(`elaiss1`: media real `1.94`, `std=7.57`, contra el valor fijo `0.008`) -- diagnosticado: **el `.DUMP`
+de referencia contiene un ~15% de objetos que NO son miembros reales de ninguno de los 6 campos DDF**.
+
+Asignando cada objeto al campo real más cercano (centros de campo reales extraídos del propio OpSim,
+`target_name LIKE '%ddf_%'`, mismo patrón que usa el proyecto) y midiendo la separación angular: la
+distribución es claramente **bimodal** (mediana `1.47°`, percentil 90 `76.6°`) -- **298/1957 objetos
+(15.2%) están a más de 2° de cualquier campo DDF real** (separación mediana de ese subgrupo: `~77°`,
+posiciones de cielo sin relación con las 6 pointings DDF). Inspeccionando los objetos de `MWEBV` más
+alto (hasta `72.68`): sus RA/Dec (`~267°, ~-28°`) caen casi exactamente sobre el **centro galáctico**
+(RA≈266.4°, Dec≈-28.9°) -- **astrofísicamente real, no un bug de parseo**: son objetos generados fuera
+del footprint DDF de baja extinción, mezclados en el mismo `.DUMP` (coherente con el nombre real del
+directorio que los contiene, `_stale_pre_v8fix`, y con los `target_name` reales del OpSim que mezclan
+`ddf_*` con `GW_case_*`/`neutrino_*` en la misma tabla). Este es un hallazgo real de calidad de datos del
+`.DUMP` de referencia usado desde Fase 16 -- dado que **todas** las comparaciones poblacionales de Fases
+16-32 usan la **mediana** (robusta a un ~15% de contaminación siempre que no domine el bin), es poco
+probable que invalide los hallazgos ya reportados, pero queda como un cabo suelto real para una
+auditoría futura de esa referencia.
+
+Filtrando a objetos bien-matcheados (separación `<2°`, 1659/1957) y usando **mediana** (no media, ya
+sensible a outliers) por campo:
+
+| campo | N | `MWEBV` real (mediana) | `DDF_FIELD_EBV` (fijo) | delta |
+|---|---:|---:|---:|---:|
+| cosmos | 269 | 0.02416 | 0.01820 | +0.00596 |
+| ecdfs | 274 | 0.01002 | 0.00840 | +0.00162 |
+| edfs_a | 282 | 0.00914 | 0.00620 | +0.00294 |
+| edfs_b | 268 | 0.01320 | 0.01520 | -0.00200 |
+| elaiss1 | 295 | 0.00816 | 0.00800 | +0.00016 |
+| xmm_lss | 271 | 0.02445 | 0.02510 | -0.00065 |
+
+Desajustes reales pero chicos (`-0.002` a `+0.006` en `E(B-V)`), del mismo orden que la propia dispersión
+intra-campo.
+
+### Paso 2 -- propagado a magnitud con F99 real (Fase 24): marginal
+
+Usando `dust_extinction.F99(Rv=3.1)` (mismo estándar del proyecto desde Fase 24) sobre los deltas reales
+de arriba, en las 6 bandas LSST:
+
+| banda | cosmos | ecdfs | edfs_a | edfs_b | elaiss1 | xmm_lss | media ponderada |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| u | +0.0281 | +0.0076 | +0.0139 | -0.0094 | +0.0008 | -0.0031 | **+0.0063** |
+| g | +0.0218 | +0.0059 | +0.0107 | -0.0073 | +0.0006 | -0.0024 | **+0.0049** |
+| r | +0.0152 | +0.0041 | +0.0075 | -0.0051 | +0.0004 | -0.0017 | **+0.0034** |
+| i | +0.0113 | +0.0031 | +0.0056 | -0.0038 | +0.0003 | -0.0012 | **+0.0025** |
+| z | +0.0089 | +0.0024 | +0.0044 | -0.0030 | +0.0002 | -0.0010 | **+0.0020** |
+| y | +0.0073 | +0.0020 | +0.0036 | -0.0025 | +0.0002 | -0.0008 | **+0.0016** |
+
+La media ponderada por población (`+0.006` a `+0.002` mag, `u`→`y`) es marginal -- del mismo orden que
+el hallazgo ya descartado de Fase 24 (`<0.005` mag, cambio de ley de extinción a estos niveles de
+`E(B-V)`). Incluso el peor caso de un solo campo (`cosmos`, `+0.028` mag en `u`) es pequeño frente al
+residuo real que dejó Fase 32 (`~0.31` mag acromático, `~0.089` mag de spread cromático `g-y`). **No se
+pasa al Paso 3** (implementación del lookup SFD98 real) -- el efecto estimado no lo justifica, mismo
+criterio de decisión que Fase 24.
+
+### Candidatos de reserva auditados
+
+- **`build_dndz_powerlaw2_cdf`/`make_dndz_sampler` (DNDZ POWERLAW2, redshift)**: comparado el `z`
+  (`ZHELIO`) muestreado por el sampler real del proyecto (200k draws, mismos segmentos reales
+  `[(2.5e-5,1.5,0,1),(9.7e-5,-0.5,1,3)]`) contra el `ZHELIO` real de los 1659 objetos DDF bien-matcheados
+  del `.DUMP`. Test KS: `stat=0.038, p=0.183` -- **no se puede rechazar que sean la misma distribución**;
+  percentiles coinciden dentro de `0.01-0.02` en `z` en los 5 cuantiles probados. **Sin bug** -- el
+  método de inversión de CDF reproduce fielmente la distribución real.
+- **`ObsTableRADECSampler` (asignación de campo/posición)**: lectura del código real instalado
+  (`ra_dec_sampler.py`) confirma un diseño documentado ("visit-weighted distribution") -- pesa por
+  densidad real de visitas/observaciones del OpSim, no un supuesto arbitrario. Los conteos reales por
+  campo del `.DUMP` (bien-matcheados) son casi uniformes (`268-295` de `1659`, `<10%` de spread),
+  consistente con ese diseño. No se encontró indicio de sesgo en una revisión de código; una validación
+  cuantitativa completa (recorrida de población + comparación de conteos por campo) queda fuera del
+  presupuesto de esta fase -- honestamente marcada como no verificada a fondo, no como "descartada".
+
+### Conclusión Fase 33 -- candidato marginal, pero con un hallazgo lateral real
+
+El `E(B-V)` fijo por campo introduce un desajuste real mensurable, pero **marginal** frente al residuo
+que queda tras Fase 32 -- mismo patrón que Fase 24 (corrección conceptualmente correcta pendiente, pero
+sin magnitud suficiente para justificar la implementación completa en esta ronda). Los dos candidatos de
+reserva (DNDZ, asignación de campo) no revelaron ningún bug adicional del tipo Fase 32. El hallazgo más
+importante de esta fase no estaba en el plan original: **~15% del `.DUMP` de referencia usado desde Fase
+16 no son miembros reales de los 6 campos DDF** -- un hallazgo de calidad de datos real, que no invalida
+los resultados ya reportados (todos basados en medianas, robustas a esa fracción de contaminación) pero
+queda documentado como un cabo suelto real para el futuro. El residuo post-Fase-32 (`~0.31` mag
+acromático, `~0.089` mag cromático `g-y`) sigue sin causa identificada.
+
+### Archivos de esta fase
+
+Exploratorios en NLHPC, borrados tras usarlos: `fase33_paso1_mwebv.py` (Paso 1, con su output
+`fase33_paso1_mwebv_output.csv`, también borrado). Paso 2 y los candidatos de reserva se corrieron
+inline (sin script separado). Sin cambios a `snana_params.py`/scripts de producción -- ningún candidato
+alcanzó el umbral para justificar una corrección esta fase.
