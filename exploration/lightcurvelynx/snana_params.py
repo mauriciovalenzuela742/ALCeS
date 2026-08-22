@@ -589,6 +589,79 @@ def make_wfd_ebv_lookup(grid_csv_path, ratio: float, *, seed: int | None = None)
     return lookup
 
 
+# ------------------------------------------------------------------ filtro de contaminacion DDF
+def filter_ddf_field_contamination(df, opsim_db_path, max_sep_deg: float = 2.0):
+    """Filtra objetos de un `.DUMP` real de SNANA que NO son miembros reales de
+    ninguno de los 6 campos DDF -- hallazgo real de Fase 33 (NOTES.md), nunca
+    aplicado a la comparacion principal de `PEAKMAG` hasta que Fase 36 lo
+    verifico: ~15% del `.DUMP` de referencia usado desde Fase 16
+    (`SNIa_DDF_baseline_v5.3.1_10yrs.DUMP`) mezcla objetos `GW_case_*`/
+    `neutrino_*` del OpSim real (incluidos algunos sobre el centro galactico,
+    `MWEBV` hasta 72.68) en el mismo archivo que los `SNIa` DDF reales.
+
+    Como la contaminacion es sistematicamente MAS TENUE (extincion extrema),
+    inflaba artificialmente el residuo LCL-vs-SNANA que persiguieron las
+    Fases 16-35: Fase 36 midio, con la poblacion ya corregida (Fase 32+34),
+    que filtrar reduce el nivel acromatico ~19% y prácticamente elimina el
+    spread cromatico g-y (-0.076 -> +0.016 mag, cambia de signo) -- ver
+    NOTES.md Fase 36 para el detalle completo. Usar esta funcion en cualquier
+    comparacion futura contra el `.DUMP` de referencia real de SNIa.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame real leido de un `.DUMP` de SNANA, con columnas `RA`/`DEC`
+        reales (grados).
+    opsim_db_path : str o Path
+        Ruta al sqlite real del OpSim (mismo que usan los scripts de
+        produccion, `AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db`) -- se usa
+        para extraer los centros reales de los 6 campos DDF
+        (`target_name LIKE '%ddf_%'`, promedio de `fieldRA`/`fieldDec`).
+    max_sep_deg : float
+        Separacion angular maxima (grados) para considerar un objeto
+        miembro real de un campo DDF. Default 2.0 -- el mismo umbral que
+        uso Fase 33 (distribucion real bimodal: mediana 1.47 grados para
+        objetos reales, ~77 grados para los contaminantes).
+
+    Returns
+    -------
+    pandas.DataFrame
+        Subconjunto de `df` con separacion angular real < `max_sep_deg` al
+        campo DDF real mas cercano, con columnas nuevas `field_assigned`/
+        `field_sep_deg`.
+    """
+    import sqlite3
+
+    import pandas as pd
+
+    con = sqlite3.connect(str(opsim_db_path))
+    opsim = pd.read_sql_query("SELECT * FROM observations", con)
+    con.close()
+    opsim_ddf = opsim[opsim["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
+    opsim_ddf["field"] = opsim_ddf["target_name"].str.extract(r"ddf_(\w+)")
+    centers = opsim_ddf.groupby("field")[["fieldRA", "fieldDec"]].mean()
+    centers.columns = ["ra", "dec"]
+
+    def _angsep_deg(ra1, dec1, ra2, dec2):
+        ra1, dec1, ra2, dec2 = map(np.radians, (ra1, dec1, ra2, dec2))
+        cos_sep = np.sin(dec1) * np.sin(dec2) + np.cos(dec1) * np.cos(dec2) * np.cos(ra1 - ra2)
+        return np.degrees(np.arccos(np.clip(cos_sep, -1.0, 1.0)))
+
+    best_sep = np.full(len(df), np.inf)
+    best_field = np.array([""] * len(df), dtype=object)
+    for field, row in centers.iterrows():
+        sep = _angsep_deg(df["RA"].to_numpy(dtype=float), df["DEC"].to_numpy(dtype=float),
+                           row["ra"], row["dec"])
+        better = sep < best_sep
+        best_sep[better] = sep[better]
+        best_field[better] = field
+
+    out = df.copy()
+    out["field_assigned"] = best_field
+    out["field_sep_deg"] = best_sep
+    return out[out["field_sep_deg"] < max_sep_deg].reset_index(drop=True)
+
+
 if __name__ == "__main__":
     # sanity check standalone (sin LightCurveLynx) -- corridas rapidas para
     # confirmar que las formas son razonables antes de conectarlas al grafo.

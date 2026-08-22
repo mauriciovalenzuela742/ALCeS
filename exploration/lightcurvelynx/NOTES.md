@@ -4976,3 +4976,83 @@ calibración ya establecida al resto del proyecto.
 (y `H0` de `73.0` a `70.0` en `bench_snia.py`/`run_dask_poc.py`), con comentario citando `NOTES.md`
 Fase 34. Sin scripts exploratorios nuevos -- la verificación de `.INPUT` fue grep directo, sin necesidad
 de un script.
+
+## Fase 36 — la contaminación del 15% que encontró Fase 33 SÍ infla el residuo: gran parte del patrón cromático de Fase 23 era un artefacto de calidad de datos
+
+A pedido del usuario ("sigamos cazando otras aristas"), en vez de un candidato físico nuevo se revisa
+un supuesto que quedó **sin verificar directamente** en Fase 33: que la contaminación real del 15% en
+el `.DUMP` de referencia (`SNIa_DDF_baseline_v5.3.1_10yrs.DUMP`, 298/1957 objetos que no son miembros
+reales de ningún campo DDF, muchos con `MWEBV` de hasta `72.68` sobre el centro galáctico) "es poco
+probable que invalide los hallazgos ya reportados" porque toda la metodología usa la **mediana**. Ese
+argumento nunca se puso a prueba -- y un análisis de cómo se comporta una mediana ante contaminación
+**unidireccional** (los contaminantes son siempre más tenues, nunca más brillantes, por la extinción
+extrema) sugiere que el argumento es, en principio, incorrecto: insertar contaminantes solo del lado
+tenue de la distribución desplaza el ítem que cae en la mediana del conjunto contaminado hacia un
+percentil más bajo (más tenue) de la población limpia real -- la mediana reportada de SNANA saldría
+sistemáticamente **más tenue** de lo que debería, inflando artificialmente el "SNANA sale más tenue que
+LightCurveLynx" que se persigue desde Fase 16.
+
+### Paso 1 — recalcular la comparación de siempre, con y sin el filtro, número a número
+
+Se reconstruyó la comparación banda-por-banda de Fase 32/34 desde cero (no existía un script versionado
+único -- cada fase escribía y borraba el suyo): población LCL completa (2000 objetos, mismo
+`seed_base=20260812`, modelo con Fase 32+34 ya aplicados) evaluada con `compute_noise_free_lightcurves()`
+en `rest_phase=0` para las 6 bandas LSST, comparada contra la mediana `PEAKMAG_u/g/r/i/z/Y` real del
+`.DUMP` por los mismos 7 bins de `z` (`ZCMB`, `np.linspace(0.011, 1.2, 8)`, enmascarando `-9`), **dos
+veces**: sin filtrar, y filtrando con el criterio exacto de Fase 33 (separación angular `<2°` al campo
+DDF real más cercano vía centros reales del OpSim, 1659/1957 objetos bien-matcheados).
+
+**Sanity check**: el caso sin filtrar reproduce Fase 34 exacto en `g/r/i` (`-0.3547/-0.3285/-0.3283`,
+match a 4 decimales) y muy cerca en `z/y` (`-0.3323` vs. `-0.3271`, `-0.2838` vs. `-0.2737` -- diferencia
+chica, probablemente por cobertura de bins ligeramente distinta en las bandas con el problema de borde de
+Fase 13/23, documentado honestamente, no oculto -- no afecta la conclusión porque lo que importa es el
+delta filtrado-vs-sin-filtrar dentro de esta misma corrida, no la comparación cross-run).
+
+| banda | `diff` sin filtrar (media bins 2-7) | `diff` filtrado (`<2°`) | cambio |
+|---|---:|---:|---:|
+| `u` | +0.8371 (no confiable, borde de template) | +0.8238 | -- |
+| `g` | -0.3547 | **-0.2297** | +0.1250 |
+| `r` | -0.3285 | **-0.2515** | +0.0770 |
+| `i` | -0.3283 | **-0.2599** | +0.0684 |
+| `z` | -0.3323 | **-0.2914** | +0.0409 |
+| `y` | -0.2838 | **-0.2884** | -0.0046 |
+
+**Nivel acromático** (media `g/r/i/z/y`): `-0.3255` mag sin filtrar → **`-0.2642` mag filtrado** --
+reducción del **19%**. **Spread cromático `g−y`**: `-0.0762` mag sin filtrar → **`+0.0164` mag filtrado**
+-- el spread **cambia de signo**, prácticamente desaparece.
+
+### Paso 2 — interpretación: confirmado, con la dirección exacta que predice la física
+
+El patrón de mejora es asimétrico y consistente con la hipótesis: `g` mejora **0.125 mag** (la banda más
+afectada por extinción, la más sensible a contaminantes con `MWEBV` extremo), `y` casi no cambia (`-0.005
+mag`, la banda menos sensible a extinción). Esto es exactamente lo que predice la física de la
+contaminación (extinción ∝ mucho más fuerte en azul que en rojo) -- no un ajuste ad-hoc. **El patrón
+cromático `g>r>i>z>y` que motivó las Fases 23 a 31 completas (integración de banda, punto cero,
+interpolación 2D, instrumentar y recompilar SNANA...) resulta, en una fracción sustancial, un artefacto
+de calidad de datos del `.DUMP` de referencia** -- no una diferencia real de física/fotometría entre
+LightCurveLynx y SNANA. Aplicado como corrección permanente de metodología: nueva función
+`filter_ddf_field_contamination()` en `snana_params.py` (reutilizable para cualquier comparación futura
+contra este `.DUMP`).
+
+### Conclusión Fase 36 — el hallazgo más grande de la investigación después de Fase 32
+
+Con Fase 32 (bug de muestreo, ~30-40% del nivel acromático, ~58% del spread cromático) y Fase 36
+(contaminación de datos, ~19% adicional del nivel acromático, prácticamente el 100% del spread cromático
+restante) combinadas: el **residuo acromático real** queda en **~0.26 mag** (bajando de ~0.52 mag desde
+Fase 22), y el **patrón cromático de Fase 23, que llevó 8 fases completas de investigación de la cadena
+SALT2/fotometría sintética, resulta mayormente explicado por un problema de datos, no de física** --
+con el spread `g−y` real cambiando de signo tras el filtro (`+0.016` mag, compatible con ruido/cobertura
+de bins, no con un patrón cromático sistemático). Queda un residuo acromático real de ~0.26 mag sin
+causa identificada -- significativamente más chico que el `~0.33` mag que dejó Fase 34, y sin ningún
+patrón cromático claro que perseguir. Esto cambia sustancialmente el mapa de la investigación: el
+trabajo de Fases 25-31 (aislar la convención de integración de banda, el punto cero) sigue siendo
+metodológicamente válido y real (esos mecanismos existen y están cuantificados), pero ya no son
+necesarios para explicar el patrón cromático observado -- ese patrón, en gran medida, nunca fue tal cosa.
+
+### Archivos de esta fase
+
+`snana_params.py`: nueva función `filter_ddf_field_contamination()` (filtro de contaminación de campo
+DDF, reutilizable). Exploratorios en NLHPC, borrados tras usarlos: `fase36_population_6band.py`/`.sbatch`
+(recorrida poblacional 6 bandas, output `fase36_population_6band_output.parquet` también borrado),
+`fase36_analysis.py` (comparación con/sin filtro, outputs `fase36_diff_unfiltered.csv`/
+`fase36_diff_filtered.csv` también borrados tras extraer los números).

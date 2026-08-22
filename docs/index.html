@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "37&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "38&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-34</span>
+      <span class="verdict-badge critical">Actualización Fases 22-36</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "37 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "38 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "37 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "38 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1414,6 +1414,33 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (<code>-0.089→-0.081</code> mag). <code>Om0=0.3</code> sigue hardcodeado en otros 6 scripts del
       proyecto (otras clases) -- identificado, no corregido en esta ronda. El residuo post-Fase-32 sigue
       sin causa identificada.</p>
+      <p><strong>Fase 35:</strong> a pedido explícito del usuario, el fix de <code>Om0=0.315</code> se
+      extiende a los otros 6 scripts del proyecto que lo tenían hardcodeado en <code>0.3</code> (otras
+      clases -- <code>SNIa-91bg</code>, <code>NON1ASED</code>, <code>SIMSED</code>), verificado contra
+      los 34 <code>.INPUT</code> reales de la campaña antes de aplicarlo. No toca el residuo
+      <code>SNIa</code>/SALT2.</p>
+      <p><strong>Fase 36 (el hallazgo más grande después de Fase 32 -- gran parte del patrón cromático
+      de Fase 23 era un artefacto de calidad de datos):</strong> Fase 33 había razonado, sin verificarlo
+      directamente, que la contaminación real del 15% en el <code>.DUMP</code> de referencia (objetos que
+      no son miembros reales de ningún campo DDF, algunos con <code>MWEBV</code> hasta <code>72.68</code>
+      sobre el centro galáctico) "es poco probable que invalide los hallazgos" porque toda la metodología
+      usa la mediana. Ese argumento nunca se puso a prueba -- y una contaminación
+      <strong>unidireccional</strong> (los contaminantes son siempre más tenues, nunca más brillantes)
+      desplaza la mediana reportada hacia valores sistemáticamente más tenues, inflando artificialmente
+      el residuo perseguido desde Fase 16. Reconstruyendo la comparación de siempre con y sin el filtro
+      de Fase 33 (población completa, Fase 32+34 ya aplicados): el nivel acromático baja de
+      <code>-0.3255</code> a <code>-0.2642</code> mag (<strong>19% de reducción</strong>), y el spread
+      cromático <code>g−y</code> pasa de <code>-0.0762</code> a <code>+0.0164</code> mag —
+      <strong>cambia de signo, prácticamente desaparece</strong>. El patrón de mejora es asimétrico y
+      consistente con la física (<code>g</code>, la banda más sensible a extinción, mejora
+      <code>0.125</code> mag; <code>y</code> casi no cambia) -- no un ajuste ad-hoc. Aplicado como
+      corrección permanente (<code>filter_ddf_field_contamination()</code> en <code>snana_params.py</code>).
+      <strong>El patrón cromático que motivó 8 fases completas de investigación de la cadena SALT2
+      (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
+      sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
+      fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
+      ningún patrón cromático claro que perseguir. Ver pestaña "38 fases" (Fase 36) para el detalle
+      completo.</p>
     </div>
     </div>
 
@@ -1673,7 +1700,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y siete fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y ocho fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2270,6 +2297,39 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           precisión de calibración, mismo criterio que Fase 24. El residuo SNIa/SALT2 no cambia.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">36</span>
+        <div class="step-body">
+          <p><strong>La contaminación del 15% que encontró Fase 33 SÍ infla el residuo — gran parte del
+          patrón cromático de Fase 23 era un artefacto de calidad de datos.</strong> Fase 33 había
+          razonado, sin verificarlo directamente, que la contaminación real del <code>.DUMP</code>
+          (298/1957 objetos que no son miembros reales de ningún campo DDF, algunos con <code>MWEBV</code>
+          hasta <code>72.68</code> sobre el centro galáctico) "es poco probable que invalide los
+          hallazgos" porque toda la metodología usa la mediana. Ese argumento nunca se puso a prueba: una
+          contaminación <strong>unidireccional</strong> (los contaminantes son siempre más tenues, nunca
+          más brillantes) desplaza la mediana reportada hacia valores sistemáticamente más tenues —
+          inflando artificialmente el residuo "SNANA más tenue que LightCurveLynx" perseguido desde
+          Fase 16.</p>
+          <p><strong>Verificado, reconstruyendo la comparación de siempre con y sin el filtro de Fase 33
+          (población LCL completa, Fase 32+34 ya aplicados):</strong> el nivel acromático baja de
+          <code>-0.3255</code> a <code>-0.2642</code> mag (<strong>19% de reducción</strong>), y el
+          spread cromático <code>g−y</code> pasa de <code>-0.0762</code> a <code>+0.0164</code> mag —
+          <strong>cambia de signo, prácticamente desaparece</strong>. El patrón de mejora es asimétrico y
+          consistente con la física: <code>g</code> (la banda más sensible a extinción) mejora
+          <code>0.125</code> mag, <code>y</code> (la menos sensible) casi no cambia
+          (<code>-0.005</code> mag) — exactamente lo que predice un contaminante dominado por extinción
+          extrema, no un ajuste ad-hoc.</p>
+          <p>Aplicado como corrección permanente: nueva función <code>filter_ddf_field_contamination()</code>
+          en <code>snana_params.py</code>, reutilizable para cualquier comparación futura contra este
+          <code>.DUMP</code>. <strong>El patrón cromático que motivó 8 fases completas de investigación de
+          la cadena SALT2 (Fases 23-31: integración de banda, punto cero, interpolación 2D, instrumentar y
+          recompilar SNANA) resulta, en gran medida, un problema de datos, no de física</strong> — ese
+          trabajo sigue siendo válido y real (esos mecanismos existen y quedan cuantificados), pero ya no
+          hace falta para explicar el patrón observado, porque ese patrón en gran parte nunca fue tal
+          cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
+          ningún patrón cromático claro que perseguir.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2599,7 +2659,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "37 fases" },
+    { id: "fases", label: "38 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
