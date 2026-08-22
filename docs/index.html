@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "32&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "33&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-30</span>
+      <span class="verdict-badge critical">Actualización Fases 22-31</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1351,8 +1351,25 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "32 fases" (Fases 22-30) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "33 fases" (Fases 22-30) para el detalle
       completo.</p>
+      <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
+      auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
+      quedado excluido del cálculo de Fases 29-30 — resultó ser una premisa errónea: el cálculo
+      <em>final</em> de Fase 30 ya lo incluía desde el principio, esta ronda solo lo replica con un
+      objeto independiente (mismo resultado a <code>0.001-0.01</code> mag, confirma reproducibilidad, no
+      aporta magnitud nueva). Arista 2, auditar de punta a punta la calibración de LightCurveLynx —
+      resultado limpio: la normalización de <code>Passband</code> es autoconsistente
+      <strong>por construcción matemática</strong> (verificado con una fuente plana, <code>Δmag~10⁻¹³</code>),
+      y la conversión de unidades <code>f_λ→f_ν</code> (<code>unit_utils.py</code>, real, basada en
+      álgebra de unidades de <code>astropy</code>) es dimensionalmente correcta — sin bug. Único detalle
+      real encontrado: el recorte <code>trim_quantile=1e-3</code> que usa producción por defecto (nunca
+      antes auditado contra la tabla real, Fase 12 solo comparó la cruda) tiene un efecto medido pero
+      <strong>despreciable en <code>g/i/z/y</code></strong> (≤0.006 mag), solo relevante en <code>u</code>
+      a <code>z</code> alto (banda ya excluida del análisis por <code>PEAKMAG_u</code> indefinido). Sin
+      corrección de código esta vez — ambas auditorías dieron negativo, con evidencia numérica directa.
+      El espacio de candidatos concretos y verificables está prácticamente agotado; el ~60-70% restante
+      probablemente requiere la síntesis final, todavía diferida a pedido del usuario.</p>
     </div>
     </div>
 
@@ -1612,7 +1629,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y dos fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y tres fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2074,6 +2091,34 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           distintas en su núcleo, no solo en la convención de pesado.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">31</span>
+        <div class="step-body">
+          <p><strong>Dos aristas nuevas — ninguna cierra el resto; la calibración de LightCurveLynx queda
+          auditada y verificada sólida</strong> — a pedido explícito del usuario: (1) revisar si la ley de
+          color quedó excluida del cálculo de Fases 29-30, y (2) auditar de punta a punta la calibración
+          de LightCurveLynx, por si fuera una deficiencia real y corregible. <strong>Arista 1</strong>:
+          la premisa resultó errónea — el cálculo <em>final</em> de Fase 30 (<code>Σ Fbin_forFlux</code>,
+          el producto real de SNANA) ya incluía <code>CCOR</code> desde el principio; solo el intento
+          <em>preliminar</em> de Fase 29 lo excluía. Repitiendo el cálculo completo con un objeto
+          controlado nuevo e independiente (<code>CID=1</code>, mismo binario instrumentado, sin
+          recompilar): los resultados coinciden con la tabla ya publicada de Fase 30 a
+          <code>0.001-0.01</code> mag — una replicación que confirma reproducibilidad, no un avance sobre
+          el ~60-70% sin explicar. <strong>Arista 2</strong>: (A) una fuente sintética plana en
+          <code>f_ν</code> pasada por <code>Passband.fluxes_to_bandflux()</code> real reproduce el mismo
+          valor en las 6 bandas a <code>Δmag~10⁻¹³</code> — garantizado matemáticamente por la
+          normalización de <code>φ_b(λ)</code>, no un hallazgo empírico. (B) el jacobiano
+          <code>f_λ→f_ν</code> real (<code>unit_utils.py</code>, álgebra de unidades de
+          <code>astropy</code>) es dimensionalmente correcto — sin bug de unidades. (C) hallazgo real: el
+          recorte <code>trim_quantile=1e-3</code> que usa producción por defecto (nunca antes auditado
+          contra la tabla real — Fase 12 solo comparó la cruda) tiene efecto medible pero
+          <strong>despreciable en <code>g/i/z/y</code></strong> (≤0.006 mag en todos los <code>z</code>
+          probados), solo relevante en <code>u</code> a <code>z</code> alto (banda ya excluida del
+          análisis). <strong>Sin corrección de código esta vez</strong> — ambas auditorías dieron
+          negativo, con evidencia numérica directa. El espacio de candidatos concretos y verificables por
+          lectura de código está prácticamente agotado.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2403,7 +2448,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "32 fases" },
+    { id: "fases", label: "33 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

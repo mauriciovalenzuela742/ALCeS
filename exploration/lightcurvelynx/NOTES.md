@@ -4494,3 +4494,122 @@ privado de SNANA del usuario, no versionado en este repo. Exploratorios en NLHPC
 volcado real, combina `dump_zp_salt2.csv` y el `dump_integ_salt2.csv` ya generado por el parche de Fase
 29). GENVERSIONs `TEST_FASE30_zp_z06`/`z09` generados en `SNDATA_ROOT/SIM/` y borrados tras extraer el
 `.DUMP`. Sin cambios a scripts del pipeline de este repo -- diagnóstico puro.
+
+## Fase 31 — dos aristas nuevas: la premisa de la primera resultó errónea (Fase 30 ya incluía `CCOR`); la segunda audita la calibración de LightCurveLynx y la encuentra sólida
+
+A pedido explícito del usuario ("sigamos cazando... revisar la calibración completa de LightCurveLynx
+pues puede que sea deficiente"), se atacan dos aristas nuevas sobre el ~60-70% del `diff` de Fase 27 que
+Fases 29-30 dejaron sin explicar.
+
+### Paso 1 — la premisa resultó errónea: `CCOR` ya estaba incluido en el cálculo real de Fase 30
+
+El plan de esta fase partía de una relectura de Fase 29/30 que concluía que la ley de color (`CCOR`)
+había quedado excluida del promedio ponderado usado ahí. Al reconstruir el cálculo completo desde cero
+(nuevo objeto controlado real, `CID=1` con `z=0.6`/`z=0.9`, mismo binario instrumentado de Fases 29-30,
+mismo `.INPUT` -- claves copiadas a mano por el bug de keys duplicadas de Fase 27, `OPT_MWEBV:0`,
+`OPT_MWCOLORLAW:99`) se confirma que **la premisa era incorrecta**: el cálculo *final* de Fase 30 usó
+`Finteg_λ = Σ Fbin_forFlux` directamente (el producto real que SNANA calcula, `Fbin_forFlux =
+FTMP·CCOR·LAMSED·TRANS`, `genmag_SALT2.c` línea 2843) -- `CCOR` estaba efectivamente incluido desde el
+principio ahí; solo la comparación *preliminar* de Fase 29 (el primer intento, con el promedio
+autonormalizado `<F>=Σ(FTMP·TRANS·peso)/Σ(TRANS·peso)`) lo excluía, y ese intento preliminar fue
+superado por el cálculo real de Fase 30.
+
+Recuperando `CCOR` real por bin (`CCOR = Fbin_forFlux/(FTMP·LAMSED·TRANS)`, válido con
+`HOSTXT_FRAC=MWXT_FRAC=1`) se confirma además que `CCOR` es un factor real y activo, no un no-op: varía
+entre `~0.92` (banda `Y`) y `~1.70` (banda `g`, cerca del pico de curvatura de la ley de color SALT2 real
+del `c=-0.054` de esta campaña) -- no es plano, tiene forma real dentro de cada banda.
+
+**Resultado de repetir el cálculo completo de Fase 30 (peso + `CCOR` + punto cero real) con un objeto
+nuevo e independiente (`CID=1`, no el mismo objeto de Fase 30):**
+
+| `z` | banda | Fase 30 (peso+CCOR+ZP real) | Este paso (mismo método, objeto distinto) |
+|---:|---|---:|---:|
+| 0.6 | g | +0.1026 | +0.10139 |
+| 0.6 | i | -0.0334 | -0.03411 |
+| 0.6 | z | -0.0288 | -0.02690 |
+| 0.6 | y | -0.0309 | -0.03294 |
+| 0.9 | i | -0.0443 | -0.03480 |
+| 0.9 | z | -0.0639 | -0.05675 |
+| 0.9 | y | -0.0585 | -0.05187 |
+
+Coinciden a `~0.001-0.01` mag (diferencias explicables por tratarse de un objeto distinto -- mismo `z`
+pero distinto `RA`/`DEC`/`PEAKMJD`, y por lo tanto distinta cadencia/`SIMLIB_MAXRANSTART` -- no por un
+error de método). **Esto no es un hallazgo nuevo: es una replicación independiente que confirma la
+reproducibilidad de Fase 30**, no un avance sobre el ~60-70% que queda sin explicar. Ambas fases
+comparten la misma limitación conocida y explícita: solo se dumpea la superficie `M0` (`ised==0`), no
+`M1` (`x1`) -- el factor `x0` global cancela exactamente en la diferencia `MAG_alt−MAG_SNANA` (aparece
+idéntico en ambas convenciones, se cancela en el cociente dentro del logaritmo), pero la forma cromática
+propia de `M1` pesada por `x1=0.973` queda fuera de esta aproximación en ambas fases -- un cabo suelto
+menor y compartido, no introducido por este paso.
+
+### Paso 2 — auditoría de la calibración de LightCurveLynx: estructuralmente sólida, con un detalle real pero despreciable
+
+**(A) Autoconsistencia con fuente plana en `f_ν`**: se pasó una fuente sintética perfectamente plana
+(`f_ν=12345.678` nJy, arbitrario) por el pipeline real (`PassbandGroup.from_preset(preset="LSST")` +
+`Passband.fluxes_to_bandflux()` real). Resultado: **`Δmag` de `~2×10⁻¹³` mag en las 6 bandas** -- exacto
+a precisión de máquina. Esto es **matemáticamente garantizado por construcción**, no un descubrimiento
+empírico: `compute_system_response_table()` real (`passbands.py`) normaliza `φ_b(λ)` para que
+`∫φ_b(λ)dλ=1` siempre, sin importar la forma de la banda -- cualquier fuente plana se reproduce a sí
+misma exactamente, para cualquier banda, por diseño. La prueba se documenta igual (evidencia negativa
+real), pero no puede en principio revelar un bug de esta clase.
+
+**(B) Auditoría del jacobiano `f_λ→f_ν`**: se leyó el código real de conversión de unidades
+(`lightcurvelynx/astro_utils/unit_utils.py`, funciones `flam_to_fnu()`/`get_flam_to_fnu_multiplier()`)
+-- usa álgebra de unidades real de `astropy` (`(flam_unit·wave_unit²)/const.c.unit).to_value(fnu_unit)`)
+para derivar el multiplicador escalar correcto, no una constante manual. El punto de llamada real
+(`sncosmo_models.py`, `SncosmoWrapperModel.evaluate_sed()`) pasa `wave_unit=u.AA` consistente con las
+longitudes de onda reales que usa (`self.source.flux(phase, wavelengths)`, documentadas "en angstroms").
+**No hay bug de unidades real** -- la conversión `f_λ`(SALT2, erg/s/cm²/Å) → `f_ν`(nJy) está implementada
+correctamente y de forma dimensionalmente rigurosa.
+
+**(C) Hallazgo real nuevo -- `trim_quantile=1e-3` nunca se había auditado contra producción**: leyendo
+`PassbandGroup._lsst_load_preset()`/`Passband.__init__` reales se confirma que
+`PassbandGroup.from_preset(preset="LSST")` (la llamada real que usan los 5 scripts de producción de este
+proyecto) aplica por defecto `trim_quantile=1e-3` (recorta el 0.1% de área en cada extremo) y
+`delta_wave=5.0` Å -- **nunca antes verificado contra la tabla usada realmente en producción**: Fase 12
+comparó la tabla CRUDA descargada (`transmission_table`, sin recortar) contra `kcor_LSST.fits` real, no
+la tabla recortada+resampleada (`normalized_system_response`/`waves`) que `fluxes_to_bandflux()` usa de
+verdad. El recorte es real y sustancial en longitud de onda (p.ej. banda `u`: `[3000,11500]`Å crudo →
+`[3285,8410]`Å recortado; banda `g`: `[3000,11500]`Å → `[3925,5625]`Å).
+
+Verificado numéricamente con el SED real SALT2 M0 (mismo template de Fases 16/20/21/25/28/29) en `z=0.15,
+0.6, 0.9`, comparando `Δmag` relativo a `r` con `trim_quantile=1e-3` (producción) vs. `trim_quantile=None`
+(sin recortar): el efecto es **despreciable en `g/i/z/y`** (`≤0.006` mag en todos los `z` probados) --
+salvo en `u`, donde crece hasta **`+0.09`** mag a `z=0.9` (banda ya excluida del análisis principal de
+todas formas, por `PEAKMAG_u` real indefinido a partir de `z≈0.6`, Fase 13/27). **No explica el residuo
+de `g/i/z/y`** que sigue sin causa identificada, pero es una corrección real de higiene metodológica que
+queda documentada -- cualquier futura comparación en banda `u` a `z` alto debería usar
+`trim_quantile=None` o verificar explícitamente su efecto.
+
+### Conclusión Fase 31 -- ninguna de las dos aristas cierra el resto de la magnitud; la calibración de LightCurveLynx queda auditada y verificada sólida
+
+**Arista 1 (color law × punto cero)**: la premisa era errónea -- no había nada nuevo que combinar, Fase
+30 ya lo había hecho. Este paso aporta una replicación independiente que confirma la reproducibilidad del
+resultado de Fase 30 (no un avance).
+
+**Arista 2 (auditoría de calibración de LightCurveLynx)**: **no se encontró una deficiencia real y
+corregible**. La normalización de `Passband` es autoconsistente por construcción (garantizado
+matemáticamente, no solo verificado), la conversión de unidades `f_λ→f_ν` es correcta y dimensionalmente
+rigurosa (verificada leyendo el código real de `astropy`-based `unit_utils.py`), y el único detalle real
+encontrado (`trim_quantile` nunca antes auditado contra producción) tiene un efecto medido pero
+despreciable en las bandas que importan (`g/i/z/y`). **No se aplicó ninguna corrección de código** en
+esta fase -- a diferencia del precedente de Fase 24, no hay nada concreto que corregir: ambas auditorías
+dieron negativo, con evidencia numérica directa, no por falta de intentarlo.
+
+El patrón cromático de Fase 23 **sigue sin causa identificada**. Con la cadena SALT2 agotada (Fase 28),
+la convención de integración de banda cuantificada pero insuficiente y de signo mixto (Fases 26/27/29/30),
+y ahora también la calibración de LightCurveLynx auditada y verificada sólida (Fase 31), el espacio de
+candidatos concretos, verificables por lectura de código y evidencia numérica directa, está prácticamente
+agotado. Lo que queda -- el ~60-70% de magnitud sin explicar del `diff` de Fase 27, y el patrón cromático
+poblacional de signo opuesto de Fase 23 -- probablemente requiere una síntesis a nivel más alto (las
+conclusiones finales, todavía diferidas a pedido del usuario) en vez de un candidato aislado más.
+
+### Archivos de esta fase
+
+Exploratorios en NLHPC, borrados tras usarlos: `fase31_lcl_calib_audit.py` (Paso 2, autoconsistencia +
+auditoría de trim), `sim_fase31_z06.INPUT`/`sim_fase31_z09.INPUT` (Paso 1, objeto controlado nuevo),
+`fase31_paso1_analyze.py` (análisis del volcado real, reutiliza el binario instrumentado de Fases
+29-30 sin recompilar). GENVERSIONs `TEST_FASE31_ccor_z06`/`z09` generados en `SNDATA_ROOT/SIM/` y
+borrados tras extraer el `.DUMP`. Sin parches nuevos a SNANA (se reutilizó el binario ya instrumentado
+de Fases 29-30 sin modificarlo). Sin cambios a scripts del pipeline de este repo -- ambas auditorías
+dieron negativo, no hay nada que corregir.
