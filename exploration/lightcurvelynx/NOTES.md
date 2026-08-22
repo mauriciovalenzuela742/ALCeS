@@ -4798,3 +4798,125 @@ Exploratorios en NLHPC, borrados tras usarlos: `fase33_paso1_mwebv.py` (Paso 1, 
 `fase33_paso1_mwebv_output.csv`, también borrado). Paso 2 y los candidatos de reserva se corrieron
 inline (sin script separado). Sin cambios a `snana_params.py`/scripts de producción -- ningún candidato
 alcanzó el umbral para justificar una corrección esta fase.
+
+## Fase 34 — `Omega_m=0.3` era un valor asumido, no el default real de SNANA (`0.315`): corregido, efecto real pero pequeño y en dirección inesperada
+
+Nueva arista: auditar el módulo de distancia cosmológica propio de LightCurveLynx
+(`DistModFromRedshift`, envoltorio real de `astropy.cosmology.FlatLambdaCDM.distmod(z)`, usado en
+`compare_brightness_truth_salt2.py` desde Fase 16) contra el `MU` real de SNANA -- nunca antes validado
+de forma independiente (las pruebas código-real-vs-código-real de Fases 26-31 siempre reusaron el `MU`
+real de SNANA directamente, evitando el cálculo propio de LightCurveLynx por diseño).
+
+### Paso 1 -- desajuste real medido, sin simular nada nuevo
+
+El `.DUMP` real de producción (`SNIa_DDF_baseline_v5.3.1_10yrs.DUMP`) ya trae `ZCMB`/`ZHELIO`/`MU`/
+`LENSDMU` por objeto. Aplicando el mismo filtro de contaminación de Fase 33 (separación angular `<2°`
+al campo DDF real más cercano, 1659/1957 objetos bien-matcheados -- sin ese filtro, el `.DUMP` completo
+da resultados absurdos, mismo hallazgo de Fase 33) y comparando `MU_LCL = FlatLambdaCDM(H0=70,
+Om0=0.3).distmod(z).value` contra el `MU` real:
+
+| | media | mediana | std |
+|---|---:|---:|---:|
+| `MU_LCL(ZCMB) − MU_real` | +0.01629 | +0.01719 | 0.00416 |
+| `MU_LCL(ZHELIO) − MU_real` | +0.01739 | +0.01824 | 0.00463 |
+
+`LENSDMU` real es exactamente cero para los 1659 objetos (media/mediana/std/min/max = 0.0) -- esta
+campaña no aplica dispersión de lente gravitacional, no es la fuente del desajuste.
+
+**El desajuste NO es un offset constante -- crece suavemente con `z`** (`ZCMB`, mediana por bin):
+
+| bin `z` | N | `MU_LCL−MU_real` (mediana) |
+|---:|---:|---:|
+| [0.011,0.181) | 10 | 0.00225 |
+| [0.181,0.351) | 51 | 0.00594 |
+| [0.351,0.521) | 147 | 0.00949 |
+| [0.521,0.690) | 219 | 0.01246 |
+| [0.690,0.860) | 313 | 0.01537 |
+| [0.860,1.030) | 438 | 0.01778 |
+| [1.030,1.200) | 481 | 0.01972 |
+
+Un crecimiento suave y monótono con `z` -- la firma exacta de un parámetro de cosmología mal
+matcheado (no un offset/bug de fórmula). Ajustando `Om0` contra el `MU` real (manteniendo `H0=70`,
+`scipy.optimize.minimize_scalar`, residuo mediano absoluto como función de costo): **`Om0=0.31435`
+reduce el residuo mediano a 0.00068 mag** (esencialmente ruido numérico), contra `0.01719` mag con
+`Om0=0.3`. Un ajuste equivalente variando `H0` con `Om0=0.3` fijo da `H0=70.59`, con un residuo
+`0.0022` mag -- peor ajuste, confirmando que el parámetro mal matcheado es `Om0`, no `H0`.
+
+**Confirmado contra el código fuente real de SNANA**: `~/github/SNANA_src/src/sntools.h`, línea 53:
+`#define OMEGA_MATTER_DEFAULT 0.315` -- coincide con el `Om0` ajustado numéricamente a 4 decimales. La
+misma cabecera confirma `H0_SALT2 = 70.0` (línea 57, "tied to SALT2 training") -- el `H0=70` que ya
+usa el proyecto era correcto; solo `Omega_m=0.3` (un valor redondo asumido desde las primeras fases,
+nunca verificado contra el default real) estaba mal. Ningún `.INPUT` real de la campaña (ni el de
+`SNIa`, ni ningún archivo compartido bajo `~/AUTOSIM/build/full_v5.3_10yrs/` o
+`/home/mvalenzuela/run_SNANA/model_config/`) sobreescribe `OMEGA_MATTER`, confirmado por grep sin
+resultados -- la campaña corre con el default interno real de SNANA.
+
+**Hallazgo de alcance más amplio, no corregido en esta fase**: `Om0=0.3` está hardcodeado en 8 archivos
+del proyecto (`bench_snia.py`, `compare_brightness_truth.py`, `compare_brightness_truth_salt2.py`,
+`run_dask_poc.py`, `run_non1ased_poc.py`, `run_simsed_91bg_ddf_poc.py`, `run_simsed_poc.py`,
+`run_snia_ddf_poc.py`) -- afecta potencialmente a todas las clases, no solo `SNIa`. Esta fase corrige
+únicamente los scripts SNIa/SALT2 ya tocados por la cadena de investigación (ver abajo); el resto queda
+como trabajo pendiente identificado, no una fase futura todavía planificada. `run_dask_poc.py` además
+usa `H0=73.0` (no `70.0`) -- un error real y más grande (~0.09 mag, `5·log10(73/70)`) que el de `Om0`,
+pero fuera de alcance de esta fase (no es parte de la cadena de comparación poblacional que usan las
+Fases 16-34, es un PoC de paralelización con Dask).
+
+### Paso 3 -- corregido y medido: efecto real, pero pequeño, y en la dirección opuesta a "cerrar el residuo"
+
+Corregido `Omega_m: 0.3 → 0.315` en `compare_brightness_truth_salt2.py` y `run_snia_ddf_poc.py` (los
+2 de los 3 scripts SNIa/SALT2 que usan `DistModFromRedshift` directamente -- `run_dask_poc.py` queda
+fuera, ver nota de `H0` arriba). Re-corrida la población completa (2000 objetos, mismo `seed_base`,
+sobre la base ya corregida de Fase 32 -- sampler bifurcado real) con `compute_noise_free_lightcurves()`
+en `rest_phase=0`, misma metodología exacta de Fase 32:
+
+| banda | Fase 32 (antes) | Fase 34 (después, `Om0=0.315`) | Δ(Fase34−Fase32) |
+|---|---:|---:|---:|
+| `g` | -0.3448 | -0.3547 | -0.0099 |
+| `r` | -0.3142 | -0.3285 | -0.0143 |
+| `i` | -0.3138 | -0.3283 | -0.0145 |
+| `z` | -0.3113 | -0.3271 | -0.0158 |
+| `y` | -0.2562 | -0.2737 | -0.0175 |
+
+**El residuo acromático NO se reduce -- se hace ligeramente más negativo (~0.01-0.018 mag), consistente
+en signo y magnitud con la propia medición del Paso 1** (`MU_LCL(Om0=0.3)` era ~0.017-0.02 mag *mayor*
+que el `MU` real, es decir LightCurveLynx generaba objetos ligeramente *más tenues* de lo que debería
+por este único efecto -- una compensación parcial, no relacionada con la causa real del exceso de
+brillo, que enmascaraba una fracción del residuo verdadero). Corregir `Om0` **elimina esa compensación
+accidental**, revelando un residuo acromático real ligeramente mayor (~0.33 mag en vez de ~0.31 mag) que
+el reportado en Fase 32 -- una medición más honesta, no un empeoramiento real de la física. El spread
+cromático `g−y`, en cambio, mejora levemente: `-0.3547 − (-0.2737) = -0.0810` mag, contra `-0.0886` mag
+de Fase 32 (~9% de reducción adicional) -- coherente con que el efecto de `Om0` es predominantemente
+acromático (entra igual en las 6 bandas vía `x0`), con variación banda a banda solo por diferencias de
+cobertura de bins de `z` válidos entre bandas (`u`/`z`/`y` tienen menos bins con estadística completa
+por el efecto de borde de Fase 13/23), no por un mecanismo cromático nuevo. `u` sigue sin ser confiable
+(solo 1-2 bins con datos, mismo problema de siempre).
+
+### Candidato de reserva (`GENSIGMA_VPEC`/`GENRANGE_RV` en `.INPUT` compartido)
+
+Grepeado en todos los `.INPUT` reales bajo `/home/mvalenzuela/run_SNANA/model_config/` y
+`~/AUTOSIM/build/full_v5.3_10yrs/`: `GENRANGE_RV` sí aparece, pero solo en los `.INPUT` de clases con
+extinción de host parametrizada (`SNIax`, `TDE-MOSFIT`, etc. -- ya documentado en fases previas, `RV`
+del polvo de host, no de la Vía Láctea). El `.INPUT` real de `SNIa` (`SIMGEN_INCLUDE_SNIa-SALT2.INPUT`,
+leído completo en la planificación de esta fase) no declara `GENSIGMA_VPEC` ni ningún parámetro de `RV`
+-- descartado, sin necesidad de simular nada.
+
+### Conclusión Fase 34 -- corrección real y precisa, pero de magnitud pequeña y de signo contraintuitivo
+
+A diferencia de Fase 32 (reducción sustancial del residuo) y más parecido a Fase 24/33 (corrección real
+pero de magnitud marginal frente al residuo total), esta fase identifica con precisión inusual la causa
+exacta de un desajuste real (`Om0=0.3` asumido vs. `Om0=0.315` real, confirmado a 4 decimales contra el
+código fuente de SNANA) -- pero corregirlo **no reduce** el residuo acromático reportado, lo aumenta
+ligeramente (~0.01-0.018 mag), porque el error de `Om0` estaba parcialmente enmascarando, no causando,
+parte del exceso de brillo real. El spread cromático mejora un poco (~9% adicional). El residuo que
+queda tras Fase 32+34 (`~0.33` mag acromático, `~0.081` mag de spread cromático `g−y`) sigue sin causa
+identificada. La corrección queda aplicada de todas formas -- es física y numéricamente correcta,
+verificada contra el código fuente real de SNANA, independientemente de que no achique el número que se
+viene persiguiendo.
+
+### Archivos de esta fase
+
+`compare_brightness_truth_salt2.py`, `run_snia_ddf_poc.py`: `Omega_m`/`Om0` corregido de `0.3` a
+`0.315`, con comentario citando `OMEGA_MATTER_DEFAULT` real de `sntools.h`. Exploratorios en NLHPC,
+borrados tras usarlos: `fase34_paso1_mu.py` (Paso 1, con su verificación de ajuste de `Om0`/`H0` inline),
+`fase34_population_6band.py`/`.sbatch` (Paso 3, output `fase34_population_6band_output.parquet` también
+borrado tras extraer los números).

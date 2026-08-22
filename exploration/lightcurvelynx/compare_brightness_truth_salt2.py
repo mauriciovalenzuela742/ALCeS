@@ -115,7 +115,12 @@ def main():
     x1_func = SizeAwareFunctionNode(
         make_bifurcated_normal_sampler(**SALT2X1, seed=seed_base + 3), node_label="x1"
     )
-    distmod_func = DistModFromRedshift(redshift_func, H0=70.0, Omega_m=0.3)
+    # Fase 34: Omega_m real de SNANA es 0.315 (OMEGA_MATTER_DEFAULT, sntools.h),
+    # nunca sobreescrito en el .INPUT real -- 0.3 era un valor redondo asumido,
+    # nunca verificado. Confirmado numericamente: ajustando Om0 contra el MU
+    # real del .DUMP, el optimo es 0.3144 (residuo mediano cae de 0.017 a
+    # 0.0007 mag) -- coincide con el default real de SNANA.
+    distmod_func = DistModFromRedshift(redshift_func, H0=70.0, Omega_m=0.315)
     # Fase 20: -19.365 es el M_abs real que hace que X0FromDistMod coincida
     # exacto con SALT2x0calc() de SNANA -- ver run_snia_ddf_poc.py y NOTES.md
     # Fase 20 para la verificacion numerica completa (no cierra el residuo,

@@ -199,10 +199,13 @@ def main(seed_index: int = 0, wfd: bool = False):
     # H0=70 (no 73, el placeholder heredado de bench_snia.py/Fase 0) -- SNANA
     # no fija cosmologia en ningun .INPUT de la campana (grep sin resultados
     # en run_SNANA/*.INPUT ni en pipeline/), asi que corre con su default
-    # interno, H0=70/Omega_M=0.3 (mismo valor usado en PLAsTiCC/Kessler+2019,
-    # el linaje de este catalogo). H0=73 introduce un ~0.1 mag de brillo
-    # sistematico de mas -- ver NOTES.md Fase 2 parte A.
-    distmod_func = DistModFromRedshift(redshift_func, H0=70.0, Omega_m=0.3)
+    # interno real: H0_SALT2=70.0 (sntools.h). H0=73 introduce un ~0.1 mag de
+    # brillo sistematico de mas -- ver NOTES.md Fase 2 parte A.
+    # Fase 34: Omega_M=0.3 (asumido desde Fase 2A) NO es el default real de
+    # SNANA -- es OMEGA_MATTER_DEFAULT=0.315 (sntools.h), nunca sobreescrito
+    # en el .INPUT real. Confirmado ajustando Om0 contra el MU real del
+    # .DUMP: optimo 0.3144, coincide con 0.315.
+    distmod_func = DistModFromRedshift(redshift_func, H0=70.0, Omega_m=0.315)
     # Fase 20: -19.3 (Fases 0-19) era un valor de la literatura general, nunca
     # verificado contra la convencion real de SNANA -- -19.365 es el valor
     # exacto (no una aproximacion) que hace que X0FromDistMod produzca el

@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "35&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "36&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-33</span>
+      <span class="verdict-badge critical">Actualización Fases 22-34</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "35 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "36 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "35 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "36 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1399,6 +1399,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       el centro galáctico) -- no invalida los hallazgos previos (todos basados en medianas, robustas a esa
       fracción), pero queda documentado como cabo suelto real. El residuo post-Fase-32 sigue sin causa
       identificada.</p>
+      <p><strong>Fase 34 (corrección real y precisa, pero de magnitud pequeña y de signo
+      contraintuitivo):</strong> se audita el módulo de distancia propio de LightCurveLynx
+      (<code>DistModFromRedshift</code>) contra el <code>MU</code> real de SNANA -- nunca antes validado
+      de forma independiente. El desajuste real crece suavemente con <code>z</code> (<code>0.002</code>
+      a <code>0.020</code> mag) -- firma de un parámetro de cosmología mal matcheado. Ajustando
+      <code>Om0</code> contra el <code>MU</code> real: el óptimo es <code>0.31435</code>, coincidiendo a
+      4 decimales con <code>OMEGA_MATTER_DEFAULT=0.315</code> real de <code>sntools.h</code> -- el
+      proyecto usaba <code>Om0=0.3</code>, un valor redondo nunca verificado. Corregido y medido con la
+      población completa: el residuo acromático <strong>no se reduce, se hace ligeramente más
+      negativo</strong> (<code>~0.01-0.018</code> mag) -- el error de <code>Om0</code> enmascaraba
+      parcialmente, no causaba, parte del exceso de brillo real; corregirlo revela un residuo algo mayor
+      pero más honesto (<code>~0.33</code> mag). El spread cromático <code>g−y</code> mejora un poco
+      (<code>-0.089→-0.081</code> mag). <code>Om0=0.3</code> sigue hardcodeado en otros 6 scripts del
+      proyecto (otras clases) -- identificado, no corregido en esta ronda. El residuo post-Fase-32 sigue
+      sin causa identificada.</p>
     </div>
     </div>
 
@@ -1658,7 +1673,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y cinco fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y seis fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2201,6 +2216,37 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           invalida hallazgos previos, todos basados en medianas robustas a esa fracción).</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">34</span>
+        <div class="step-body">
+          <p><strong><code>Omega_m=0.3</code> era un valor asumido, no el default real de SNANA
+          (<code>0.315</code>): corregido, efecto real pero pequeño y en dirección inesperada.</strong>
+          Se audita el módulo de distancia propio de LightCurveLynx (<code>DistModFromRedshift</code>,
+          envoltorio de <code>astropy.cosmology.FlatLambdaCDM.distmod(z)</code>) contra el <code>MU</code>
+          real de SNANA — nunca antes validado de forma independiente (las pruebas de Fases 26-31 siempre
+          reusaron el <code>MU</code> real directamente). Comparando contra el <code>.DUMP</code> real
+          (mismo filtro de contaminación de Fase 33, 1659/1957 objetos): <code>MU_LCL−MU_real</code> no es
+          un offset constante — crece suavemente con <code>z</code> (<code>0.002</code> mag en
+          <code>z≈0.1</code> hasta <code>0.020</code> mag en <code>z≈1.1</code>), la firma de un parámetro
+          de cosmología mal matcheado. Ajustando <code>Om0</code> contra el <code>MU</code> real
+          (<code>H0=70</code> fijo): el óptimo es <code>0.31435</code> (residuo mediano cae de
+          <code>0.017</code> a <code>0.0007</code> mag) — coincide a 4 decimales con
+          <code>OMEGA_MATTER_DEFAULT=0.315</code> real de <code>sntools.h</code>, nunca sobreescrito en
+          ningún <code>.INPUT</code> de la campaña. <code>LENSDMU</code> real es exactamente cero (sin
+          lente gravitacional en esta campaña).</p>
+          <p><strong>Corregido y medido, recorrida completa (2000 objetos, sobre la base de Fase 32)</strong>:
+          el residuo acromático <strong>no se reduce — se hace ligeramente más negativo</strong>
+          (<code>r</code>: <code>-0.314→-0.329</code>, <code>~0.01-0.018</code> mag), porque el error de
+          <code>Om0</code> enmascaraba parcialmente, no causaba, parte del exceso de brillo real —
+          corregirlo revela un residuo ligeramente mayor (<code>~0.33</code> mag) pero más honesto. El
+          spread cromático <code>g−y</code> mejora un poco (<code>-0.089→-0.081</code> mag, ~9%
+          adicional). <code>Om0=0.3</code> está hardcodeado en 8 archivos del proyecto — esta fase corrige
+          solo los 2 scripts SNIa/SALT2 de la cadena de investigación, el resto queda identificado como
+          trabajo pendiente. Candidato de reserva (<code>GENSIGMA_VPEC</code>/<code>RV</code> en
+          <code>.INPUT</code> compartido) descartado por lectura directa — ningún parámetro de este tipo
+          en el <code>.INPUT</code> real de <code>SNIa</code>.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2530,7 +2576,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "35 fases" },
+    { id: "fases", label: "36 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
