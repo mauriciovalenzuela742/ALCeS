@@ -286,8 +286,16 @@ def make_bifurcated_normal_sampler(
 ):
     """Gaussiana con sigma distinto a cada lado del pico (bifurcada), con
     corte duro en [lo, hi] via rechazo -- replica el patron
-    GENPEAK/GENSIGMA (dos valores)/GENRANGE de SNANA para SALT2c y SALT2x1."""
+    GENPEAK/GENSIGMA (dos valores)/GENRANGE de SNANA para SALT2c y SALT2x1.
+
+    Fase 32: la probabilidad de elegir cada lado NO es 50/50 -- SNANA la
+    pesa proporcional a cada sigma (getRan_GaussAsym(), sntools.c real:
+    p_lado_bajo = siglo/(siglo+sighi), BIGAUSSNORMCON se cancela en el
+    cociente) para que la densidad sea continua en el pico. Un split fijo
+    50/50 sub-muestrea el lado ancho y sobre-muestrea el lado angosto --
+    bug real, corregido aca. Ver NOTES.md Fase 32."""
     rng = np.random.default_rng(seed)
+    p_side_lo = 0.5 if (sigma_lo == 0.0 and sigma_hi == 0.0) else sigma_lo / (sigma_lo + sigma_hi)
 
     def sampler(size=None, **_kwargs):
         n = 1 if size is None else (size if np.isscalar(size) else size[0])
@@ -295,7 +303,7 @@ def make_bifurcated_normal_sampler(
         filled = 0
         while filled < n:
             batch = max(n - filled, 16)
-            side = rng.uniform(size=batch) < 0.5
+            side = rng.uniform(size=batch) < p_side_lo
             sigma = np.where(side, sigma_lo, sigma_hi)
             # sigma_lo va del lado izquierdo del pico (draw < peak), sigma_hi
             # del lado derecho -- misma convencion que GENSIGMA de SNANA.

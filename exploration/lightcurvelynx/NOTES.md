@@ -4613,3 +4613,84 @@ auditoría de trim), `sim_fase31_z06.INPUT`/`sim_fase31_z09.INPUT` (Paso 1, obje
 borrados tras extraer el `.DUMP`. Sin parches nuevos a SNANA (se reutilizó el binario ya instrumentado
 de Fases 29-30 sin modificarlo). Sin cambios a scripts del pipeline de este repo -- ambas auditorías
 dieron negativo, no hay nada que corregir.
+
+## Fase 32 — el hallazgo más significativo de la investigación: el sampler de `c`/`x1` no pesaba las dos mitades como SNANA
+
+Nueva arista, distinta de toda la cadena de Fases 26-31 (que atacó la fórmula fotométrica de un objeto
+controlado único): esta vez se audita la **fidelidad del muestreo poblacional**. Leyendo el código real
+de SNANA (no documentación) se encontró un bug real y concreto, no solo una hipótesis.
+
+### El bug real: SNANA pesa cada mitad de la Gaussiana bifurcada por su sigma, no 50/50
+
+`~/github/SNANA_src/src/sntools.c::getRan_GaussAsym()` (la función real que SNANA usa para samplear
+`SALT2c`/`SALT2x1`, invocada desde `getRan_GENGAUSS_ASYM()` en `sntools_genGauss_asym.c`) no elige el
+lado "bajo"/"alto" de la Gaussiana bifurcada con 50/50 de probabilidad -- lo pesa **proporcional a cada
+sigma**, para que la densidad de probabilidad sea continua en el pico:
+
+```c
+// sntools.c, getRan_GaussAsym() real
+double BIGAUSSNORMCON = 1.25331413732;  // sqrt(2*pi)/2, normaliza cada media-Gaussiana
+psum = (siglo + sighi) * BIGAUSSNORMCON + peakinterval;
+p[0] = (siglo * BIGAUSSNORMCON) / psum;      // prob. de tomar el lado "bajo"
+p[2]-p[1] = (sighi * BIGAUSSNORMCON) / psum;  // prob. de tomar el lado "alto"
+```
+
+Es decir, `P(lado alto) = sighi/(siglo+sighi)`, NO `0.5`. `snana_params.py::make_bifurcated_normal_sampler()`
+(línea 284-311, usada en `compare_brightness_truth_salt2.py`/`run_snia_ddf_poc.py`/`run_dask_poc.py`)
+usaba `side = rng.uniform(size=batch) < 0.5` -- siempre 50/50, sin importar cuán distintos fueran
+`sigma_lo`/`sigma_hi`. Confirmado contra el `.INPUT` real (`SIMGEN_INCLUDE_SNIa-SALT2.INPUT`, vía
+`include_model_SNIa.INPUT`): `GENPEAK_SALT2c/x1` son valores únicos (no un rango), y **no hay
+`GENSKEW_SALT2c`/`GENSKEW_SALT2x1` declarado** -- `peakinterval=0` es válido, no hace falta implementar
+la rama de `getRan_skewGauss()`.
+
+Para `SALT2c` (`peak=-0.054, sigma_lo=0.043, sigma_hi=0.101`), la asimetría es grande: `sigma_hi` es
+2.35x `sigma_lo`. `P(lado alto)` real es `0.101/(0.043+0.101) ≈ 70.1%`, no `50%`. Con 50/50,
+LightCurveLynx sub-muestreaba el lado ancho (rojo, `c` alto) y sobre-muestreaba el lado angosto (azul,
+`c` bajo) -- sesgo en la dirección correcta para producir tanto exceso de brillo global como señal
+cromática. `SALT2x1` (`sigma_lo=1.472, sigma_hi=0.222`, asimetría opuesta) también estaba afectado.
+
+### Corregido: `make_bifurcated_normal_sampler()` ahora replica la fórmula real
+
+```python
+p_side_lo = 0.5 if (sigma_lo == 0.0 and sigma_hi == 0.0) else sigma_lo / (sigma_lo + sigma_hi)
+...
+side = rng.uniform(size=batch) < p_side_lo
+```
+
+Verificado con un test estadístico directo (2M draws): `P(lado alto)` empírico coincide con el valor
+esperado a 4 decimales (`SALT2c`: 0.7013 vs. 0.7014 esperado; `SALT2x1`: 0.1318 vs. 0.1311 esperado).
+
+### Impacto real medido: recorrida completa de la población (2000 objetos, sampler corregido)
+
+A diferencia de Fases 26-31 (objeto controlado único), este bug es inherentemente poblacional -- se
+recorrió `compare_brightness_truth_salt2.py` (2000 objetos, mismo `seed_base=20260812`, mismo `.DUMP`
+real de producción) con el sampler ya corregido, repitiendo la comparación banda-por-banda de Fase 23
+(`compute_noise_free_lightcurves()` en `rest_phase=0`, mediana por los mismos 7 bins de `z`):
+
+| banda | Fase 23 (pre-fix) | Fase 32 (post-fix) | reducción | % reducción |
+|---|---:|---:|---:|---:|
+| `g` | -0.593 | -0.3448 | -0.248 | 41.9% |
+| `r` | -0.519 | -0.3142 | -0.205 | 39.5% |
+| `i` | -0.469 | -0.3138 | -0.155 | 33.1% |
+| `z` | -0.435 | -0.3113 | -0.124 | 28.4% |
+| `y` | -0.382 | -0.2562 | -0.126 | 32.9% |
+
+**El nivel acromático se reduce ~28-42% en todas las bandas con estadística suficiente**, y el **spread
+cromático `g−y` se reduce de -0.211 a -0.089 mag -- una reducción del 58%**. `u` queda con un solo bin
+de estadística válida (mismo problema de borde de Fase 13/23), resultado no confiable ahí.
+
+### Conclusión Fase 32 — el hallazgo más significativo de la investigación
+
+Un bug de muestreo real y corregible -- no una diferencia de convención fotométrica -- explica una
+fracción sustancial (28-42% del nivel acromático, 58% del spread cromático) del residuo que las Fases
+16-31 persiguieron a través de la cadena SALT2/fotometría sintética completa. `make_bifurcated_normal_sampler()`
+no se usa en ningún otro lugar del proyecto fuera de estos 3 scripts SNIa/SALT2 (`grep` confirmado). El
+residuo restante (~58-72% del nivel acromático según banda, ~42% del spread cromático) sigue sin causa
+identificada, pero el espacio de búsqueda se redujo sustancialmente.
+
+### Archivos de esta fase
+
+`snana_params.py`: `make_bifurcated_normal_sampler()` corregido (probabilidad de lado proporcional a
+sigma, no 50/50 fijo). Exploratorios en NLHPC, borrados tras usarlos: `fase32_verify_sampler.py` (Paso
+2), `fase32_smoketest.py` (verificación de API), `fase32_population_6band.py`/`.sbatch` (Paso 3, output
+`fase32_population_6band_output.parquet` también borrado tras extraer los números).

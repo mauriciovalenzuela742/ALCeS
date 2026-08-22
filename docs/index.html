@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "33&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "34&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-31</span>
+      <span class="verdict-badge critical">Actualización Fases 22-32</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "33 fases" (Fases 22-30) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "34 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1370,6 +1370,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       corrección de código esta vez — ambas auditorías dieron negativo, con evidencia numérica directa.
       El espacio de candidatos concretos y verificables está prácticamente agotado; el ~60-70% restante
       probablemente requiere la síntesis final, todavía diferida a pedido del usuario.</p>
+      <p><strong>Fase 32 (el hallazgo más significativo de la investigación — un bug real de
+      muestreo):</strong> nueva arista, distinta de toda la cadena de Fases 26-31 — se audita la
+      <strong>fidelidad del muestreo poblacional</strong> en vez de la fórmula fotométrica de un objeto
+      controlado. Leyendo <code>sntools.c::getRan_GaussAsym()</code> real: SNANA pesa cada lado de la
+      Gaussiana bifurcada de <code>SALT2c</code>/<code>SALT2x1</code> <strong>proporcional a su
+      sigma</strong> (<code>P(lado alto)=σ_hi/(σ_lo+σ_hi)</code>), no 50/50. El proyecto usaba 50/50 fijo
+      — para <code>SALT2c</code> la asimetría real es <code>70.1%/29.9%</code>, sub-muestreando
+      sistemáticamente el lado rojo. Corregido y verificado (2M draws, asimetría empírica exacta a 4
+      decimales). <strong>Impacto medido con la población completa (2000 objetos, sampler corregido)</strong>:
+      el nivel acromático se reduce <strong>28-42%</strong> en todas las bandas
+      (<code>r</code>: <code>-0.519→-0.314</code> mag), y el <strong>spread cromático <code>g−y</code> se
+      reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
+      fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
+      ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
+      sustancialmente. Ver pestaña "34 fases" (Fase 32) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1629,7 +1644,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y tres fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y cuatro fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2119,6 +2134,30 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           lectura de código está prácticamente agotado.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">32</span>
+        <div class="step-body">
+          <p><strong>El hallazgo más significativo de la investigación: un bug real de muestreo, no una
+          diferencia de convención fotométrica.</strong> Nueva arista, distinta de toda la cadena de Fases
+          26-31: en vez de auditar la fórmula fotométrica de un objeto controlado, se audita la
+          <strong>fidelidad del muestreo poblacional</strong> de <code>SALT2c</code>/<code>SALT2x1</code>.
+          Leyendo <code>sntools.c::getRan_GaussAsym()</code> real (la función que SNANA usa para samplear
+          la Gaussiana bifurcada): SNANA no elige el lado "bajo"/"alto" con 50/50 de probabilidad — lo pesa
+          <strong>proporcional a cada sigma</strong> (<code>P(lado alto)=σ_hi/(σ_lo+σ_hi)</code>), para que
+          la densidad sea continua en el pico. <code>make_bifurcated_normal_sampler()</code>
+          (<code>snana_params.py</code>) usaba <code>50/50</code> fijo, sin importar la asimetría real.
+          Para <code>SALT2c</code> (<code>σ_lo=0.043, σ_hi=0.101</code>) la asimetría real es
+          <code>70.1%/29.9%</code>, no <code>50/50</code> — LightCurveLynx sub-muestreaba el lado ancho
+          (rojo) y sobre-muestreaba el angosto (azul). Confirmado contra el <code>.INPUT</code> real:
+          <code>GENPEAK_SALT2c/x1</code> son valores únicos, sin <code>GENSKEW</code> declarado. Corregido
+          (verificado con 2M draws, <code>P(lado alto)</code> empírico a 4 decimales del valor real).
+          <strong>Impacto medido, recorrida completa (2000 objetos, sampler corregido)</strong>: el nivel
+          acromático se reduce <strong>28-42%</strong> en todas las bandas (<code>r</code>:
+          <code>-0.519→-0.314</code>), y el <strong>spread cromático <code>g−y</code> se reduce 58%</strong>
+          (<code>-0.211→-0.089</code> mag). El residuo restante (~58-72% del nivel, ~42% del spread) sigue
+          sin causa identificada, pero el espacio de búsqueda se redujo sustancialmente.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2448,7 +2487,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "33 fases" },
+    { id: "fases", label: "34 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
