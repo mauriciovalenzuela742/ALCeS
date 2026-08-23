@@ -5972,70 +5972,6 @@ borrados tras usarlos: `fase44_redcor_test.py` (test KS peso viejo vs. nuevo),
 exploratoria, resultado documentado arriba): `compare_brightness_truth.py` re-ejecutado con el peso
 nuevo, output en `compare_brightness_truth_output.parquet` (no borrado).
 
-## Fase 46 — la sobre-detección de `ILOT-MOSFIT` (Fase 43) es real, no espuria: épocas muy tardías dentro del rango físico válido del template, pero de SNR más marginal
-
-Pregunta 2 de la ronda anterior: Fase 43 extendió `rest_time_window_offset` de `ILOT-MOSFIT` a
-`(-100,1000)` días (`GENRANGE_TREST` real) y el ratio de detección pasó de sub-detectar 2x (`3.65%`
-vs. `7.15%` real) a sobre-detectar ~4.3x (`31.03%±0.63%`). Candidato a probar: detecciones espurias en
-la cola tardía, posiblemente ligadas a la extrapolación de fase.
-
-### Reconstrucción real, con las 5 semillas ya corridas (sin simular nada nuevo)
-
-Usando `head_df.parquet`/`phot_df.parquet` reales de las 5 semillas (`poc_output_ilotmosfit`/
-`_seed1-4`, columnas `DETECTED`/`PHOTFLAG` ya calculadas), se reconstruyó -- para cada objeto
-detectado -- la fase rest-frame de cada época (`(MJD-PEAKMJD)/(1+z)`) y se agrupó con
-`group_into_epochs()` real (mismo algoritmo de Fase 4, `NEWMJD_DIF=0.007` días). Se separaron los
-objetos detectados en dos grupos: **"viejos"** (ya tienen ≥2 épocas detectadas dentro de
-`[-30,100]` días -- se habrían detectado igual con la ventana original) y **"nuevos"** (solo llegan a
-≥2 épocas gracias a al menos una época fuera de `[-30,100]`).
-
-| | N objetos | mediana SNR de la época de trigger | % con SNR<7 | mediana `rest_phase` (épocas "nuevas") |
-|---|---:|---:|---:|---:|
-| "viejos" (ventana original ya alcanzaba) | 818 | 5.72 | 64.2% | -- |
-| "nuevos" (solo por ventana extendida) | 2285 | 3.97 | 81.8% | **264.8 días** |
-
-**El 99.4% de los objetos "nuevos" (2271/2285) tienen su época de disparo a `|rest_phase|>45` días**
--- confirma que la sobre-detección viene abrumadoramente de la cola tardía extendida, no de ruido
-disperso cerca del pico. Las épocas "nuevas" sí son sistemáticamente más marginales que las "viejas"
-(SNR mediano 3.97 vs. 5.72, 81.8% vs. 64.2% con SNR<7).
-
-### Pero no es un artefacto de extrapolación: el propio modelo declara flujo físico válido hasta 2000 días
-
-Verificado el `SED.INFO` real de `SIMSED.ILOT-MOSFIT`
-(`~/run_SNANA/plasticc_models/SIMSED.ILOT-MOSFIT/SED.INFO`): declara explícitamente
-`REBIN_DAY: 2 for 200.0 < DAY < 2000.0` -- el propio modelo físico (transitorio ILOT alimentado por
-interacción con medio circunestelar, "CSM-powered") está diseñado y calibrado para tener flujo
-significativo hasta 2000 días, con una grilla más gruesa (rebin) más allá de 200 días. La mediana de
-`rest_phase` de las épocas "nuevas" (264.8 días) cae **dentro** de ese rango físicamente válido, no
-más allá de él -- descarta la hipótesis original de esta fase (extrapolación tardía de
-`LinearDecay`/`ZeroPadding` generando flujo no físico): esos extrapoladores ni siquiera se usan en el
-camino de código real de `run_simsed_poc.py` (que usa `SIMSEDModel` directo, no
-`SncosmoWrapperModel` con extrapolación de tiempo configurada -- confirmado leyendo el script real,
-sin ninguna referencia a `LinearDecay`/`ZeroPadding` en la construcción del modelo SIMSED).
-
-### Conclusión Fase 46 -- resultado genuinamente mixto, ninguna de las dos hipótesis simples se sostiene limpia
-
-No es el resultado "espurio" que se esperaba, pero tampoco es un "no hay nada raro acá": las épocas de
-disparo "nuevas" son reales dentro del rango físico modelado del template (no extrapolación inválida),
-**pero** son sistemáticamente más marginales en SNR que las que ya disparaban con la ventana vieja, y
-concentradas en una cola extremadamente tardía (mediana 265 días, hasta 1000 días) que un survey real
-probablemente no cubre con la misma densidad de observaciones que asume esta ventana de generación
-uniforme. La sobre-detección de 4.3x es consistente con: la ventana `GENRANGE_TREST` real
-efectivamente amplía el catálogo generado a un régimen de fase muy tardía donde el modelo físico sigue
-prediciendo flujo, pero donde factores no modelados en esta fase (densidad de cadencia real del OpSim
-esa lejos del pico, o si el propio `.INPUT` de SNANA real limita la ventana de trigger/detección de
-forma distinta a la de generación) podrían explicar por qué SNANA real no detecta tantos de estos
-objetos tardíos como LightCurveLynx. No se investigó en esta fase si SNANA distingue `GENRANGE_TREST`
-(ventana de generación) de una ventana de trigger más angosta -- candidato concreto para una fase
-futura, no cerrado acá.
-
-### Archivos de esta fase
-
-`fase46_analysis.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo). Sin cambios a
-`run_simsed_poc.py` -- ninguna corrección aplicada esta fase, el hallazgo queda como diagnóstico
-honesto y un candidato nuevo (posible distinción generación-vs-trigger en `GENRANGE_TREST` real) para
-retomar más adelante.
-
 ## Fase 45 — la truncación real a `GENRANGE` (reject-and-retry) tampoco explica el desajuste de `SIMSED_REDCOR`
 
 Cierre de Fase 44, siguiendo la lectura de código un poco más allá de lo que esa fase necesitó:
@@ -6106,3 +6042,67 @@ evidencia de ejecución real.
 (implementación real de la truncación, comentario citando `snlc_sim.c` línea ~14038). Exploratorios en
 NLHPC, borrados tras usarlos: `fase45_mass_check.py` (Paso 1), `fase45_redcor_test.py` (Paso 3). Sin
 recorrida de `compare_brightness_truth.py` esta fase (no se cumplió el criterio del Paso 4).
+
+## Fase 46 — la sobre-detección de `ILOT-MOSFIT` (Fase 43) es real, no espuria: épocas muy tardías dentro del rango físico válido del template, pero de SNR más marginal
+
+Pregunta 2 de la ronda anterior: Fase 43 extendió `rest_time_window_offset` de `ILOT-MOSFIT` a
+`(-100,1000)` días (`GENRANGE_TREST` real) y el ratio de detección pasó de sub-detectar 2x (`3.65%`
+vs. `7.15%` real) a sobre-detectar ~4.3x (`31.03%±0.63%`). Candidato a probar: detecciones espurias en
+la cola tardía, posiblemente ligadas a la extrapolación de fase.
+
+### Reconstrucción real, con las 5 semillas ya corridas (sin simular nada nuevo)
+
+Usando `head_df.parquet`/`phot_df.parquet` reales de las 5 semillas (`poc_output_ilotmosfit`/
+`_seed1-4`, columnas `DETECTED`/`PHOTFLAG` ya calculadas), se reconstruyó -- para cada objeto
+detectado -- la fase rest-frame de cada época (`(MJD-PEAKMJD)/(1+z)`) y se agrupó con
+`group_into_epochs()` real (mismo algoritmo de Fase 4, `NEWMJD_DIF=0.007` días). Se separaron los
+objetos detectados en dos grupos: **"viejos"** (ya tienen ≥2 épocas detectadas dentro de
+`[-30,100]` días -- se habrían detectado igual con la ventana original) y **"nuevos"** (solo llegan a
+≥2 épocas gracias a al menos una época fuera de `[-30,100]`).
+
+| | N objetos | mediana SNR de la época de trigger | % con SNR<7 | mediana `rest_phase` (épocas "nuevas") |
+|---|---:|---:|---:|---:|
+| "viejos" (ventana original ya alcanzaba) | 818 | 5.72 | 64.2% | -- |
+| "nuevos" (solo por ventana extendida) | 2285 | 3.97 | 81.8% | **264.8 días** |
+
+**El 99.4% de los objetos "nuevos" (2271/2285) tienen su época de disparo a `|rest_phase|>45` días**
+-- confirma que la sobre-detección viene abrumadoramente de la cola tardía extendida, no de ruido
+disperso cerca del pico. Las épocas "nuevas" sí son sistemáticamente más marginales que las "viejas"
+(SNR mediano 3.97 vs. 5.72, 81.8% vs. 64.2% con SNR<7).
+
+### Pero no es un artefacto de extrapolación: el propio modelo declara flujo físico válido hasta 2000 días
+
+Verificado el `SED.INFO` real de `SIMSED.ILOT-MOSFIT`
+(`~/run_SNANA/plasticc_models/SIMSED.ILOT-MOSFIT/SED.INFO`): declara explícitamente
+`REBIN_DAY: 2 for 200.0 < DAY < 2000.0` -- el propio modelo físico (transitorio ILOT alimentado por
+interacción con medio circunestelar, "CSM-powered") está diseñado y calibrado para tener flujo
+significativo hasta 2000 días, con una grilla más gruesa (rebin) más allá de 200 días. La mediana de
+`rest_phase` de las épocas "nuevas" (264.8 días) cae **dentro** de ese rango físicamente válido, no
+más allá de él -- descarta la hipótesis original de esta fase (extrapolación tardía de
+`LinearDecay`/`ZeroPadding` generando flujo no físico): esos extrapoladores ni siquiera se usan en el
+camino de código real de `run_simsed_poc.py` (que usa `SIMSEDModel` directo, no
+`SncosmoWrapperModel` con extrapolación de tiempo configurada -- confirmado leyendo el script real,
+sin ninguna referencia a `LinearDecay`/`ZeroPadding` en la construcción del modelo SIMSED).
+
+### Conclusión Fase 46 -- resultado genuinamente mixto, ninguna de las dos hipótesis simples se sostiene limpia
+
+No es el resultado "espurio" que se esperaba, pero tampoco es un "no hay nada raro acá": las épocas de
+disparo "nuevas" son reales dentro del rango físico modelado del template (no extrapolación inválida),
+**pero** son sistemáticamente más marginales en SNR que las que ya disparaban con la ventana vieja, y
+concentradas en una cola extremadamente tardía (mediana 265 días, hasta 1000 días) que un survey real
+probablemente no cubre con la misma densidad de observaciones que asume esta ventana de generación
+uniforme. La sobre-detección de 4.3x es consistente con: la ventana `GENRANGE_TREST` real
+efectivamente amplía el catálogo generado a un régimen de fase muy tardía donde el modelo físico sigue
+prediciendo flujo, pero donde factores no modelados en esta fase (densidad de cadencia real del OpSim
+esa lejos del pico, o si el propio `.INPUT` de SNANA real limita la ventana de trigger/detección de
+forma distinta a la de generación) podrían explicar por qué SNANA real no detecta tantos de estos
+objetos tardíos como LightCurveLynx. No se investigó en esta fase si SNANA distingue `GENRANGE_TREST`
+(ventana de generación) de una ventana de trigger más angosta -- candidato concreto para una fase
+futura, no cerrado acá.
+
+### Archivos de esta fase
+
+`fase46_analysis.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo). Sin cambios a
+`run_simsed_poc.py` -- ninguna corrección aplicada esta fase, el hallazgo queda como diagnóstico
+honesto y un candidato nuevo (posible distinción generación-vs-trigger en `GENRANGE_TREST` real) para
+retomar más adelante.

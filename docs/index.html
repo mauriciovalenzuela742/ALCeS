@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "45&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "46&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "45 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "46 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "45 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "46 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "45 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "46 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "45 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "46 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1487,7 +1487,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge warn">Actualización Fases 38-44</span>
+      <span class="verdict-badge warn">Actualización Fases 38-46</span>
       <p><strong>Cerrado el círculo con Fase 16 — resultado sorpresa: el exceso de SNR NO era
       proporcional al exceso de brillo.</strong> Con la población ya corregida (Fases 32/34/37), el
       ratio de detección DDF baja de <code>1.89x</code> (Fase 16) a <code>1.615x ± 0.045</code>
@@ -1506,8 +1506,17 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <code>SIMSED_REDCOR</code> (candidato de Fase 41) con el mecanismo Cholesky+grilla real de
       SNANA — el test KS apenas mejora y el residuo de brillo de <code>SNIa-91bg</code> no se mueve
       (<code>0.004</code> mag de diferencia entre el peso viejo y el nuevo) — descartado como causa,
-      el desajuste real sigue sin identificarse. Ver pestaña "45 fases" (Fases 38/42/43/44) para el
-      detalle completo.</p>
+      el desajuste real sigue sin identificarse. <strong>Fase 45</strong> probó la hipótesis más
+      concreta que quedaba (SNANA trunca el draw continuo a <code>GENRANGE</code> real vía
+      reject-and-retry, la reimplementación de Fase 44 no lo hacía) — medido antes de tocar código:
+      solo <code>0.854%</code> de masa real fuera de la caja, implementado igual, el KS no mejora
+      (incluso empeora levemente en <code>color</code>) — descartada con evidencia directa, la lectura
+      de código llegó a su límite para este mecanismo. <strong>Fase 46</strong> encontró que la
+      sobre-detección de <code>ILOT-MOSFIT</code> (Fase 43) es real, no espuria: el 99.4% de los
+      objetos "nuevos" disparan a <code>|rest_phase|&gt;45</code> días (mediana <code>265</code> días),
+      dentro del rango físico válido del propio modelo (<code>REBIN_DAY</code> hasta 2000 días) — ni
+      artefacto de extrapolación ni resultado limpio, resultado genuinamente mixto. Ver pestaña
+      "46 fases" (Fases 38/42-46) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1837,7 +1846,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Cuarenta y cinco fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Cuarenta y seis fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2749,6 +2758,31 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           — la lectura de código llegó a su límite práctico para este candidato.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">46</span>
+        <div class="step-body">
+          <p><strong>La sobre-detección de <code>ILOT-MOSFIT</code> es real, no espuria — pero
+          tampoco un resultado limpio.</strong> Fase 43 extendió la ventana de generación a
+          <code>-100/1000</code> días reales y el ratio de detección pasó de sub-detectar 2x a
+          sobre-detectar ~4.3x. Reconstruyendo con las 5 semillas ya corridas (sin simular nada
+          nuevo): 2285 objetos solo se detectan gracias a la ventana extendida ("nuevos") vs. 818
+          que ya se detectaban con la ventana original. El <strong>99.4%</strong> de los "nuevos"
+          disparan su detección a <code>|rest_phase|&gt;45</code> días — mediana <code>264.8</code>
+          días — con SNR sistemáticamente más marginal (mediana <code>3.97</code> vs.
+          <code>5.72</code> de los "viejos").</p>
+          <p>Pero no es un artefacto de extrapolación: el <code>SED.INFO</code> real de
+          <code>SIMSED.ILOT-MOSFIT</code> declara <code>REBIN_DAY: 2 for 200&lt;DAY&lt;2000</code> —
+          el propio modelo físico (transitorio alimentado por interacción con medio circunestelar)
+          está calibrado para tener flujo significativo hasta 2000 días. Los extrapoladores
+          <code>LinearDecay</code>/<code>ZeroPadding</code> ni siquiera se usan en este camino de
+          código (<code>SIMSEDModel</code> directo, no <code>SncosmoWrapperModel</code>).
+          <strong>Resultado genuinamente mixto</strong>: las épocas "nuevas" son físicamente válidas
+          dentro del modelo, pero sistemáticamente más marginales y concentradas en una cola muy
+          tardía que un survey real probablemente no cubre con la misma densidad. Candidato nuevo,
+          no cerrado: si SNANA distingue la ventana de generación de una ventana de trigger más
+          angosta, algo que esta fase no investigó.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3079,7 +3113,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "45 fases" },
+    { id: "fases", label: "46 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
