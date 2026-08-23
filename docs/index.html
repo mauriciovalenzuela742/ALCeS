@@ -1467,6 +1467,75 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
     </div>
 
+    <div class="lcl-subpanel" id="lcl-sub-conclusiones">
+    <p class="section-sub">Conclusiones finales de la investigación LightCurveLynx vs. SNANA para
+    SNIa/SALT2 (Fases 0-37). Versión completa, con diseño propio, en
+    <a href="https://claude.ai/code/artifact/21be3ce8-6678-4bf8-b46e-9f42e821ddfc" target="_blank" rel="noopener">el artifact "Veredicto SALT2"</a>.</p>
+
+    <div class="callout accent">
+      <span class="verdict-badge">Veredicto</span>
+      <p><strong>¿Es lo mismo usar SNANA que LightCurveLynx? Sí, con matices — y solo para lo que
+      efectivamente se puso a prueba.</strong> Para SNIa/SALT2, en los campos DDF de esta campaña,
+      evaluadas en brillo pico sin ruido, los dos simuladores son hoy fotométricamente equivalentes:
+      el residuo cayó de <code>-0.52</code> a <code>+0.005</code> mag tras 4 correcciones reales.</p>
+      <p>Pero: <strong>3 de los 4 fixes corrigen código propio de ALCeS</strong> (no LightCurveLynx
+      "de fábrica"); <strong>solo se verificó 1 clase de 40</strong> (SIMSED/NON1ASED tienen su
+      propio historial, Fases 2-9, nunca auditado con este rigor); <strong>solo brillo pico</strong>,
+      no la curva completa; <strong>solo DDF</strong>, no WFD; y los <strong>bugs de reproducibilidad
+      (seed propagation)</strong> siguen abiertos (afectan reproducibilidad exacta, no precisión).</p>
+    </div>
+
+    <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
+    <div class="causes" style="grid-template-columns:1fr; margin-top:0;">
+      <div class="cause-card confirmed">
+        <p class="cause-label">Fase 22</p>
+        <h3>Punto de partida real</h3>
+        <p>Comparar contra el pico verdadero (no el máximo sobre cadencia observada) casi duplica el
+        residuo creído desde Fase 7. <strong>-0.52 mag.</strong></p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Fase 32</p>
+        <h3>Sampler bifurcado corregido</h3>
+        <p><code>make_bifurcated_normal_sampler()</code> elegía el lado 50/50 en vez de pesarlo por
+        sigma, como SNANA real. <strong>→ -0.33 mag.</strong></p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Fase 36</p>
+        <h3>Contaminación del archivo de referencia</h3>
+        <p>~15% del <code>.DUMP</code> de referencia no eran miembros DDF reales (extinción absurda,
+        centro galáctico) e inflaban la mediana de SNANA hacia más tenue. <strong>→ -0.26 mag.</strong></p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Fase 37</p>
+        <h3><code>MAG_OFFSET: 0.27</code>, la causa real</h3>
+        <p><code>SALT2.INFO</code> del modelo declara un offset que SNANA aplica y
+        <code>sncosmo</code> nunca lee. <strong>→ +0.005 mag — cerrado.</strong></p>
+      </div>
+    </div>
+
+    <h3 style="margin:28px 0 12px; font-size:1rem;">Líneas para seguir investigando</h3>
+    <ol class="recipe">
+      <li><span class="step-n">1</span><div class="step-body"><p><strong>Cerrar el círculo con
+      Fase 16:</strong> remedir el exceso de SNR (11-30%) con la población ya corregida — si
+      también desaparece, cierra la pregunta que arrancó toda la investigación.</p></div></li>
+      <li><span class="step-n">2</span><div class="step-body"><p><strong>Reportar el gap de
+      <code>SALT2.INFO</code> aguas arriba</strong> — borrador técnico listo en
+      <code>PROPUESTA_salt2_info_mag_offset.md</code>, pendiente de revisión con el profesor antes
+      de publicar como issue o post en el foro de Vera Rubin.</p></div></li>
+      <li><span class="step-n">3</span><div class="step-body"><p><strong>Extender la auditoría de
+      muestreo a las otras 39 clases</strong> — mismo patrón que encontró los bugs de Fases 32/34/36,
+      nunca aplicado fuera de SNIa.</p></div></li>
+      <li><span class="step-n">4</span><div class="step-body"><p><strong>Validar la curva de luz
+      completa</strong>, no solo <code>rest_phase=0</code> — repetir el pareo objeto-a-objeto de
+      Fase 37 en varias fases (-10/0/+10/+20 días).</p></div></li>
+      <li><span class="step-n">5</span><div class="step-body"><p><strong>Extender a campos WFD</strong> —
+      toda la cadena de fidelidad se validó solo en DDF.</p></div></li>
+      <li><span class="step-n">6</span><div class="step-body"><p><strong>Resolver los bugs de seed
+      propagation</strong> — documentados en <code>ISSUE_DRAFT_seed_propagation.md</code>, sin
+      publicar, no afectan precisión pero sí reproducibilidad exacta.</p></div></li>
+    </ol>
+    </div>
+
     <div class="lcl-subpanel" id="lcl-sub-howto">
     <p class="section-sub">Instructivo operativo — cómo hacer funcionar LightCurveLynx desde cero, sin depender
     de ninguna sesión previa. Fuente completa y siempre actualizada:
@@ -2741,6 +2810,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
   // "lcl:<subtab>" para que cada sub-pestaña siga siendo enlazable.
   const LCL_SUBTABS = [
     { id: "resumen", label: "Resumen" },
+    { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
     { id: "fases", label: "39 fases" },
