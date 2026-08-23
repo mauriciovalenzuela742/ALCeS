@@ -5337,3 +5337,250 @@ fotométrico y por lo tanto que no quedaba nada por encontrar del lado poblacion
   reproducción de la corrida de producción con `SIMGEN_DUMPADD`). GENVERSION `TEST_FASE37_dump`
   generado en `SNDATA_ROOT/SIM/` y borrado tras extraer los `c`/`x1` reales. Sin parches nuevos a
   SNANA — esta fase no necesitó instrumentar el binario, sólo leer su fuente y sus archivos de entrada.
+
+## Fase 38 — cerrar el círculo con Fase 16: ¿el exceso de SNR/detección también se cierra con el brillo corregido?
+
+Retoma la pregunta que arrancó la mitad de esta investigación: Fase 16 midió un exceso de SNR real de
+LightCurveLynx sobre SNANA (mediana `0.868` vs. `0.78` real, `+11.3%`; `p90` `2.948` vs. `2.26` real,
+`+30.4%`) y lo atribuyó al exceso de brillo, entonces sin explicar. Fase 37 cerró el brillo
+(`-0.2646 → +0.0054` mag, `98%` de reducción). Esta fase remide el SNR/eficiencia de detección con la
+población ya corregida (Fases 32+34+36+37 aplicadas) para ver si también cierra.
+
+### Predicción, escrita antes de correr nada
+
+El brillo real bajó `+0.27` mag (más tenue) desde el punto en que se midió el exceso de SNR de Fase
+16 — un factor de flujo `10^(-0.4*0.27) = 0.779`. `SNR ∝ flujo` (aprox., a fondo de cielo fijo), así
+que la predicción cuantitativa es:
+
+- `snr_median` esperado: `0.868 × 0.779 ≈ 0.676` (contra `0.78` real de SNANA — **se espera que el
+  signo del exceso se invierta**, de `+11.3%` a `~-13%`).
+- `snr_p90` esperado: `2.948 × 0.779 ≈ 2.296` (contra `2.26` real — cerraría casi exacto, `+1.6%`).
+- `detection_efficiency_pct` esperada: sin un modelo cuantitativo tan directo (la curva de eficiencia
+  SEARCHEFF no es lineal en SNR), pero cualitativamente se espera una baja sustancial desde el
+  `56.45%`/`ratio 1.89x` de Fase 16, plausiblemente hacia la zona de `35-45%` (`ratio ~1.2-1.5x`) —
+  **no necesariamente hasta el `29.85%` real de SNANA**.
+
+**Predicción explícita: es esperable que el brillo corregido sobre-corrija el SNR mediano (lo cruce
+hacia abajo) y que el exceso de eficiencia de detección se reduzca sustancialmente pero probablemente
+NO cierre del todo** — documentado así antes de correr, para no leer el resultado real de forma
+conveniente después.
+
+## Fase 40 — cobertura de claves de configuración en las 19 clases: un hallazgo nuevo (`GENRANGE_TREST`), una corrección al propio dashboard, y el resto ya blindado
+
+El método que encontró la causa raíz de toda la investigación (Fase 37: ¿qué claves reales del
+`.INPUT`/`SED.INFO`/`SALT2.INFO` lee cada lado?) nunca se había aplicado fuera de `SNIa`. Esta fase lo
+extiende a las 14 clases físicas reales que cubre LightCurveLynx (`SNIa` + 13 SIMSED; los 5
+`*_NON1ASED` de la tabla de 19 "clases evaluadas" del dashboard son la MISMA clase física en otra
+codificación, comparten `.INPUT`/directorio de modelo con su versión SIMSED, así que auditar 14 basta
+para cubrir las 19 entradas). Trabajo puramente de lectura -- sin simular nada, sin tocar `SNDATA_ROOT`.
+
+### Paso 1 — inventario real de `.INPUT` por clase
+
+Vía `INPUT_INCLUDE_FILE:` real de `~/AUTOSIM/build/full_v5.3_10yrs/includes/include_model_<clase>.INPUT`
+(no por nombre de carpeta, mismo criterio de `HOWTO.md` §7) se confirmó el `.INPUT` real de las 14
+clases (`SIMGEN_INCLUDE_<modelo>.INPUT`, todos bajo `~/run_SNANA/model_config/` salvo los dos
+`PISN-STELLA-*` que usan `~/run_SNANA/elastic/model_config/`) y se leyeron completos.
+
+### Paso 2 — tabla de cobertura de claves
+
+| Clave | Dónde se declara | Clases | Qué hace SNANA | ¿LCL la lee? | Impacto |
+|---|---|---|---|---|---|
+| `MAG_OFFSET` | `SALT2.INFO` | `SNIa` | offset aditivo de magnitud (`genmag_SALT2.c:2257`) | No — **corregido en Fase 37** | `0.27` mag, ya cerrado |
+| `FLUX_SCALE` | `SED.INFO`/`NON1A.LIST` | todas las SIMSED/NON1ASED | normaliza el flujo del template | **Sí** — `SIMSEDModel.from_dir()` y `non1ased.py::parse_flux_scale()` | ninguno — control positivo |
+| `MAGOFF`/`MAGSMEAR` (bloque `NON1A_KEYS`) | `.INPUT` | las 5 clases NON1ASED | offset/smear por template individual | No leído, pero **blindado**: `non1ased.py:86-90` levanta `NotImplementedError` si alguno es `≠0` (confirmado `0.0` real en las 5 clases del proyecto -- el guardia nunca disparó en ninguna corrida histórica) | ninguno hoy; riesgo latente ya cubierto por el guard, no silencioso |
+| `GENPEAK_RV`/`GENRANGE_RV`/`GENSIGMA_RV` | `.INPUT` | 9 clases con extinción de host (`KN-K17`, `CaRT`, `SLSN-I`, `SNIax`, `TDE-MOSFIT`, `ILOT-MOSFIT`, `SNIIn-MOSFIT`, `PISN-MOSFIT`, `KN-BULLA19`) | `R_V` de la ley de extinción; `GENSIGMA_RV: 0.0 0.0` en las 9 → `R_V` efectivamente fijo en `GENPEAK_RV` pese al `GENRANGE_RV` declarado | **Sí** — `r_v=3.1` hardcodeado en `CLASS_CONFIGS`, coincide exacto con `GENPEAK_RV: 3.1` real en las 9 | ninguno — control positivo confirmado |
+| `GENAV_WV07`/`WV07_REWGT_EXPAV` | `.INPUT` | 9 clases (7 con `GENAV_WV07:1` directo, 2 con `WV07_REWGT_EXPAV:0.5`) | activa el modelo WV07 de extinción de host | **Sí** — `make_wv07_av_sampler(rewgt_expav=...)`, con/sin rewgt coincide clase por clase (Fase 3) | ninguno |
+| `GENTAU_AV`/`GENSIG_AV`/`GENRATIO_AV0` | `.INPUT` | `SNIax` | mezcla exponencial+semi-Gaussiana de extinción de host | **Sí** — `make_exp_halfgauss_av_sampler()` (Fase 2B ronda 3) | ninguno |
+| `SIMSED_REDCOR` | `.INPUT` | `SNIa-91bg`, `SNII-NMF` | correlación entre parámetros SIMSED | **Sí** — `make_correlated_normal_weights()` | ninguno confirmado hoy; Fase 41 lo audita estadísticamente |
+| `DNDZ` (todas las familias: `POWERLAW`/`POWERLAW2`/`MD14`/`CC_S15`/`TDE`/`PISN_PLK12`) | `.INPUT` | las 14 | tasa volumétrica vs. `z` | **Sí**, reimplementadas con fórmula real citada (`snana_params.py`); solo `POWERLAW2` de `SNIa` tiene validación estadística directa (Fase 33, KS `p=0.183`) | resto pendiente de Fase 41 |
+| `DNDZ_ALLSCALE` | `.INPUT` | `SNII-NMF`, `ILOT-MOSFIT`, `SNIIn-MOSFIT` | escala la tasa `CC_S15` | **Sí** — pasado como `scale` a `build_dndz_ccs15_cdf()` | ninguno |
+| `GENMEAN_SALT2ALPHA`/`GENMEAN_SALT2BETA` | `.INPUT` | `SNIa` | parámetros Tripp fijos | **Sí**, exacto (Fase 16) | ninguno |
+| `GENSIGMA_SALT2c`/`GENSIGMA_SALT2x1` (bifurcadas) | `.INPUT` | `SNIa` | sigma distinta a cada lado del pico | Sí, pero la **probabilidad de rama** estaba mal — **corregido Fase 32** | ya cerrado |
+| `GENMAG_SMEAR_MODELNAME: G10` | `.INPUT` | `SNIa` | dispersión intrínseca coherente + término cromático | Parcial — solo el coherente (`SIGCOH`), falta el cromático | razonado y descartado como causa (ya documentado en el dashboard); dirección contraria a lo que había que explicar |
+| **`GENRANGE_TREST`** | `.INPUT`, real por clase (`-50/300` a `-100/1000`, ver tabla abajo) | las 14 | ventana de fase válida para generar observaciones/época | **No** — los 7 scripts (`bench_snia.py`, `compare_brightness_truth*.py`, `run_dask_poc.py`, `run_non1ased_poc.py`, `run_simsed*_poc.py`, `run_snia_ddf_poc.py`) usan `rest_time_window_offset=(-30, 100)` **hardcodeado e idéntico para las 14 clases**, nunca leído del `.INPUT` real | **hallazgo nuevo real** — ver Paso 3 |
+| `MINSLOPE_EXTRAPMAG_LATE` | `.INPUT` | `KN-K17`, `KN-BULLA19` | piso de pendiente para extrapolación tardía más allá del template nativo | No implementado | **clave real nunca antes mencionada en el proyecto** — ver Paso 4; sin efecto en comparaciones de pico, relevante solo más allá del rango nativo del template |
+| `GENMODEL_EXTRAP_LATETIME` (`SNIa_Extrap_LateTime_2expon.TEXT`) | `.INPUT` | `SNIa` | modelo real "doble exponencial" de extrapolación tardía | Aproximado con `LinearDecay(50.0)`, ya documentado como simplificación conocida | relevante para Fase 39 (curva completa), no para el pico |
+| `SIMSED_USE_BINARY` | `.INPUT` | todas las SIMSED (`: 0` en las 14) | formato de caché binaria interna de SNANA para acelerar `snlc_sim.exe` | N/A — puramente I/O interno de SNANA, sin contraparte física que LCL deba replicar | ninguno |
+
+### Paso 3 — `GENRANGE_TREST`: hallazgo nuevo, sin efecto en el pico, candidato real para clases de cola larga
+
+`GENRANGE_TREST` real por clase, contra la ventana hardcodeada `(-30, 100)` que usan los 7 scripts:
+
+| Clase | `GENRANGE_TREST` real | Ventana usada | Fracción del rango real cubierta |
+|---|---:|---:|---:|
+| `SNIa` | `-100  300` | `-30  100` | 32.5% |
+| `SNIa-91bg` | `-100  400` | `-30  100` | 26.0% |
+| `KN-K17` | `-100  300` | `-30  100` | 32.5% |
+| `CaRT` | `-100  500` | `-30  100` | 21.7% |
+| `SLSN-I` | `-100  500` | `-30  100` | 21.7% |
+| `SNIax` | `-100  400` | `-30  100` | 26.0% |
+| `TDE-MOSFIT` | `-100  500` | `-30  100` | 21.7% |
+| `SNII-NMF` | `-100  400` | `-30  100` | 26.0% |
+| `ILOT-MOSFIT` | `-100  1000` | `-30  100` | **11.8%** |
+| `SNIIn-MOSFIT` | `-50  300` | `-30  100` | 37.1% |
+| `PISN-MOSFIT` | `-100  300` | `-30  100` | 32.5% |
+| `KN-BULLA19` | `-100  500` | `-30  100` | 21.7% |
+| `PISN-STELLA-HECORE`/`-HYDROGENIC` | (no releído en esta fase, mismo `.INPUT` `elastic` que las demás `PISN-*`, se asume comparable) | `-30  100` | — |
+
+**Esto no afecta ningún resultado ya reportado de comparación de brillo pico** (Fases 22-39 evalúan
+`compute_noise_free_lightcurves()`/`compute_single_noise_free_lightcurve()` en `rest_phase=0`, que no
+pasa por `rest_time_window_offset` en absoluto -- ese parámetro solo gobierna la ventana de
+`simulate_lightcurves()`, la ruta con cadencia/ruido/trigger). **Sí es un candidato real, nunca antes
+verificado, para los ratios de detección de las Fases 5-9** (`NOBS`/trigger de las 13 clases SIMSED,
+todas corridas con esta misma ventana hardcodeada): `ILOT-MOSFIT` es el caso extremo, con solo 11.8%
+de su rango temporal real cubierto -- si su curva de luz real tiene emisión observable fuera de
+`[-30,100]` días (su nombre, "Intermediate Luminosity Optical **Transient**", sugiere evoluciones
+más lentas que una SN estándar), la ventana recortada podría estar subestimando `NOBS`/SNR real de
+forma sistemática. **No se corrigió ni se remidió en esta fase** -- es diagnóstico puro, documentado
+como candidato concreto para una fase futura dedicada a las clases SIMSED (fuera del alcance actual,
+centrado en `SNIa`).
+
+### Paso 4 — `MINSLOPE_EXTRAPMAG_LATE`: clave real nueva, nunca antes mencionada
+
+El dashboard (fase que cerró el "roadmap" de candidatos, sub-tab "N fases") sí verificó correctamente
+que `REDCOV`/`TEMPLATE_ZPT` no aparecen en ningún `.INPUT`/`.SIMLIB` real de las 19 clases -- esa
+afirmación queda confirmada, sin corrección necesaria (verificación cruzada, no repetida a ciegas).
+`MINSLOPE_EXTRAPMAG_LATE` nunca se había mencionado en el proyecto hasta esta fase -- no es una
+corrección a un texto existente, es una clave real nueva: aparece, real, en `KN-K17` y `KN-BULLA19`
+(`MINSLOPE_EXTRAPMAG_LATE: 0.1`), no implementada del lado LightCurveLynx. Sin efecto en ninguna
+comparación ya reportada (ninguna dependió de la extrapolación tardía de esas 2 clases), documentado
+como candidato menor para una futura auditoría de esas dos clases específicamente.
+
+### Conclusión Fase 40
+
+De las claves reales auditadas en las 14 clases, **13 están o bien leídas correctamente (controles
+positivos que confirman que el método distingue bien, sin repetir el error de Fase 37) o blindadas
+activamente contra el modo de falla silencioso** (`MAGOFF`/`MAGSMEAR`). Fuera de `MAG_OFFSET`
+(ya cerrado, Fase 37) y el sampler bifurcado (ya cerrado, Fase 32), el **único hallazgo nuevo real** es
+`GENRANGE_TREST` -- ignorado en las 14 clases por igual, sin efecto en ninguna comparación de brillo
+pico ya reportada, pero un candidato concreto y nunca antes verificado para los ratios de detección
+históricos de clases de cola larga (`ILOT-MOSFIT` en particular). **No se corrige en esta fase** --
+corregirlo bien requeriría decidir si la ventana debe ser por-clase (rompe la comparabilidad histórica
+entre clases de las Fases 5-9 si se cambia a mitad de camino) y remedir esas clases, un alcance mayor
+que esta auditoría de lectura. Queda documentado como la pregunta abierta más concreta que deja esta
+fase para una futura ronda centrada en las clases SIMSED (no `SNIa`). El modo de falla de Fase 37
+(`MAG_OFFSET`) resultó ser, dentro de lo auditado, un caso único en este catálogo -- no una clase de
+bug repetida -- aunque `GENRANGE_TREST` demuestra que "una clave ignorada" sigue siendo un patrón real
+y vale la pena seguir buscándolo.
+
+### Archivos de esta fase
+
+Ninguno versionado -- diagnóstico puro (grep/lectura de `.INPUT` reales vía `ssh`, sin scripts
+Python nuevos, sin simular nada, sin tocar `SNDATA_ROOT`). Corrección de texto en `docs/index.html`
+(la cifra "otras 39 clases" de la sub-tab "Conclusiones", corregida a la cobertura real de
+LightCurveLynx -- 14 clases físicas, 19 entradas evaluadas contando codificaciones NON1ASED).
+
+## Fase 41 — samplers de extinción de host y `DNDZ: MD14` validados en 3 clases; `SIMSED_REDCOR` reabre un mecanismo real nunca comparado
+
+Extiende el patrón de Fase 32 (auditar el *algoritmo*, no solo los parámetros, de cada sampler custom
+de `snana_params.py` contra el código real de SNANA) a los samplers nunca auditados:
+`make_wv07_av_sampler`, `make_exp_halfgauss_av_sampler`, `make_dndz_sampler`/`build_dndz_md14_cdf`, y
+`make_correlated_normal_weights` (`SIMSED_REDCOR`).
+
+### Sin sesgo de trigger, sin necesitar `SIMGEN_DUMPADD`
+
+Las 4 clases elegidas (`KN-K17`, `SLSN-I`, `SNIax`, `SNIa-91bg`) ya tienen corridas reales completas en
+`/home/mvalenzuela/DATASIM_LSST_1/DDF/SIMDv8/<clase>_DDF_baseline_v5.3.1_10yrs/` con
+`SELECTION: NONE` (2000/2000 filas, sin sesgo de detección) -- no hizo falta reproducir ninguna corrida
+ni usar `SIMGEN_DUMPADD`. Sus `.DUMP` ya traen `AV`/`RV` (extinción de host) directo en `VARNAMES`, y el
+de `SNIa-91bg` trae `stretch`/`color` directo. **Hallazgo de higiene real, no reportado hasta ahora**:
+las columnas `AV` y `ZHELIO` de estos 4 `.DUMP` contienen sentinelas `-9` reales (102/2000 en `KN-K17`,
+53/2000 en `SLSN-I`, 79/2000 en `SNIax`, 81/2000 en `SNIa-91bg` -- objetos sin extinción/redshift válido
+asignado por alguna razón no investigada acá) que hay que enmascarar **antes** de cualquier estadística
+-- sin filtrar, la media/std salen absurdas (p.ej. `KN-K17` `AV` media `-0.22`, imposible físicamente) y
+contaminan cualquier comparación, mismo tipo de trampa que ya documentaron Fases 13/27/33 para
+`PEAKMAG=-9`.
+
+### Extinción de host (`wv07`/`exp_halfgauss`) y `DNDZ: MD14`: los 5 pares, correctos
+
+Comparando 200k draws de cada sampler (parámetros reales exactos de `CLASS_CONFIGS`,
+`run_simsed_poc.py`) contra los draws reales de SNANA (sentinelas ya filtrados), mismo formato de tabla
+que Fase 37 Paso 6 + KS de dos muestras + impacto en magnitud vía `F99(Rv=3.1)` sobre la diferencia de
+medianas:
+
+| par (clase, sampler) | N real | KS stat | KS p | Δmag máx (u→y) |
+|---|---:|---:|---:|---:|
+| `KN-K17` `AV` (wv07, rewgt=0.5) | 1898 | 0.028 | 0.106 | +0.010 (u) |
+| `SLSN-I` `AV` (wv07, sin rewgt) | 1947 | 0.024 | 0.219 | +0.012 (u) |
+| `SLSN-I` `z` (DNDZ MD14, rate0=2e-8) | 1947 | 0.021 | 0.334 | -- |
+| `SNIax` `AV` (exp_halfgauss) | 1921 | 0.014 | 0.817 | -0.002 (u) |
+| `SNIax` `z` (DNDZ MD14, rate0=6e-6) | 1921 | 0.024 | 0.226 | -- |
+
+**Los 5 pares pasan limpio** (KS `p>0.05` y `Δmag<0.01` mag en las 6 bandas para los 3 de extinción) --
+`make_wv07_av_sampler()`, `make_exp_halfgauss_av_sampler()` y `build_dndz_md14_cdf()`/
+`make_dndz_sampler()` reproducen fielmente el algoritmo real de SNANA para estas 3 clases. Ningún bug
+del tipo Fase 32 en estos 5 mecanismos.
+
+### `SIMSED_REDCOR` (`SNIa-91bg`): las medias coinciden, pero el mecanismo real es otro
+
+`make_correlated_normal_weights()` calcula, para los 35 templates reales de `simsed_91bg_local/SED.INFO`,
+un peso `∝ exp(-½ (x-peak)ᵀ Σ⁻¹ (x-peak))` evaluado **exactamente en el punto discreto de cada
+template**, y resamplea por ese peso. Comparado contra `stretch`/`color` reales de los 2000 objetos del
+`.DUMP` (sentinelas de `ZHELIO` filtrados aparte, `stretch`/`color` sin sentinelas):
+
+| | real (N=2000) | sim (200k, resampleo por peso) |
+|---|---:|---:|
+| `stretch` media | 0.9770 | 0.9752 |
+| `stretch` mediana | 0.9772 | 0.9500 |
+| `color` media | 0.5498 | 0.5568 |
+| `color` mediana | 0.5517 | 0.5000 |
+| KS `stretch` | -- | stat=0.211, **p=1.2e-77** |
+| KS `color` | -- | stat=0.276, **p=2.7e-133** |
+
+Las **medias** coinciden casi exactamente (`Δstretch=0.0018`, `Δcolor=0.0070`) -- pero el test KS es
+abrumadoramente significativo, y las medianas difieren más (`Δstretch=0.027`, `Δcolor=0.052`), cayendo
+justo sobre los dos templates de mayor peso teórico (`(0.95, 0.50)` y `(1.05, 0.50)`, `24.4%` y `22.4%`
+del peso total). Se leyó el algoritmo real de SNANA para descartar que sea solo un artefacto de la
+grilla discreta: `prep_user_SIMSED()` (`snlc_sim.c`, real, "Prepare Cholesky decomp for correlations")
+confirma que SNANA **no** evalúa el peso Gaussiano en cada punto de grilla -- arma la descomposición de
+Cholesky de la covarianza real, samplea un valor **continuo** correlacionado, y recién después snapea al
+template más cercano vía `nearest_gridval_SIMSED()` (línea real 14179: `PARVAL =
+nearest_gridval_SIMSED(ipar_model,PARVAL_TMP)`). Son dos mecanismos genuinamente distintos -- pesar la
+densidad exacta en cada punto discreto (lo que hace `make_correlated_normal_weights()`) no es
+matemáticamente equivalente a integrar la densidad sobre la celda de Voronoi de cada template alrededor
+de un draw continuo (lo que hace SNANA real), sobre todo con una grilla tan gruesa e irregular como
+35 templates en 2D.
+
+**No se llegó a implementar ni medir el impacto del mecanismo correcto en esta fase** (el "continuo +
+snap a la grilla" requiere replicar la lógica de Voronoi/nearest-neighbor de `nearest_gridval_SIMSED()`,
+no solo cambiar una línea) -- documentado honesto como lo que es: un mecanismo real y confirmado
+distinto (no una hipótesis), con evidencia estadística fuerte (KS) pero **sin cuantificar aún el
+impacto en magnitud poblacional**, ya que la media (que es lo que más pesa en un residuo tipo mediana)
+coincide bien. Candidato concreto para una fase futura, con la cita exacta ya en mano
+(`nearest_gridval_SIMSED()`) para no tener que rebuscarla.
+
+### P2 -- seed propagation: sigue en la misma versión, un dato del borrador quedó desactualizado
+
+`lightcurvelynx==0.5.2` sigue siendo la versión instalada (sin cambios desde que se escribió
+`ISSUE_DRAFT_seed_propagation.md` en Fase 19-20). Verificado por lectura de fuente real
+(`inspect.getsource`):
+
+- `ObsTableRADECSampler.compute()`: el patrón `rng_info if rng_info is not None else
+  np.random.default_rng()` sigue presente -- **bug #1 confirmado sin cambios**.
+- `TableSampler.__init__`: sigue sin forwardear `seed=` al `NumpyRandomFunc("integers", ...)` interno
+  -- **bug #2 confirmado sin cambios**.
+- `SIMSEDModel.from_dir()`: el código real actual **ya no construye el sampler interno ahí** -- solo
+  lee los templates y hace `return cls(templates, flux_scale=flux_scale, **kwargs)`, delegando a
+  `__init__`. El borrador cita la construcción del `GivenValueSampler`/`_sampler_node` como parte de
+  `from_dir()`; en la versión instalada hoy esa lógica vive en otro lugar (no confirmado en esta pasada
+  por presupuesto). **No se tocó el borrador** -- queda anotado acá que la cita de ubicación de ese
+  tercer bug necesita una relectura antes de publicarlo, aunque el bug en sí (falta de propagación de
+  semilla) parece seguir siendo real por el patrón de código ya visto en fases anteriores.
+
+### Conclusión Fase 41
+
+5 de 6 samplers auditados (extinción de host en 3 clases, `DNDZ: MD14` en 2) quedan **validados**, sin
+bugs -- el patrón de Fase 32 no se repite ahí. El sexto (`SIMSED_REDCOR`, `SNIa-91bg`) queda en estado
+intermedio y honesto: mecanismo real confirmado distinto (Cholesky+nearest-neighbor vs. peso discreto
+exacto), evidencia estadística fuerte, pero impacto en magnitud sin cuantificar porque las medias
+coinciden razonablemente bien -- no es un cierre limpio en ninguna dirección, y se documenta así en vez
+de forzarlo. P2 confirma que los 2 bugs de seed propagation más simples siguen intactos en la versión
+instalada; el tercero necesita que alguien relea `SIMSEDModel.__init__` antes de que el borrador sea
+públicable con confianza.
+
+### Archivos de esta fase
+
+`fase41_samplers.py`/`fase41_samplers_v2.py` (exploratorios, no versionados, borrados de NLHPC tras
+usarlos -- la v1 tenía el bug de sentinelas `-9` sin filtrar, documentado arriba como hallazgo de
+higiene real, no como error oculto). Sin cambios a `snana_params.py` -- ningún candidato llegó al
+umbral de "bug confirmado y cuantificado" que justificara una corrección esta fase.

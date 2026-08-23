@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "39&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "40&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "39 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "40 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "39 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "40 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "39 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "40 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "39 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "40 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1523,8 +1523,16 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <code>PROPUESTA_salt2_info_mag_offset.md</code>, pendiente de revisión con el profesor antes
       de publicar como issue o post en el foro de Vera Rubin.</p></div></li>
       <li><span class="step-n">3</span><div class="step-body"><p><strong>Extender la auditoría de
-      muestreo a las otras 39 clases</strong> — mismo patrón que encontró los bugs de Fases 32/34/36,
-      nunca aplicado fuera de SNIa.</p></div></li>
+      cobertura de claves de configuración a las 13 clases SIMSED restantes</strong> — mismo patrón
+      que encontró <code>MAG_OFFSET</code> (Fase 37), nunca aplicado fuera de SNIa.
+      <strong>Hecho en Fase 40</strong>: de 15 claves reales auditadas, 13 están leídas correctamente
+      o blindadas contra fallas silenciosas; el único hallazgo nuevo es <code>GENRANGE_TREST</code>
+      (la ventana temporal de generación, hardcodeada e idéntica en las 14 clases en vez de leerse del
+      <code>.INPUT</code> real de cada una) — sin efecto en las comparaciones de brillo pico ya
+      reportadas, pero candidato real y sin remedir para los ratios de detección históricos de clases
+      de cola larga como <code>ILOT-MOSFIT</code> (solo 11.8% de su ventana real cubierta). Nota: no
+      son "39 clases" — LightCurveLynx cubre 14 clases físicas reales (19 entradas evaluadas en el QC,
+      contando las 5 codificaciones NON1ASED alternativas por separado).</p></div></li>
       <li><span class="step-n">4</span><div class="step-body"><p><strong>Validar la curva de luz
       completa</strong>, no solo <code>rest_phase=0</code> — repetir el pareo objeto-a-objeto de
       Fase 37 en varias fases (-10/0/+10/+20 días).</p></div></li>
@@ -1792,7 +1800,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y nueve fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Cuarenta fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2483,6 +2491,78 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           de 0.27 mag.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">40</span>
+        <div class="step-body">
+          <p><strong>Extiende el método que encontró <code>MAG_OFFSET</code> a las 13 clases SIMSED
+          restantes — 13 de 15 claves reales auditadas ya están cubiertas, y aparece un hallazgo nuevo
+          real (<code>GENRANGE_TREST</code>).</strong> Inventario real de <code>.INPUT</code> por clase
+          (vía <code>INPUT_INCLUDE_FILE:</code>, no por nombre de carpeta) y unión de claves declaradas
+          en las 14 clases físicas que cubre LightCurveLynx. Controles positivos confirmados:
+          <code>FLUX_SCALE</code> (sí leída), <code>GENPEAK_RV</code>/<code>GENRANGE_RV</code>/
+          <code>GENSIGMA_RV</code> (sí leída — <code>r_v=3.1</code> coincide exacto en las 9 clases con
+          extinción de host, <code>GENSIGMA_RV: 0.0 0.0</code> en todas hace que <code>R_V</code> sea
+          efectivamente fijo pese al rango declarado), <code>GENAV_WV07</code>/<code>WV07_REWGT_EXPAV</code>,
+          <code>GENTAU_AV</code>/<code>GENSIG_AV</code>/<code>GENRATIO_AV0</code>,
+          <code>SIMSED_REDCOR</code>, <code>DNDZ_ALLSCALE</code> — todas leídas correctamente.
+          <code>MAGOFF</code>/<code>MAGSMEAR</code> del bloque <code>NON1A_KEYS</code> no se leen, pero
+          quedan blindadas: <code>non1ased.py</code> levanta <code>NotImplementedError</code> si algún
+          valor real es <code>≠0</code> (confirmado <code>0.0</code> en las 5 clases NON1ASED del
+          proyecto, el guard nunca disparó en ninguna corrida histórica).</p>
+          <p><strong>Hallazgo nuevo: <code>GENRANGE_TREST</code></strong> — la ventana temporal válida
+          para generar observaciones varía por clase en el <code>.INPUT</code> real (de
+          <code>-50/300</code> a <code>-100/1000</code> días), pero los 7 scripts del proyecto usan
+          <code>rest_time_window_offset=(-30, 100)</code> hardcodeado e idéntico para las 14 clases,
+          nunca leído del archivo real. <strong>Sin efecto en ninguna comparación de brillo pico ya
+          reportada</strong> (Fases 22-39 evalúan en <code>rest_phase=0</code>, que no pasa por ese
+          parámetro), pero es un candidato real y nunca antes verificado para los ratios de detección
+          históricos de clases de cola larga — <code>ILOT-MOSFIT</code> es el caso extremo, con solo
+          <strong>11.8%</strong> de su ventana temporal real (<code>-100/1000</code> días) cubierta por
+          la ventana hardcodeada. No se corrige en esta fase — corregirlo bien requeriría decidir si
+          la ventana debe ser por-clase (rompe la comparabilidad histórica de las Fases 5-9 si se
+          cambia a mitad de camino) y remedir esas clases, un alcance mayor que esta auditoría de
+          lectura. También se encontró <code>MINSLOPE_EXTRAPMAG_LATE: 0.1</code> (real en
+          <code>KN-K17</code>/<code>KN-BULLA19</code>, no implementado, sin efecto en comparaciones de
+          pico) y se confirmó que <code>GENMODEL_EXTRAP_LATETIME</code> de <code>SNIa</code> sigue
+          siendo una aproximación conocida (<code>LinearDecay(50.0)</code> vs. el modelo real "doble
+          exponencial"), ambas relevantes recién para una futura validación de curva completa, no para
+          el pico. <strong>Conclusión:</strong> de las claves auditadas, <code>MAG_OFFSET</code> (Fase
+          37) sigue siendo, dentro de lo verificado, un caso único de falla silenciosa real en este
+          catálogo — pero <code>GENRANGE_TREST</code> confirma que "una clave ignorada" sigue siendo un
+          patrón real que vale la pena seguir buscando, ahora como pregunta abierta concreta para una
+          futura ronda centrada en las clases SIMSED.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">41</span>
+        <div class="step-body">
+          <p><strong>Samplers de extinción de host y <code>DNDZ: MD14</code> validados en 3 clases;
+          <code>SIMSED_REDCOR</code> reabre un mecanismo real nunca comparado.</strong> Extiende el
+          patrón de Fase 32 (auditar el algoritmo, no solo los parámetros) a
+          <code>make_wv07_av_sampler</code>, <code>make_exp_halfgauss_av_sampler</code>,
+          <code>build_dndz_md14_cdf</code> y <code>make_correlated_normal_weights</code>, usando
+          corridas reales ya existentes (<code>SELECTION: NONE</code>, sin sesgo de trigger) para
+          <code>KN-K17</code>/<code>SLSN-I</code>/<code>SNIax</code>/<code>SNIa-91bg</code>. Hallazgo
+          de higiene real: las columnas <code>AV</code>/<code>ZHELIO</code> traen sentinelas
+          <code>-9</code> (hasta 5% de los objetos) que hay que enmascarar antes de cualquier
+          estadística.</p>
+          <p><strong>5 de 6 pares validados sin bugs</strong>: extinción de host (wv07/exp_halfgauss)
+          en las 3 clases y <code>DNDZ: MD14</code> en 2, con KS <code>p&gt;0.05</code> e impacto
+          <code>&lt;0.01</code> mag en las 6 bandas. El sexto (<code>SIMSED_REDCOR</code>,
+          <code>SNIa-91bg</code>) queda honesto y sin cierre limpio: las medias de <code>stretch</code>/
+          <code>color</code> coinciden bien (Δ&lt;0.01), pero el test KS es abrumador
+          (<code>p=1.2e-77</code>/<code>2.7e-133</code>). Leyendo <code>prep_user_SIMSED()</code> real
+          (<code>snlc_sim.c</code>) se confirmó que SNANA arma una descomposición de Cholesky y
+          samplea un valor <strong>continuo</strong> correlacionado que luego snapea al template más
+          cercano (<code>nearest_gridval_SIMSED()</code>) — mecanismo distinto de pesar la densidad
+          exacta en cada punto discreto de grilla, que es lo que hace la reimplementación de este
+          proyecto. Confirmado como mecanismo real y distinto, pero sin cuantificar su impacto en
+          magnitud en esta fase — candidato concreto para una ronda futura, con la cita exacta ya en
+          mano. P2: los 2 bugs de seed propagation más simples siguen intactos en la versión instalada
+          (<code>0.5.2</code>, sin cambios); el tercero necesita una relectura de ubicación antes de
+          publicar el borrador con confianza.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2813,7 +2893,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "39 fases" },
+    { id: "fases", label: "40 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
