@@ -1497,7 +1497,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <code>MAG_OFFSET</code>). El exceso de SNR/detección no viene mayormente del flujo — apunta al
       modelo de ruido (readnoise/dark current default de <code>OpSim</code> vs. el SIMLIB real,
       candidato ya señalado en Fase 16 Paso 1, nunca cerrado) como causa dominante. Pregunta nueva,
-      abierta. Ver pestaña "N fases" (Fase 38) para el detalle completo.</p>
+      abierta. Ver pestaña "41 fases" (Fase 38) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1530,9 +1530,11 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">Líneas para seguir investigando</h3>
     <ol class="recipe">
-      <li><span class="step-n">1</span><div class="step-body"><p><strong>Cerrar el círculo con
-      Fase 16:</strong> remedir el exceso de SNR (11-30%) con la población ya corregida — si
-      también desaparece, cierra la pregunta que arrancó toda la investigación.</p></div></li>
+      <li><span class="step-n">1</span><div class="step-body"><p><strong>✓ Hecho (Fase 38):</strong>
+      remedido el exceso de SNR con la población corregida — resultado sorpresa: el ratio de
+      detección mejora (1.89x → 1.615x) pero el SNR mediano casi no se mueve, apuntando al modelo de
+      ruido (no al flujo) como el candidato dominante que queda. Nueva pregunta abierta, no
+      cerrada.</p></div></li>
       <li><span class="step-n">2</span><div class="step-body"><p><strong>Reportar el gap de
       <code>SALT2.INFO</code> aguas arriba</strong> — borrador técnico listo en
       <code>PROPUESTA_salt2_info_mag_offset.md</code>, pendiente de revisión con el profesor antes
@@ -2504,6 +2506,36 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           que verificar que el código nuevo <strong>lea todas las claves de configuración</strong> que
           el viejo lee. Es un modo de falla silencioso: sin error, sin warning, sólo un sesgo constante
           de 0.27 mag.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">38</span>
+        <div class="step-body">
+          <p><strong>Cierra el círculo con Fase 16 — sorpresa: el exceso de SNR NO era proporcional
+          al exceso de brillo.</strong> Fase 16 (2026, histórico) midió un exceso real de SNR sobre
+          SNANA (mediana <code>0.868</code> vs. <code>0.78</code> real, <code>+11.3%</code>; p90
+          <code>2.948</code> vs. <code>2.26</code>, <code>+30.4%</code>) y lo atribuyó al exceso de
+          brillo, entonces sin explicar. Con el brillo ya corregido (Fases 32/34/37,
+          <code>-0.2646→+0.0054</code> mag), se predijo por escrito ANTES de correr (para no leer el
+          resultado a conveniencia después) que el SNR mediano cruzaría por debajo de SNANA
+          (<code>~0.68</code>, dado el factor de flujo <code>×0.779</code> de <code>MAG_OFFSET</code>).</p>
+          <p><strong>Resultado real (5 semillas, mismo <code>seed_base</code> de siempre):</strong>
+          <code>snr_median = 0.839 ± 0.013</code> — apenas se movió desde <code>0.868</code>, muy
+          lejos de la predicción de <code>0.68</code>. <code>snr_p90 = 2.614 ± 0.138</code> (desde
+          <code>2.948</code>). La eficiencia de detección DDF sí mejora: <code>56.45% → 48.22%</code>,
+          ratio de detección <code>1.89x → 1.615x ± 0.045</code> — real, pero lejos de cerrar contra
+          el <code>29.85%</code> de SNANA.</p>
+          <p><strong>La predicción lineal (SNR ∝ flujo) queda refutada con evidencia directa, no solo
+          descartada por argumento.</strong> Si el brillo bajó ~0.27 mag pero el SNR casi no se movió,
+          el exceso de SNR/detección no viene mayormente del flujo (numerador) — apunta al modelo de
+          <strong>ruido</strong> (denominador) como candidato dominante: readnoise/dark current default
+          de <code>OpSim</code> vs. el <code>readnoise=0.25</code> real del SIMLIB
+          (<code>snana_noise_columns()</code> nunca los pasa explícitos, candidato ya señalado en
+          Fase 16 Paso 1, nunca cerrado), la lógica de trigger/SEARCHEFF, o
+          <code>rest_time_window_offset</code>. Documentado como pregunta nueva, abierta — no forzado
+          un cierre que los datos no muestran. De paso, cierra una discrepancia real entre
+          <code>HOWTO.md</code> (documentaba <code>snr_median</code>/<code>snr_p90</code> en
+          <code>summary.json</code>) y el código (solo los imprimía al log) -- agregados de verdad.</p>
         </div>
       </li>
       <li>

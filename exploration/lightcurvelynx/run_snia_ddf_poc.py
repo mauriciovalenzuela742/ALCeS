@@ -382,6 +382,13 @@ def main(seed_index: int = 0, wfd: bool = False):
         "n_total_dump": len(dump_df),
         "sim_wall_time_s": sim_wall_time,
         "detection_efficiency_pct": 100.0 * len(detected_snids) / NGENTOT_LC,
+        # Fase 38: se imprimian al log (linea ~343) pero nunca se guardaban en
+        # summary.json pese a que HOWTO.md Sec.5-6 los documenta como parte del
+        # resumen -- ver NOTES.md Fase 38.
+        "snr_median": float(snr_sim.median()),
+        "snr_p90": float(snr_sim.quantile(0.9)),
+        "snr_median_snana_ref": 0.78,
+        "snr_p90_snana_ref": 2.26,
     }, indent=2))
 
     # -- QC reusando pipeline.postproc.qc sin modificar --

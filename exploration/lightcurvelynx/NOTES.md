@@ -5365,6 +5365,103 @@ hacia abajo) y que el exceso de eficiencia de detección se reduzca sustancialme
 NO cierre del todo** — documentado así antes de correr, para no leer el resultado real de forma
 conveniente después.
 
+### Paso 1 — se cierra H5: `snr_median`/`snr_p90` ahora sí quedan en `summary.json`
+
+`run_snia_ddf_poc.py` ya calculaba e imprimía al log `snr_median`/`snr_p90` (línea ~341-344, real desde
+Fase 1) pero nunca los guardaba en `summary.json`, pese a que `HOWTO.md` §5-6 los documenta como parte
+del resumen real. Corregido: se agregan `snr_median`, `snr_p90`, `snr_median_snana_ref: 0.78`,
+`snr_p90_snana_ref: 2.26` al dict real (único cambio a este script). `py_compile` OK.
+
+### Paso 2 — 5 semillas, resultado real
+
+Corridas reales en NLHPC (`sbatch`, jobs `12038980`-`12038984`, `COMPLETED` exit `0:0` los 5, ~100-120s
+de tiempo de simulación cada una), mismo `seed_base` implícito por índice de semilla de siempre:
+
+| semilla | `snr_median` | `snr_p90` | `n_detected`/2000 | `detection_efficiency_pct` |
+|---|---:|---:|---:|---:|
+| 0 | 0.8208 | 2.452 | 946 | 47.30 |
+| 1 | 0.8439 | 2.595 | 995 | 49.75 |
+| 2 | 0.8352 | 2.590 | 990 | 49.50 |
+| 3 | 0.8571 | 2.834 | 957 | 47.85 |
+| 4 | 0.8367 | 2.600 | 934 | 46.70 |
+| **media ± std** | **0.839 ± 0.013** | **2.614 ± 0.138** | **964.4 ± 25** | **48.22 ± 1.35** |
+
+Tabla comparativa completa:
+
+| métrica | SNANA real | LCL Fase 16 (pre-fix) | LCL Fase 38 (post-fix, 5 semillas) |
+|---|---:|---:|---:|
+| `snr_median` | 0.78 | 0.868 (+11.3%) | **0.839 ± 0.013 (+7.6%)** |
+| `snr_p90` | 2.26 | 2.948 (+30.4%) | **2.614 ± 0.138 (+15.7%)** |
+| `detection_efficiency_pct` | 29.85% | 56.45% | **48.22% ± 1.35%** |
+| ratio de detección | 1.00x | 1.89x | **1.615x ± 0.045** |
+
+*(No se encontró en `NOTES.md` un número de SNR/eficiencia distinto y anterior a Fase 16 explícitamente
+etiquetado "Fase 1" -- la fila de comparación real más temprana disponible es la de Fase 16 misma; no se
+inventa un número de relleno.)*
+
+### Paso 3 — interpretación contra la predicción: refutada, con evidencia directa
+
+**La predicción cuantitativa (Paso previo, "esperado `snr_median≈0.68`") queda refutada.** El SNR
+mediano real bajó solo de `0.868` a `0.839` (`-3.3%` relativo) -- casi siete veces menos que la caída
+del `~22%` que predecía un modelo lineal `SNR ∝ flujo` dado el factor `×0.779` de `MAG_OFFSET`. El
+`p90` sí se movió más (`2.948→2.614`, `-11.3%`), pero tampoco cruzó por debajo de la referencia real
+(`2.26`). La eficiencia de detección mejora de forma real y ya no ambigua (`56.45%→48.22%`, ratio
+`1.89x→1.615x±0.045`, bandas de 5 semillas no solapadas con el valor de Fase 16) -- pero queda lejos
+de cerrar contra el `29.85%` real de SNANA.
+
+**Lectura honesta**: el exceso de brillo SÍ explicaba una fracción real del exceso de detección (la
+mejora de `1.89x` a `1.615x` es consistente en dirección y no trivial), pero el SNR en sí -- que depende
+tanto del flujo (numerador) como del ruido asumido (denominador) -- casi no se movió. Si el numerador
+bajó ~`22%` en términos de flujo pero el cociente SNR bajó solo `~3%`, la implicación aritmética directa
+es que **el denominador (modelo de ruido) también está sesgado, en la dirección que compensa casi por
+completo la corrección de brillo** -- consistente con el candidato que la propia Fase 16 (Paso 1) dejó
+señalado y nunca cerrado: `snana_noise_columns()` no pasa explícitos los términos de
+`readout_noise`/`dark_current` reales del SIMLIB (`readnoise=0.25`), dependiendo en cambio de los
+defaults de `OpSim`. Otros candidatos no descartados: la lógica de trigger/SEARCHEFF real
+(`searcheff.py::group_into_epochs()`) y `rest_time_window_offset=(-30,100)` (una ventana de generación
+más ancha que la real podría inflar el denominador de la eficiencia, aunque no el SNR por observación
+en sí). **No se fuerza un cierre que los datos no muestran** -- queda como pregunta nueva, abierta,
+mejor acotada que antes (ya no es "¿por qué hay exceso de SNR?" sino específicamente "¿por qué el SNR
+no cae proporcional al flujo corregido?").
+
+### Tarea P1 — estado real de la referencia WFD de `SNIa`
+
+El `postprocess_manifest.json` real (`~/AUTOSIM/build/full_v5.3_10yrs/postproc/`) registra
+`SNIa_WFD_baseline_v5.3.1_10yrs` con `error: "'utf-8' codec can't decode byte 0xee in position 119:
+invalid continuation byte"` (entrada real, `n_processed=0` en ese manifiesto -- corrida de postproceso
+mayormente `skipped`, no completada). Pero la **simulación cruda sí completó**: 2 de 5 logs reales de
+`snlc_sim.exe` para esta clase (`run_SNIa_WFD_baseline_v5.3.1_10yrs_11320196.out`/`_11330240.out`)
+terminan con `DONE with snlc_sim.` real (`WR_SNFITSIO_END: wrote 28949 events`); los otros 3 fallaron a
+mitad de camino (uno con error real de `cfitsio`, dos truncados, consistentes con el incidente de cuota
+ya documentado). El directorio de salida real
+(`/home/mvalenzuela/DATASIM_LSST_1/WFD/SIMWv8/SNIa_WFD_baseline_v5.3.1_10yrs/`) tiene `.DUMP` (2.5MB,
+10.456 filas, bien formado, `VARNAMES`/`SELECTION: NONE` real), `_HEAD.FITS` (4.2MB) y `_PHOT.FITS`
+(20MB) reales y con timestamp consistente (11-ago). El byte `0xee` reportado por el manifiesto **no
+está** en la posición 119 del `.README` real actual (se verificó byte a byte: es `0x6c`, ASCII) -- el
+error del manifiesto probablemente viene de un archivo/intento distinto o quedó desactualizado. **La
+línea futura "extender a WFD" queda parcialmente desbloqueada**: hay datos reales de referencia
+utilizables (`.DUMP`/`_HEAD.FITS`/`_PHOT.FITS`), pero el pipeline de postproceso automático necesita
+revisión aparte antes de confiar en cualquier número que dependa de él.
+
+### Conclusión Fase 38
+
+El círculo con Fase 16 se cierra parcialmente, con un resultado más interesante que el esperado: **la
+corrección del brillo (Fases 32/34/37) sí mejora la eficiencia de detección de forma real (ratio
+`1.89x→1.615x`), pero el SNR en sí casi no se mueve** -- refutando con evidencia directa la hipótesis
+lineal simple que motivaba esta fase, y por eliminación aritmética, apuntando al **modelo de ruido**
+(no ya solo al flujo) como el candidato dominante que queda para el exceso de detección real. Es un
+resultado más rico que "cierra"/"no cierra": redirige la investigación futura hacia un mecanismo
+concreto y no probado (`snana_noise_columns()`/`readout_noise`/`dark_current` vs. SIMLIB real).
+
+### Archivos de esta fase
+
+`run_snia_ddf_poc.py`: agregados `snr_median`/`snr_p90`/`snr_median_snana_ref`/`snr_p90_snana_ref` a
+`summary.json` (único cambio). `docs/lcl_qc/lcl_qc_index.json`: actualizado el registro `SNIa` con los
+números reales de esta fase (antes: datos pre-Fase-32/34/37, ya sabidos incorrectos). `docs/index.html`:
+nueva entrada Fase 38 en "N fases", callout "Actualización Fase 38" en Resumen, ítem 1 de "líneas para
+seguir investigando" en Conclusiones marcado como hecho. Sin scripts exploratorios nuevos -- toda la
+medición usa el propio `run_snia_ddf_poc.py` real, ya versionado.
+
 ## Fase 40 — cobertura de claves de configuración en las 19 clases: un hallazgo nuevo (`GENRANGE_TREST`), una corrección al propio dashboard, y el resto ya blindado
 
 El método que encontró la causa raíz de toda la investigación (Fase 37: ¿qué claves reales del
