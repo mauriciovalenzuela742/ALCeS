@@ -37,7 +37,7 @@ from lightcurvelynx.math_nodes.np_random import NumpyRandomFunc
 from lightcurvelynx.math_nodes.ra_dec_sampler import ObsTableRADECSampler
 from lightcurvelynx.models.sncosmo_models import SncosmoWrapperModel
 from lightcurvelynx.obstable.opsim import OpSim
-from lightcurvelynx.simulate import simulate_lightcurves
+from lightcurvelynx.simulate import compute_noise_free_lightcurves
 from lightcurvelynx.survey_info import SurveyInfo
 from lightcurvelynx.utils.extrapolate import LinearDecay, ZeroPadding
 
@@ -171,29 +171,33 @@ def main():
     survey_info = SurveyInfo(obstable=obs_table, passbands=passband_group, survey_name="LSST")
     print(f"[{time.time()-t_start:.1f}s] modelo armado, simulando {NGENTOT_LC} objetos...")
 
+    # Fase 39: `flux_perfect.max()` sobre la cadencia real (via simulate_lightcurves) es la
+    # metrica que la propia Fase 22 declaro invalida -- subestima el brillo real para ~33.6%
+    # de los objetos (cadencia real de DDF nunca cae cerca del pico verdadero). El script
+    # nunca se habia migrado a la metrica correcta que usan las Fases 22-38 (todas via
+    # scripts exploratorios ya borrados). Corregido: `compute_noise_free_lightcurves()` real,
+    # evaluado en `rest_phase=0` (pico verdadero continuo, mismo patron de Fase 22/32/34/36/37).
     t_sim0 = time.time()
-    lc = simulate_lightcurves(
-        source, NGENTOT_LC, survey_info, rest_time_window_offset=(-30, 100),
-        rng=np.random.default_rng(seed_base + 8),
+    graph_state = source.sample_parameters(
+        num_samples=NGENTOT_LC, rng_info=np.random.default_rng(seed_base + 8),
     )
-    print(f"[{time.time()-t_start:.1f}s] simulacion terminada: {len(lc)} objetos, "
+    lc = compute_noise_free_lightcurves(
+        source, graph_state, passband_group,
+        rest_frame_phase_min=0.0, rest_frame_phase_max=0.5, rest_frame_phase_step=1.0,
+    )
+    print(f"[{time.time()-t_start:.1f}s] evaluacion sin ruido terminada: {len(lc)} objetos, "
           f"{time.time()-t_sim0:.1f}s")
-
-    print("columnas de una lightcurve de muestra:", list(lc.iloc[0]["lightcurve"].columns))
 
     rows = []
     for _, row in lc.iterrows():
         sub = row["lightcurve"]
-        if sub is None or len(sub) == 0:
+        if sub is None or len(sub) == 0 or "r" not in sub.columns:
             continue
-        r_band = sub[sub["filter"].astype(str) == "r"]
-        if len(r_band) == 0 or "flux_perfect" not in r_band.columns:
-            continue
-        peak_flux_perfect = r_band["flux_perfect"].max()
-        if peak_flux_perfect <= 0:
+        peak_flux_true = sub["r"].to_numpy()[0]
+        if peak_flux_true <= 0:
             continue
         MAG_AB_ZP_NJY = 8.9 + 2.5 * 9
-        peak_mag_true = MAG_AB_ZP_NJY - 2.5 * np.log10(peak_flux_perfect)
+        peak_mag_true = MAG_AB_ZP_NJY - 2.5 * np.log10(peak_flux_true)
         rows.append({"SNID": str(int(row["id"])), "z": row["z"], "PEAKMAG_r_true": peak_mag_true})
 
     out = pd.DataFrame(rows)

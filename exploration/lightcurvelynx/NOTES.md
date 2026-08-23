@@ -5462,6 +5462,92 @@ nueva entrada Fase 38 en "N fases", callout "Actualización Fase 38" en Resumen,
 seguir investigando" en Conclusiones marcado como hecho. Sin scripts exploratorios nuevos -- toda la
 medición usa el propio `run_snia_ddf_poc.py` real, ya versionado.
 
+## Fase 39 — validada la curva completa vía `SIM_MAGOBS` real: plana, sin la dependencia de fase esperada del candidato `SEDFLUX_INTERP_OPT`
+
+Usa H1 (identificado al planificar esta ronda con Opus): el `_PHOT.FITS` real de producción trae
+`SIM_MAGOBS` -- magnitud verdadera sin ruido, por época, para los 597 objetos SNIa DDF detectados
+(`/home/mvalenzuela/DATASIM_LSST_1/DDF/SIMDv8/SNIa_DDF_baseline_v5.3.1_10yrs/`). Permite parear
+objeto-a-objeto y **época-a-época real** contra LightCurveLynx sin simular ninguna fase sintética --
+extensión directa del método pareado de Fase 37 (que solo miró `rest_phase=0`) a la curva completa.
+
+### Verificación previa: `SIM_MAGOBS` también viene con la extinción MW descontada
+
+Confirmado en `~/github/SNANA_src/src/snlc_sim.c` real (línea 25394):
+```c
+SNDATA.SIMEPOCH_MAG[epoch] = GENLC.genmag_obs[epoch] - MCOR_TRUE_MW ;
+```
+mismo patrón que `SIM_PEAKMAG` (línea 25324, cabo suelto ya documentado en Fase 37 Paso 4) --
+`SIMEPOCH_MAG` es el nombre interno de struct que se escribe como `SIM_MAGOBS` en el `_PHOT.FITS`. Se
+evaluó LightCurveLynx **sin** `ExtinctionEffect` para que el pareo sea consistente.
+
+### Método real: `PTROBS_MIN`/`PTROBS_MAX`, no MJD
+
+`_HEAD.FITS` (597 objetos, 212 columnas) trae `PTROBS_MIN`/`PTROBS_MAX` -- índices 1-based reales que
+delimitan el bloque de épocas de cada objeto en `_PHOT.FITS` (2.630.079 filas totales). Por objeto, se
+leyeron `SIM_SALT2x0/x1/c`, `SIM_REDSHIFT_HELIO`, `SIM_PEAKMJD` reales; se aplicó
+`filter_ddf_field_contamination()` (Fase 36, ya versionada) -- 586/597 bien-matcheados; se construyó
+`SncosmoWrapperModel(local_src, t0=SIM_PEAKMJD, x0=SIM_SALT2x0, x1=SIM_SALT2x1, c=SIM_SALT2c,
+redshift=SIM_REDSHIFT_HELIO)` (sin extinción) y se evaluó `evaluate_bandfluxes()` real en los MJD
+**exactos** de cada época real; se sumó `MAG_OFFSET` real (`read_salt2_info()`, Fase 37). Hallazgo de
+higiene real: la columna `BAND` del `_PHOT.FITS` viene como `LSST-<letra>` (p.ej. `LSST-r`), no la
+letra sola -- un primer intento sin parsear el prefijo dio 0 filas útiles, corregido antes de medir
+nada. Sentinela real de "sin dato" en `SIM_MAGOBS`: `99.0` (571.868/2.630.079 filas, 21.7%);
+enmascarado junto con 5 filas de encabezado (`BAND='-'`) antes de calcular cualquier cosa.
+
+### Resultado: 560.421 pares época-objeto, prácticamente plano en toda la curva
+
+| bin fase rest | mediana Δmag | media | std | N | p16 | p84 |
+|---|---:|---:|---:|---:|---:|---:|
+| [-20,-10) | -0.0074 | -0.0007 | 0.167 | 71.789 | -0.107 | 0.091 |
+| [-10,-5) | -0.0197 | -0.0247 | 0.106 | 41.901 | -0.122 | 0.075 |
+| [-5,0) | -0.0211 | -0.0298 | 0.100 | 48.706 | -0.134 | 0.068 |
+| [0,+5) | -0.0302 | -0.0343 | 0.102 | 46.448 | -0.133 | 0.059 |
+| [+5,+10) | -0.0200 | -0.0292 | 0.100 | 41.019 | -0.129 | 0.064 |
+| [+10,+20) | -0.0185 | -0.0248 | 0.099 | 83.692 | -0.127 | 0.069 |
+| [+20,+40) | -0.0178 | -0.0267 | 0.120 | 157.820 | -0.127 | 0.070 |
+| [+40,+100) | -0.0234 | -0.0164 | 0.188 | 69.046 | -0.131 | 0.078 |
+
+**No hay tendencia creciente con `|fase|`** -- el bin más extremo probado (`[+40,+100)`, hasta 100 días
+del pico) da `-0.023` mag, prácticamente igual al bin central (`[0,+5)`, `-0.030` mag) y menor que
+varios bins intermedios. Descarta la hipótesis concreta que motivó esta fase: `SEDFLUX_INTERP_OPT: 1`
+(confirmado en el `SALT2.INFO` real, otra clave que `sncosmo` ignora igual que `MAG_OFFSET`) no produce
+un artefacto que crezca con la distancia al pico -- si lo hiciera, sería visible acá y no lo es. Por
+banda (`g/r/i/z/Y` con estadística real, `u` con `N<340` por bin y desviaciones de hasta `-0.15` mag,
+mismo problema de borde de template de Fases 13/23/27/39 ya conocido, no confiable): todas dentro de
+`-0.001` a `-0.046` mag, sin patrón cromático claro tampoco.
+
+**Cabo suelto real, chico pero no cero**: los 8 bins muestran un offset residual consistente de
+`-0.01` a `-0.03` mag (no cero, no creciente) -- del orden de un 10% de lo que ya se cerró en Fase 37,
+visible ahora porque este es el primer test con épocas reales completas en vez de solo el pico
+poblacional. No se investiga la causa en esta fase (fuera de alcance del criterio de decisión
+definido) -- candidatos plausibles para una fase futura: ruido de segundo orden en la normalización de
+banda (Fases 25-30) evaluado ahora en fases no-pico, o el `trim_quantile` de producción (Fase 31).
+
+### Conclusión Fase 39
+
+**Criterio "plano" cumplido**: la curva completa no muestra la dependencia de fase que predecía el
+candidato `SEDFLUX_INTERP_OPT` -- descartado con evidencia directa (código real vs. datos reales de
+época, no una aproximación). Fase 37 se extiende con confianza a la curva completa, no solo al pico:
+el `MAG_OFFSET` cierra el residuo grande (`~0.27` mag) en todas las fases por igual, consistente con
+ser un offset aditivo puro tal como predice la fórmula real de SNANA. Queda un residuo chico
+(`-0.01` a `-0.03` mag, sin tendencia) documentado como pregunta abierta menor, no forzado a una
+explicación.
+
+**H4 cerrado de paso**: `compare_brightness_truth_salt2.py` usaba `flux_perfect.max()` sobre la
+cadencia real -- la métrica que la propia Fase 22 declaró inválida, nunca migrada en el único script
+versionado de comparación de brillo del proyecto (las Fases 22-38 usaban scripts exploratorios ya
+borrados con la métrica correcta). Corregido a `compute_noise_free_lightcurves()` real evaluado en
+`rest_phase=0` (mismo patrón de Fase 22 en adelante). Verificado: corre limpio sobre los 2000 objetos
+reales de la campaña (`z` 0.08-1.20, `PEAKMAG_r_true` 18.1-28.8, rango físico razonable), sin errores.
+
+### Archivos de esta fase
+
+`compare_brightness_truth_salt2.py`: migrado de `simulate_lightcurves()`+`flux_perfect.max()` a
+`sample_parameters()`+`compute_noise_free_lightcurves()` en `rest_phase=0` (cierra H4). Exploratorios
+en NLHPC, borrados tras usarlos: `fase39_lightcurve_paired.py`/`.sbatch` (pareo época-a-época real),
+`fase39_verify.sbatch` (corrida de verificación del fix de H4). Sin cambios a `snana_params.py` --
+ningún candidato nuevo llegó al umbral de corrección esta fase.
+
 ## Fase 40 — cobertura de claves de configuración en las 19 clases: un hallazgo nuevo (`GENRANGE_TREST`), una corrección al propio dashboard, y el resto ya blindado
 
 El método que encontró la causa raíz de toda la investigación (Fase 37: ¿qué claves reales del

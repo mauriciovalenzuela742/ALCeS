@@ -1552,7 +1552,11 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       contando las 5 codificaciones NON1ASED alternativas por separado).</p></div></li>
       <li><span class="step-n">4</span><div class="step-body"><p><strong>Validar la curva de luz
       completa</strong>, no solo <code>rest_phase=0</code> — repetir el pareo objeto-a-objeto de
-      Fase 37 en varias fases (-10/0/+10/+20 días).</p></div></li>
+      Fase 37 en varias fases (-10/0/+10/+20 días). <strong>Hecho en Fase 39</strong>: pareo real
+      época-a-época contra <code>SIM_MAGOBS</code> (560.421 puntos, 8 bins de fase), plano en toda la
+      curva (-20 a +100 días), sin la dependencia de fase que predecía el candidato
+      <code>SEDFLUX_INTERP_OPT</code> — descartado. Queda un residuo chico (-0.01 a -0.03 mag, sin
+      tendencia) como pregunta abierta menor.</p></div></li>
       <li><span class="step-n">5</span><div class="step-body"><p><strong>Extender a campos WFD</strong> —
       toda la cadena de fidelidad se validó solo en DDF.</p></div></li>
       <li><span class="step-n">6</span><div class="step-body"><p><strong>Resolver los bugs de seed
@@ -2536,6 +2540,37 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           un cierre que los datos no muestran. De paso, cierra una discrepancia real entre
           <code>HOWTO.md</code> (documentaba <code>snr_median</code>/<code>snr_p90</code> en
           <code>summary.json</code>) y el código (solo los imprimía al log) -- agregados de verdad.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">39</span>
+        <div class="step-body">
+          <p><strong>Validada la curva de luz completa vía <code>SIM_MAGOBS</code> real — plana, sin
+          la dependencia de fase que predecía el candidato <code>SEDFLUX_INTERP_OPT</code>.</strong> El
+          <code>_PHOT.FITS</code> real de producción trae <code>SIM_MAGOBS</code> (magnitud verdadera
+          sin ruido, por época, 2.630.079 filas para los 597 objetos SNIa DDF detectados) — permite
+          parear objeto-a-objeto y <em>época-a-época real</em> contra LightCurveLynx sin simular
+          ninguna fase sintética, extendiendo el método pareado de Fase 37 (que solo miró
+          <code>rest_phase=0</code>) a la curva completa. Verificado primero que
+          <code>SIM_MAGOBS</code> también viene con la extinción MW descontada
+          (<code>snlc_sim.c:25394</code> real, mismo patrón que <code>SIM_PEAKMAG</code>) — evaluado
+          LightCurveLynx sin <code>ExtinctionEffect</code> para el pareo.</p>
+          <p><strong>Resultado (560.421 pares época-objeto, 8 bins de fase rest-frame de -20 a +100
+          días):</strong> mediana <code>Δmag</code> entre <code>-0.007</code> y <code>-0.030</code> mag
+          en todos los bins, <strong>sin tendencia creciente con <code>|fase|</code></strong> — el bin
+          más extremo (+40 a +100 días) da <code>-0.023</code> mag, prácticamente igual al bin central.
+          Descarta <code>SEDFLUX_INTERP_OPT: 1</code> (otra clave del <code>SALT2.INFO</code> real que
+          <code>sncosmo</code> ignora, igual que <code>MAG_OFFSET</code>) como causa de un artefacto
+          creciente con la distancia al pico. Queda un residuo chico y real (<code>-0.01</code> a
+          <code>-0.03</code> mag, sin tendencia) documentado como pregunta abierta menor, no forzado a
+          una explicación.</p>
+          <p><strong>De paso, cierra una inconsistencia real del propio proyecto:</strong>
+          <code>compare_brightness_truth_salt2.py</code>, el único script versionado de comparación de
+          brillo, seguía usando <code>flux_perfect.max()</code> sobre la cadencia real — la métrica que
+          la propia Fase 22 declaró inválida en 2026, nunca migrada porque las Fases 22-38 median todas
+          con scripts exploratorios ya borrados. Corregido a
+          <code>compute_noise_free_lightcurves()</code> real en <code>rest_phase=0</code>, verificado
+          sobre los 2000 objetos reales de la campaña sin errores.</p>
         </div>
       </li>
       <li>
