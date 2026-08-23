@@ -480,6 +480,7 @@ def make_correlated_normal_weights(
     peaks: dict[str, float],
     sigmas: dict[str, float],
     redcor: dict[tuple[str, str], float],
+    genrange: dict[str, tuple[float, float]] | None = None,
 ) -> np.ndarray:
     """Generaliza el peso de `SIMSED_REDCOR` a N parametros (no solo los 2
     de SALT2 c/x1).
@@ -512,6 +513,28 @@ def make_correlated_normal_weights(
     calculada exacta via inclusion-exclusion sobre los `scipy.stats.
     multivariate_normal.cdf()` de las 2^N esquinas de la caja.
 
+    Fase 45: SNANA real no samplea de una Gaussiana sin mas cuando hay
+    parametros correlacionados -- `snlc_sim.c` linea real ~14038 (bloque
+    `if (NROW_COV > 0)`) hace reject-and-retry real (`goto PICK_RANCOV`,
+    hasta 100 intentos): descarta cualquier draw continuo que caiga fuera
+    de `GENRANGE_<param>` ANTES de snapear a la grilla. La version de
+    Fase 44 extendia los bordes exteriores de la grilla a `+-50 sigma`
+    (soporte casi infinito) en vez de cortar en el `GENRANGE` real -- para
+    SNIa-91bg, `GENRANGE_stretch: 0.65 1.25`/`GENRANGE_color: 0.0 1.0`
+    coinciden EXACTO con los extremos de la grilla (confirmado contra el
+    `.INPUT` real), asi que el corte real esta a solo ~3.2-3.4 sigma del
+    pico, no en el infinito. Verificado (Fase 45): la masa total fuera de
+    esa caja es ~0.85% (chica) -- la hipotesis de que esto explicara el
+    desajuste KS fuerte de Fase 44 pierde fuerza antes de medir, pero se
+    implementa y verifica empiricamente de todas formas (nunca se asume
+    sin medir). `genrange` (opcional, default `None` = mismo comportamiento
+    de Fase 44, bordes a `+-50 sigma`): {nombre_param: (GENRANGE_min,
+    GENRANGE_max)} real -- si se pasa, los bordes exteriores de cada eje
+    se recortan ahi en vez de a `+-50 sigma`, y el resultado queda
+    automaticamente normalizado a la masa real dentro de la caja completa
+    al dividir por la suma (equivalente exacto al reject-and-retry real en
+    el limite de infinitos intentos).
+
     `values`: {nombre_param: array de valores por template}.
     `peaks`/`sigmas`: {nombre_param: GENPEAK/GENSIGMA (simetrica)}.
     `redcor`: {(param_i, param_j): SIMSED_REDCOR(param_i,param_j)} -- solo
@@ -543,7 +566,11 @@ def make_correlated_normal_weights(
     for k, name in enumerate(names):
         grid = np.unique(values[name])
         mid = (grid[:-1] + grid[1:]) / 2.0
-        edges = np.concatenate(([mean[k] - 50 * sigmas[name]], mid, [mean[k] + 50 * sigmas[name]]))
+        if genrange is not None and name in genrange:
+            lo_edge, hi_edge = genrange[name]
+        else:
+            lo_edge, hi_edge = mean[k] - 50 * sigmas[name], mean[k] + 50 * sigmas[name]
+        edges = np.concatenate(([lo_edge], mid, [hi_edge]))
         idx = np.searchsorted(grid, values[name])  # posicion de cada template en la grilla ordenada
         lo[:, k] = edges[idx]
         hi[:, k] = edges[idx + 1]

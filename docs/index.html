@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "44&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "45&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "44 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "45 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "44 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "45 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "44 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "45 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "44 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "45 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1506,7 +1506,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <code>SIMSED_REDCOR</code> (candidato de Fase 41) con el mecanismo Cholesky+grilla real de
       SNANA — el test KS apenas mejora y el residuo de brillo de <code>SNIa-91bg</code> no se mueve
       (<code>0.004</code> mag de diferencia entre el peso viejo y el nuevo) — descartado como causa,
-      el desajuste real sigue sin identificarse. Ver pestaña "44 fases" (Fases 38/42/43/44) para el
+      el desajuste real sigue sin identificarse. Ver pestaña "45 fases" (Fases 38/42/43/44) para el
       detalle completo.</p>
     </div>
 
@@ -1837,7 +1837,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Cuarenta y cuatro fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Cuarenta y cinco fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2726,6 +2726,29 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           candidato menos en la lista.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">45</span>
+        <div class="step-body">
+          <p><strong>La truncación real a <code>GENRANGE</code> (reject-and-retry) tampoco explica el
+          desajuste de <code>SIMSED_REDCOR</code>.</strong> Siguiendo la lectura del código un poco más
+          allá de Fase 44: <code>snlc_sim.c</code> hace reject-and-retry real (hasta 100 intentos) —
+          descarta cualquier draw continuo que caiga fuera de <code>GENRANGE_stretch</code>/
+          <code>GENRANGE_color</code> antes de snapear a la grilla, y esos rangos reales coinciden
+          exacto con los extremos de la grilla (solo <code>~3.2-3.4σ</code> del pico). La
+          reimplementación de Fase 44 extendía los bordes a <code>±50σ</code> en vez de cortar ahí.</p>
+          <p>Medido antes de tocar código: solo <code>0.854%</code> de la masa real cae fuera de la
+          caja (confirmado con `scipy` e independientemente con Monte Carlo). Implementado igual
+          (parámetro <code>genrange</code> nuevo en <code>make_correlated_normal_weights()</code>,
+          compatible con los call sites existentes) y re-testeado: el KS **no mejora**
+          (<code>stretch 0.2073→0.2066</code>, <code>color 0.2558→0.2585</code> — empeora levemente) —
+          exactamente lo que predecía el <code>0.854%</code>. Hipótesis descartada con evidencia
+          directa. Quedan dos caminos sin explorar, documentados como recomendación: confirmar cuál de
+          dos funciones de sampleo distintas (<code>getRan_GENGAUSS_ASYM()</code> vs.
+          <code>getRan_GaussCorr()</code>) realmente se ejecuta para este mecanismo, o instrumentar el
+          binario real de SNANA (mismo patrón de Fases 29/30/37) para volcar los draws continuos reales
+          — la lectura de código llegó a su límite práctico para este candidato.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3056,7 +3079,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "44 fases" },
+    { id: "fases", label: "45 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

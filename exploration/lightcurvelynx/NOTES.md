@@ -5971,3 +5971,138 @@ borrados tras usarlos: `fase44_redcor_test.py` (test KS peso viejo vs. nuevo),
 `fase44_zbin_compare.py` (comparación de brillo banda `r`). Corrida real de producción (no
 exploratoria, resultado documentado arriba): `compare_brightness_truth.py` re-ejecutado con el peso
 nuevo, output en `compare_brightness_truth_output.parquet` (no borrado).
+
+## Fase 46 — la sobre-detección de `ILOT-MOSFIT` (Fase 43) es real, no espuria: épocas muy tardías dentro del rango físico válido del template, pero de SNR más marginal
+
+Pregunta 2 de la ronda anterior: Fase 43 extendió `rest_time_window_offset` de `ILOT-MOSFIT` a
+`(-100,1000)` días (`GENRANGE_TREST` real) y el ratio de detección pasó de sub-detectar 2x (`3.65%`
+vs. `7.15%` real) a sobre-detectar ~4.3x (`31.03%±0.63%`). Candidato a probar: detecciones espurias en
+la cola tardía, posiblemente ligadas a la extrapolación de fase.
+
+### Reconstrucción real, con las 5 semillas ya corridas (sin simular nada nuevo)
+
+Usando `head_df.parquet`/`phot_df.parquet` reales de las 5 semillas (`poc_output_ilotmosfit`/
+`_seed1-4`, columnas `DETECTED`/`PHOTFLAG` ya calculadas), se reconstruyó -- para cada objeto
+detectado -- la fase rest-frame de cada época (`(MJD-PEAKMJD)/(1+z)`) y se agrupó con
+`group_into_epochs()` real (mismo algoritmo de Fase 4, `NEWMJD_DIF=0.007` días). Se separaron los
+objetos detectados en dos grupos: **"viejos"** (ya tienen ≥2 épocas detectadas dentro de
+`[-30,100]` días -- se habrían detectado igual con la ventana original) y **"nuevos"** (solo llegan a
+≥2 épocas gracias a al menos una época fuera de `[-30,100]`).
+
+| | N objetos | mediana SNR de la época de trigger | % con SNR<7 | mediana `rest_phase` (épocas "nuevas") |
+|---|---:|---:|---:|---:|
+| "viejos" (ventana original ya alcanzaba) | 818 | 5.72 | 64.2% | -- |
+| "nuevos" (solo por ventana extendida) | 2285 | 3.97 | 81.8% | **264.8 días** |
+
+**El 99.4% de los objetos "nuevos" (2271/2285) tienen su época de disparo a `|rest_phase|>45` días**
+-- confirma que la sobre-detección viene abrumadoramente de la cola tardía extendida, no de ruido
+disperso cerca del pico. Las épocas "nuevas" sí son sistemáticamente más marginales que las "viejas"
+(SNR mediano 3.97 vs. 5.72, 81.8% vs. 64.2% con SNR<7).
+
+### Pero no es un artefacto de extrapolación: el propio modelo declara flujo físico válido hasta 2000 días
+
+Verificado el `SED.INFO` real de `SIMSED.ILOT-MOSFIT`
+(`~/run_SNANA/plasticc_models/SIMSED.ILOT-MOSFIT/SED.INFO`): declara explícitamente
+`REBIN_DAY: 2 for 200.0 < DAY < 2000.0` -- el propio modelo físico (transitorio ILOT alimentado por
+interacción con medio circunestelar, "CSM-powered") está diseñado y calibrado para tener flujo
+significativo hasta 2000 días, con una grilla más gruesa (rebin) más allá de 200 días. La mediana de
+`rest_phase` de las épocas "nuevas" (264.8 días) cae **dentro** de ese rango físicamente válido, no
+más allá de él -- descarta la hipótesis original de esta fase (extrapolación tardía de
+`LinearDecay`/`ZeroPadding` generando flujo no físico): esos extrapoladores ni siquiera se usan en el
+camino de código real de `run_simsed_poc.py` (que usa `SIMSEDModel` directo, no
+`SncosmoWrapperModel` con extrapolación de tiempo configurada -- confirmado leyendo el script real,
+sin ninguna referencia a `LinearDecay`/`ZeroPadding` en la construcción del modelo SIMSED).
+
+### Conclusión Fase 46 -- resultado genuinamente mixto, ninguna de las dos hipótesis simples se sostiene limpia
+
+No es el resultado "espurio" que se esperaba, pero tampoco es un "no hay nada raro acá": las épocas de
+disparo "nuevas" son reales dentro del rango físico modelado del template (no extrapolación inválida),
+**pero** son sistemáticamente más marginales en SNR que las que ya disparaban con la ventana vieja, y
+concentradas en una cola extremadamente tardía (mediana 265 días, hasta 1000 días) que un survey real
+probablemente no cubre con la misma densidad de observaciones que asume esta ventana de generación
+uniforme. La sobre-detección de 4.3x es consistente con: la ventana `GENRANGE_TREST` real
+efectivamente amplía el catálogo generado a un régimen de fase muy tardía donde el modelo físico sigue
+prediciendo flujo, pero donde factores no modelados en esta fase (densidad de cadencia real del OpSim
+esa lejos del pico, o si el propio `.INPUT` de SNANA real limita la ventana de trigger/detección de
+forma distinta a la de generación) podrían explicar por qué SNANA real no detecta tantos de estos
+objetos tardíos como LightCurveLynx. No se investigó en esta fase si SNANA distingue `GENRANGE_TREST`
+(ventana de generación) de una ventana de trigger más angosta -- candidato concreto para una fase
+futura, no cerrado acá.
+
+### Archivos de esta fase
+
+`fase46_analysis.py` (exploratorio, no versionado, borrado de NLHPC tras usarlo). Sin cambios a
+`run_simsed_poc.py` -- ninguna corrección aplicada esta fase, el hallazgo queda como diagnóstico
+honesto y un candidato nuevo (posible distinción generación-vs-trigger en `GENRANGE_TREST` real) para
+retomar más adelante.
+
+## Fase 45 — la truncación real a `GENRANGE` (reject-and-retry) tampoco explica el desajuste de `SIMSED_REDCOR`
+
+Cierre de Fase 44, siguiendo la lectura de código un poco más allá de lo que esa fase necesitó:
+`~/github/SNANA_src/src/snlc_sim.c` línea real ~14038 (bloque `if (NROW_COV > 0)`, activo para
+`SNIa-91bg` porque declara `SIMSED_REDCOR`) muestra que SNANA no calcula la masa de una Gaussiana
+correlacionada sin más -- **rechaza y reintenta** (`goto PICK_RANCOV`, hasta 100 intentos) cualquier
+draw continuo `(stretch, color)` que caiga fuera de `GENRANGE_stretch`/`GENRANGE_color` **antes** de
+snapear a la grilla. La reimplementación de Fase 44 nunca truncó a esa caja real -- extendió los
+bordes exteriores de la grilla a `±50σ` (soporte casi infinito) en vez de cortar en el `GENRANGE` real.
+Confirmado contra el `.INPUT` real (`SIMGEN_INCLUDE_SNIa-91bg.INPUT`): `GENRANGE_stretch: 0.65 1.25` y
+`GENRANGE_color: 0.0 1.0` coinciden **exactamente** con los extremos de la grilla de 35 templates --
+el corte real está a solo `~3.2-3.4σ` del pico, no en el infinito.
+
+### Paso 1 -- cuánta masa real cae fuera de la caja: chica, `0.854%`
+
+Calculado con la misma técnica de inclusión-exclusión que ya usa `make_correlated_normal_weights()`
+(`scipy.stats.multivariate_normal.cdf()` en las 4 esquinas de la caja `[0.65,1.25]×[0.0,1.0]`, con
+`peak=[0.975,0.557]`, `sigma=[0.096,0.175]`, `redcor=-0.656`), y confirmado con Monte Carlo (2M draws
+directos): **`0.854%`/`0.864%`** de la masa real cae fuera de la caja -- chico en términos absolutos,
+aunque no despreciable dado el rango relativamente angosto (por eso se implementó igual, en vez de
+descartar la hipótesis sin medir).
+
+### Paso 2 -- implementado: truncación real vía parámetro `genrange` nuevo
+
+`make_correlated_normal_weights()` gana un parámetro opcional `genrange: dict[str, tuple[float,
+float]]` (default `None` = mismo comportamiento de Fase 44, bordes a `±50σ`) -- si se pasa, los bordes
+exteriores de cada eje se recortan en el `GENRANGE` real en vez de `±50σ`, y el resultado queda
+automáticamente normalizado a la masa real dentro de la caja completa al dividir por la suma
+(equivalente exacto al reject-and-retry real en el límite de infinitos intentos). Firma compatible con
+los 2 call sites existentes (no llaman con `genrange`, siguen igual que antes).
+
+### Paso 3 -- re-testeado: el KS no mejora, incluso empeora levemente en `color`
+
+Mismo test de Fase 44 (200k resampleos vs. 1919 objetos reales del `.DUMP`, sentinelas filtrados):
+
+| | Fase 44 (`±50σ`) | Fase 45 (`GENRANGE` real) |
+|---|---:|---:|
+| `stretch` KS stat / p | 0.2073 / 3.8e-72 | **0.2066 / 1.2e-71** |
+| `color` KS stat / p | 0.2558 / 3.4e-110 | **0.2585 / 1.6e-112** |
+| `stretch` media sim | 0.9750 | 0.9754 |
+| `color` media sim | 0.5565 | 0.5550 |
+
+Exactamente lo que predecía el `0.854%` del Paso 1: el cambio es numéricamente real (la suma de pesos
+antes de normalizar cae de `~1.0` a `0.9915`, confirmando que la truncación se aplicó) pero su efecto
+en la distribución final es **ruido, no una mejora** -- `stretch` mejora en la tercera cifra decimal,
+`color` empeora levemente. No se pasa al Paso 4 (re-medir el residuo de brillo poblacional) porque el
+propio criterio del plan lo condiciona a una mejora sustancial del KS, que no ocurrió.
+
+### Conclusión Fase 45
+
+Hipótesis descartada con evidencia directa, no por argumento de plausibilidad: la truncación real a
+`GENRANGE` (el mecanismo reject-and-retry que Fase 44 no había implementado) es real y se corrigió,
+pero **no es la causa** del desajuste KS abrumador de `SIMSED_REDCOR`. Con esto se agotan los
+candidatos identificables por lectura de código C para este mecanismo específico -- quedan solo dos
+hipótesis sin probar, ambas fuera de esta fase: (a) el propio bloque `if (NROW_COV > 0)` en
+`snlc_sim.c` usa `getRan_GENGAUSS_ASYM()` en un lugar (línea ~14178) y `getRan_GaussCorr()` en otro
+(línea ~14051) -- no se confirmó en esta fase cuál de los dos caminos de código realmente se ejecuta
+para `SIMSED_REDCOR` con parámetros correlacionados, ni si son consistentes entre sí; (b) instrumentar
+el binario real de SNANA (mismo patrón exitoso de Fases 29/30/37, clon compilable ya disponible en
+`~/github/SNANA_src`) para volcar los draws continuos reales `(stretch, color)` antes del snap, en vez
+de seguir razonando sobre el código C sin verificación directa -- la recomendación que ya dejó Fase 44,
+ahora reforzada: la lectura de código llegó a su límite práctico para este mecanismo, hace falta
+evidencia de ejecución real.
+
+### Archivos de esta fase
+
+`snana_params.py`: `make_correlated_normal_weights()` gana el parámetro opcional `genrange`
+(implementación real de la truncación, comentario citando `snlc_sim.c` línea ~14038). Exploratorios en
+NLHPC, borrados tras usarlos: `fase45_mass_check.py` (Paso 1), `fase45_redcor_test.py` (Paso 3). Sin
+recorrida de `compare_brightness_truth.py` esta fase (no se cumplió el criterio del Paso 4).
