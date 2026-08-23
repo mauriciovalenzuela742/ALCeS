@@ -6204,3 +6204,85 @@ bin, sin tendencia monótona clara) queda como pregunta abierta menor -- candida
 Exploratorios en NLHPC, borrados tras usarlos: `fase47_zbin_analysis.py` (Pasos 2-3),
 `fase47_compare_brightness.sbatch` (Paso 1). Output real conservado (no exploratorio, producto de
 script de producción): `compare_brightness_truth_output.parquet`.
+
+## Fase 49 — Fase 43 leyó la referencia de SNANA invertida: `SLSN-I`/`ILOT-MOSFIT` no mejoraron con `GENRANGE_TREST`, empeoraron
+
+Corrección real, no una nueva hipótesis: al diseñar la ronda de auditoría de bugs metodológicos
+(motivada por el hallazgo de Fase 47) se encontró que las tablas de Fase 4 y Fase 43 tienen las
+columnas de SNANA real y LightCurveLynx invertidas para dos clases.
+
+### Paso 1 — confirmar la inversión contra archivos reales
+
+`NOTES.md` línea 630 (Fase 4, encabezado real: `| clase | SNR mediana LCL | SNR p90 LCL | detectados
+SNANA real | detectados LCL | razón |`): `SLSN-I ... 824/2000 (41.2%) ... 1266/2000 (63.3%) ...
+1.54x` -- por el propio encabezado, **824=SNANA real, 1266=LCL** (1266/824=1.536≈1.54x, consistente).
+Línea 958: `ILOT-MOSFIT ... 73/2000 (3.65%) ... 143/2000 (7.15%) ... 1.96x` -- mismo orden,
+**73=SNANA real, 143=LCL** (143/73=1.959≈1.96x). Fase 43 (líneas 5852/5863) invierte la asignación:
+etiqueta `63.3% (1266/2000)`/`7.15% (143/2000)` como **"SNANA real"** -- exactamente los números de
+LCL de Fase 4.
+
+Verificado contra los `.README` reales de producción
+(`~/DATASIM_LSST_1/DDF/SIMDv8/SLSN-I_DDF_baseline_v5.3.1_10yrs/*.README`,
+`~/DATASIM_LSST_1/DDF/SIMDv8/ILOT_DDF_baseline_v5.3.1_10yrs/*.README` -- la carpeta real es `ILOT`,
+no `ILOT-MOSFIT`): `NGENTOT_LC: 2000` / `NGENLC_WRITE: 824` para `SLSN-I` (41.20%), `2000`/`73` para
+`ILOT` (3.65%) -- coincide exacto con la Fase 4 original, no con Fase 43. Probadas además 3
+definiciones alternativas reales sobre el `.DUMP` de cada clase, ninguna reproduce 1266/143:
+
+| clase | `MJD_DETECT_FIRST>0` | `FLAG_ACCEPT>0` | `SNRMAX>5` | `SIM_SEARCHEFF_MASK>0` | `NGENLC_WRITE` real |
+|---|---:|---:|---:|---:|---:|
+| `SLSN-I` | 1941 | 824 | 781 | 824 | 824 |
+| `ILOT` | 1924 | 73 | 72 | 73 | 73 |
+
+`FLAG_ACCEPT>0` y `SIM_SEARCHEFF_MASK>0` coinciden exacto con `NGENLC_WRITE` (824/73) -- son la
+definición real de detección que usa SNANA. Ninguna columna real del `.DUMP` da 1266 ni 143.
+
+### Paso 2 — la tabla corregida
+
+| clase | SNANA real | LCL histórico (`-30/100`, Fase 5) | LCL Fase 43 (`GENRANGE_TREST` real) | ratio antes → después |
+|---|---:|---:|---:|---|
+| `SLSN-I` | 41.20% (824/2000) | 66.1% (41.20%×1.604) | 72.0% (1440/2000) | 1.604x → **1.748x (empeora)** |
+| `ILOT-MOSFIT` | 3.65% (73/2000) | 7.15% (3.65%×1.96, coincide con el 143/2000 real de Fase 4) | 31.03%±0.63% (605-639/2000) | 1.96x → **~8.5x (mucho peor)** |
+
+`SLSN-I`: extender la ventana real (`-100/500`) no acerca LCL a SNANA -- lo aleja más (de sub-detectar
+un 25pp a sobre-detectar 30.8pp). `ILOT-MOSFIT`: la sobre-corrección ya documentada en Fase 43/46 era
+real en dirección, pero su magnitud absoluta está subestimada por el error de referencia -- el ratio
+real es ~4.3x más alto que el reportado entonces. Nota: todavía no se recalculó contra la referencia
+DDF-only de Fase 48 (contaminación de campo, causa raíz RGES) porque esa fase no había terminado al
+cerrar esta -- los números de arriba son sobre el `.DUMP` raw, mismo criterio que usó Fase 43
+originalmente, así que la comparación "antes/después" es consistente aunque ambos lados sigan con la
+contaminación sin filtrar.
+
+### Paso 3 — el código se mantiene, se corrige el texto
+
+`trest_range` en `run_simsed_poc.py::CLASS_CONFIGS["SLSN-I"]`/`["ILOT-MOSFIT"]` (Fase 43) sigue
+siendo **correcto por fidelidad** -- son los valores reales de `GENRANGE_TREST` del `.INPUT` real
+(Fase 40), no un error de código. Lo que estaba mal era la interpretación escrita. **No se revierte el
+código.** La corrección de Fase 43 arriba (Paso 2 de esta fase) queda como la lectura vigente de ese
+resultado -- el texto original de Fase 43 se deja intacto más abajo en este mismo archivo (mismo
+criterio de transparencia de todo el proyecto: no se borra un hallazgo, se corrige con una fase nueva
+que lo referencia). Esto **refuerza** (no contradice) el hallazgo de Fase 46: la ventana extendida
+agrega detecciones espurias de SNR marginal en la cola, y ahora hay dos clases (no una) donde
+extender `GENRANGE_TREST` empeora el ratio en vez de mejorarlo.
+
+### Paso 4 — propagación corregida en el dashboard
+
+`docs/index.html`: corregidos los 3 lugares que citaban `63.3%`/`1266`/`7.15%`/`143` como "SNANA
+real" -- el callout "Actualización Fases 38-46" (Resumen), la línea 3 de "Líneas para seguir
+investigando" (Conclusiones), y la entrada de Fase 43 en la sub-tab "N fases".
+
+### Conclusión Fase 49
+
+Error de transcripción real, no un problema de metodología de simulación -- las columnas de una
+tabla se invirtieron al escribir Fase 43, arrastrando el error a 3 lugares del dashboard. Corregido
+con evidencia directa contra los `.README` reales de producción (fuente de verdad, no reconstruida).
+El código que Fase 43 cambió sigue siendo correcto; su interpretación no lo era. El resultado
+corregido no cambia la conclusión cualitativa de que `ILOT-MOSFIT` sobre-corrige (ya se sabía), pero
+sí invierte la de `SLSN-I` (de "mejora sustancial" a "empeora") y amplifica la magnitud real del
+problema en ambas clases -- reforzando, con más fuerza que antes, el candidato de extrapolación
+tardía de Fase 46.
+
+### Archivos de esta fase
+
+Sin scripts nuevos -- fase de lectura/verificación pura (`.README` reales vía `ssh`, `.DUMP` real vía
+el venv de NLHPC para las 3 definiciones alternativas del Paso 1, sin `sbatch`). `docs/index.html`
+modificado (3 secciones). `run_simsed_poc.py` sin cambios -- el código de Fase 43 se mantiene.

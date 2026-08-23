@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "47 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "49 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "47 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "49 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "47 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "49 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "47 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "49 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1499,10 +1499,15 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       efecto medido fue despreciable y de signo contrario (<code>1.615x → 1.638x</code>, dentro de 1σ
       de ruido de semilla) — descartado como causa del residuo de detección, que sigue abierto.
       <strong>Fase 43</strong> corrigió <code>GENRANGE_TREST</code> por clase (candidato de Fase 40) en
-      dos clases de cola larga: mejora sustancial en <code>SLSN-I</code> (<code>41.2%→72.0%</code>,
-      más cerca del <code>63.3%</code> real) pero sobre-corrección dramática en <code>ILOT-MOSFIT</code>
-      (<code>3.65%→31.03%</code>, muy por encima del <code>7.15%</code> real) — resultado honesto en
-      ambas direcciones, ninguna de las dos cierra limpio. <strong>Fase 44</strong> reimplementó
+      dos clases de cola larga — <strong>corregido en Fase 49: la referencia de SNANA estaba
+      invertida</strong> (SNANA real es <code>41.2%</code>/<code>3.65%</code>, no
+      <code>63.3%</code>/<code>7.15%</code> — esos eran los números de LightCurveLynx). Con la
+      referencia correcta, el cambio <strong>empeora</strong> el ratio en las dos clases:
+      <code>SLSN-I</code> pasa de <code>41.2%→72.0%</code> contra un real de <code>41.2%</code>
+      (ratio <code>1.604x→1.748x</code>), <code>ILOT-MOSFIT</code> de <code>3.65%→31.03%</code>
+      contra un real de <code>3.65%</code> (ratio <code>1.96x→~8.5x</code>) — el código
+      (<code>trest_range</code>, fiel al <code>.INPUT</code> real) se mantiene, refuerza el hallazgo
+      de Fase 46. <strong>Fase 44</strong> reimplementó
       <code>SIMSED_REDCOR</code> (candidato de Fase 41) con el mecanismo Cholesky+grilla real de
       SNANA — el test KS apenas mejora y el residuo de brillo de <code>SNIa-91bg</code> no se mueve
       (<code>0.004</code> mag de diferencia entre el peso viejo y el nuevo) — descartado como causa,
@@ -1516,7 +1521,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       objetos "nuevos" disparan a <code>|rest_phase|&gt;45</code> días (mediana <code>265</code> días),
       dentro del rango físico válido del propio modelo (<code>REBIN_DAY</code> hasta 2000 días) — ni
       artefacto de extrapolación ni resultado limpio, resultado genuinamente mixto. Ver pestaña
-      "47 fases" (Fases 38/42-46) para el detalle completo.</p>
+      "49 fases" (Fases 38/42-46) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1569,12 +1574,13 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reportadas, pero candidato real y sin remedir para los ratios de detección históricos de clases
       de cola larga como <code>ILOT-MOSFIT</code> (solo 11.8% de su ventana real cubierta). Nota: no
       son "39 clases" — LightCurveLynx cubre 14 clases físicas reales (19 entradas evaluadas en el QC,
-      contando las 5 codificaciones NON1ASED alternativas por separado). <strong>✓ Hecho en Fase 43</strong>
-      para las 2 clases peor cubiertas: <code>SLSN-I</code> mejora sustancialmente (41.2%→72.0%,
-      más cerca del 63.3% real); <code>ILOT-MOSFIT</code> sobre-corrige de forma dramática
-      (3.65%→31.03%, muy por encima del 7.15% real) — resultado honesto en ambas direcciones, el
-      candidato de la ventana de generación no explica limpiamente el residuo de detección para todas
-      las clases. Las otras 12 clases quedan sin re-medir.</p></div></li>
+      contando las 5 codificaciones NON1ASED alternativas por separado). <strong>✓ Hecho en Fase 43,
+      corregido en Fase 49</strong> (la referencia de SNANA estaba invertida): para las 2 clases peor
+      cubiertas, ambas <strong>empeoran</strong> contra el real (<code>SLSN-I</code> real
+      <code>41.2%</code>: ratio <code>1.604x→1.748x</code>; <code>ILOT-MOSFIT</code> real
+      <code>3.65%</code>: ratio <code>1.96x→~8.5x</code>) — el candidato de la ventana de generación
+      no explica el residuo de detección, y refuerza la extrapolación tardía (Fase 46) como causa más
+      probable. Las otras 12 clases quedan sin re-medir.</p></div></li>
       <li><span class="step-n">4</span><div class="step-body"><p><strong>Validar la curva de luz
       completa</strong>, no solo <code>rest_phase=0</code> — repetir el pareo objeto-a-objeto de
       Fase 37 en varias fases (-10/0/+10/+20 días). <strong>Hecho en Fase 39</strong>: pareo real
@@ -1846,7 +1852,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Cuarenta y siete fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Cuarenta y nueve fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2690,23 +2696,23 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
       <li>
         <span class="step-n">43</span>
         <div class="step-body">
-          <p><strong><code>GENRANGE_TREST</code> real por clase: mejora sustancial en
-          <code>SLSN-I</code>, sobre-corrección real en <code>ILOT-MOSFIT</code>.</strong> Fase 40
-          encontró que los 7 scripts usan una ventana de generación hardcodeada
-          (<code>-30/100</code> días) idéntica para las 14 clases, pese a que el
+          <p><strong><code>GENRANGE_TREST</code> real por clase, corregido — pero la referencia de
+          SNANA citada acá estaba invertida (ver Fase 49): el ratio empeora en las dos clases, no
+          mejora.</strong> Fase 40 encontró que los 7 scripts usan una ventana de generación
+          hardcodeada (<code>-30/100</code> días) idéntica para las 14 clases, pese a que el
           <code>GENRANGE_TREST</code> real va de <code>-50/300</code> a <code>-100/1000</code> —
           <code>ILOT-MOSFIT</code> cubría solo 11.8% de su ventana real, <code>SLSN-I</code> 21.7%.
-          Corregido por clase en <code>CLASS_CONFIGS</code>.</p>
+          Corregido por clase en <code>CLASS_CONFIGS</code> (código correcto, se mantiene).</p>
           <p><code>SLSN-I</code> (<code>-100/500</code> real, 1 semilla de verificación): detección
-          sube de <code>41.2%</code> a <code>72.0%</code> — mucho más cerca del <code>63.3%</code>
-          real de SNANA que antes, aunque ahora sobre-detecta levemente en vez de sub-detectar.
-          <code>ILOT-MOSFIT</code> (<code>-100/1000</code> real, 5 semillas): sobre-corrige de forma
-          dramática — de sub-detectar 2x (<code>3.65%</code> vs. <code>7.15%</code> real) a
-          sobre-detectar ~4.3x (<code>31.03%±0.63%</code>) — peor en magnitud absoluta que el problema
-          original. Documentado honestamente en ambas direcciones: extender la ventana real no es, por
-          sí sola, la corrección completa para todas las clases — candidato real para
-          <code>ILOT-MOSFIT</code> (posible extrapolación tardía generando detecciones espurias),
-          queda abierto para una fase futura. Las otras 12 clases no se re-midieron esta ronda.</p>
+          sube de <code>41.2%</code> a <code>72.0%</code> — pero <code>41.2%</code> era ya el número
+          real de SNANA (no <code>63.3%</code>, que era LCL histórico), así que el ratio
+          <strong>empeora</strong> de <code>1.604x</code> a <code>1.748x</code>.
+          <code>ILOT-MOSFIT</code> (<code>-100/1000</code> real, 5 semillas): de <code>3.65%</code>
+          (SNANA real, no <code>7.15%</code>) a <code>31.03%±0.63%</code> — ratio
+          <code>1.96x→~8.5x</code>, mucho peor que "peor". Documentado honestamente en ambas
+          direcciones: extender la ventana real no es, por sí sola, la corrección completa —
+          refuerza el candidato de Fase 46 (extrapolación tardía generando detecciones espurias de
+          SNR marginal). Las otras 12 clases no se re-midieron esta ronda.</p>
         </div>
       </li>
       <li>
@@ -2812,6 +2818,30 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           distribución interesante por sí misma, no un candidato urgente para una brecha de brillo
           grande. El <code>-0.068</code> mag remanente, sin tendencia monótona clara por bin, queda
           como pregunta abierta menor para una fase futura.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">49</span>
+        <div class="step-body">
+          <p><strong>Fase 43 leyó la referencia de SNANA invertida: <code>SLSN-I</code>/
+          <code>ILOT-MOSFIT</code> no mejoraron con <code>GENRANGE_TREST</code>, empeoraron.</strong>
+          Corrección real, encontrada al diseñar una ronda de auditoría de bugs metodológicos motivada
+          por el hallazgo de Fase 47. Las tablas de Fase 4 (encabezado real: "detectados SNANA real |
+          detectados LCL") ya tenían el orden correcto (<code>SLSN-I</code>: 824/2000=41.2% SNANA,
+          1266/2000=63.3% LCL; <code>ILOT-MOSFIT</code>: 73/2000=3.65% SNANA, 143/2000=7.15% LCL) —
+          Fase 43 invirtió la asignación al citarlas, etiquetando los números de LCL como "SNANA
+          real". Confirmado contra los <code>.README</code> reales de producción
+          (<code>NGENLC_WRITE: 824</code>/<code>73</code> sobre <code>NGENTOT_LC: 2000</code>) y
+          descartadas 3 definiciones alternativas sobre el <code>.DUMP</code> (ninguna da 1266 ni
+          143).</p>
+          <p>Con la referencia correcta, el cambio de Fase 43 <strong>empeora</strong> el ratio en las
+          dos clases: <code>SLSN-I</code> pasa de <code>1.604x</code> a <code>1.748x</code>
+          (66.1%→72.0% contra un real de 41.2%, no 63.3%); <code>ILOT-MOSFIT</code> de
+          <code>1.96x</code> a <code>~8.5x</code> (7.15%→31.03% contra un real de 3.65%, no 7.15%) —
+          mucho peor que el "peor" ya reportado. El código (<code>trest_range</code>, fiel al
+          <code>.INPUT</code> real) se mantiene sin cambios — el error era de interpretación, no de
+          simulación. Refuerza el hallazgo de Fase 46 (extrapolación tardía → detecciones espurias de
+          SNR marginal) con evidencia más fuerte que antes, en vez de contradecirlo.</p>
         </div>
       </li>
     </ol>
@@ -3144,7 +3174,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "47 fases" },
+    { id: "fases", label: "49 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
