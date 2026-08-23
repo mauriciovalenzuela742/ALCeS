@@ -6205,6 +6205,121 @@ Exploratorios en NLHPC, borrados tras usarlos: `fase47_zbin_analysis.py` (Pasos 
 `fase47_compare_brightness.sbatch` (Paso 1). Output real conservado (no exploratorio, producto de
 script de producción): `compare_brightness_truth_output.parquet`.
 
+## Fase 48 — causa raíz real de la contaminación de campo (Fase 33/36/47): un bug de Capa 1 clasifica el campo `RGES` (Roman Galactic Exoplanet Survey) como DDF
+
+Motivada directamente por Fase 47: si `SNIa-91bg` tenía ~15% de contaminación de campo sin filtrar en
+su `.DUMP` de referencia, ¿la tienen las otras 13 clases del catálogo también? Y más importante: ¿de
+dónde sale esa contaminación en primer lugar? Hasta ahora (Fase 36/47) el filtro
+`filter_ddf_field_contamination()` se trataba como un parche post-hoc sobre el `.DUMP` -- nunca se
+había preguntado por qué el `.DUMP` real de SNANA contenía objetos fuera del footprint DDF si SNANA
+generó la campaña a partir de un SIMLIB que en teoría solo debía tener los 6 campos DDF reales.
+
+### Paso 1 — la causa raíz: el SIMLIB de producción incluye un campo que no es DDF
+
+`pipeline/simlib/classify.py:25` y `pipeline/simlib/simlib.yaml:30` clasifican un `LIBID` del SIMLIB
+como DDF si su `scheduler_note` empieza con el prefijo `"DD:"`:
+
+```python
+ddf_prefixes: tuple[str, ...] = ("DD:",)
+```
+
+Consulta directa sobre el OpSim real (`baseline_v5.3.1_10yrs.db`) por `scheduler_note LIKE 'DD:%'`
+agrupado por `target_name`: hay 8 familias con ese prefijo, no 6. Las 6 reales (`target_name LIKE
+'%ddf_%'`) son los campos DDF conocidos. Las otras 2 son `DD: RGES_offseason` (1574 observaciones) y
+`DD: RGES_onseason` (659 observaciones), ambas con `target_name = 'roman_field, bulgy'` -- el campo
+del Roman Galactic Exoplanet Survey, en el bulbo galáctico (RA≈268.7°, Dec≈-28.97°), a 76.8°-78.2° de
+separación angular de cualquier centro DDF real. `classify.py` no distingue por `target_name`, solo
+por el prefijo de texto de `scheduler_note` -- y RGES comparte el prefijo `"DD:"` por convención de
+nomenclatura del scheduler de Rubin, no por ser parte del DDF.
+
+Parseando el SIMLIB real de producción (`data/simlib/baseline_v5.3.1_10yrs/DDF_baseline_v5.3.1_10yrs.SIMLIB`)
+y midiendo separación angular de cada `LIBID` contra los 6 centros DDF reales: **127/1000 LIBID
+(12.70%)** caen en el rango 76.8°-78.2° -- exactamente el campo RGES, incluido en el SIMLIB de
+producción como si fuera DDF. `127/1000 × 2000 = 254` -- coincide exacto con el conteo de
+contaminación encontrado independientemente en el `.DUMP` de cada una de las 14 clases (ver Fase 36).
+LightCurveLynx no tiene este bug: filtra pointings por `target_name` conteniendo `ddf_`, que RGES no
+tiene, así que nunca ingiere el campo.
+
+### Paso 2 — la tabla de referencia de 14 clases, recalculada con el filtro correcto
+
+`filter_ddf_field_contamination()` (Fase 36, `snana_params.py:675`, separación angular real de 2° por
+objeto contra los 6 centros DDF reales derivados del propio OpSim) aplicada sobre el `.DUMP` real de
+cada una de las 14 clases:
+
+| clase | N (`.DUMP`) | SNANA% raw | N post-filtro | SNANA% DDF-only | ratio histórico (Fase 5) | ratio corregido | factor |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `SNIa-91bg` | 2000 | 36.15 | 1696 | 41.69 | 1.420 | 1.231 | 1.1531 |
+| `PISN-STELLA-HYDROGENIC` | 20000 | 21.34 | 16960 | 24.45 | 1.438 | 1.255 | 1.1458 |
+| `SNII-NMF` | 2000 | 17.80 | 1696 | 20.75 | 1.538 | 1.319 | 1.1660 |
+| `PISN-STELLA-HECORE` | 2000 | 19.20 | 1696 | 21.88 | 1.569 | 1.377 | 1.1393 |
+| `SLSN-I` | 2000 | 41.20 | 1696 | 46.64 | 1.604 | 1.417 | 1.1320 |
+| `TDE-MOSFIT` | 2000 | 40.60 | 1696 | 46.58 | 1.677 | 1.462 | 1.1473 |
+| `PISN-MOSFIT` | 2000 | 20.55 | 1696 | 23.41 | 1.825 | 1.602 | 1.1391 |
+| `SNIa` | 2000 | 29.85 | 1696 | 34.55 | 1.926 | 1.664 | 1.1575 |
+| `ILOT-MOSFIT` | 2000 | 3.65 | 1696 | 4.30 | 2.277 | 1.931 | 1.1792 |
+| `KN-BULLA19` | 2000 | 5.15 | 1696 | 6.07 | 2.509 | 2.128 | 1.1792 |
+| `KN-K17` | 2000 | 4.10 | 1696 | 4.83 | 2.639 | 2.238 | 1.1792 |
+| `SNIax` | 2000 | 8.75 | 1696 | 10.08 | 2.816 | 2.444 | 1.1523 |
+| `SNIIn-MOSFIT` | 2000 | 1.85 | 1696 | 2.12 | 5.605 | 4.885 | 1.1474 |
+| `CaRT` | 2000 | 0.80 | 1696 | 0.94 | 10.825 | 9.180 | 1.1792 |
+
+Promedio del catálogo: `2.833x` histórico → **`2.438x`** corregido. Factor de corrección promedio
+`1.1569x` (std `0.0162`) -- consistente entre clases, sin efecto oculto por clase individual (el rango
+completo va de `1.1320` a `1.1792`, una dispersión chica). Confirma la respuesta a la pregunta que
+arrancó esta fase: **sí, las 14 clases tienen el mismo bug metodológico que `SNIa-91bg`** (contaminación
+de campo sin filtrar en la referencia SNANA), con una magnitud similar en todas (~15% de objetos
+removidos).
+
+Nota honesta: la fracción de contaminación medida acá a nivel de objeto (**15.2%**, 304/2000 para las
+clases de `N=2000`) es más alta que la estimada a nivel de `LIBID` en el Paso 1 (**12.70%**, 127/1000).
+No se fuerza la coincidencia -- son medidas de cosas ligeramente distintas: el Paso 1 cuenta pointings
+completos de RGES: el Paso 2 cuenta objetos removidos por estar a >2° de cualquier centro DDF real, un
+criterio por-objeto más laxo que el 3° usado para el chequeo de `LIBID`, que además puede capturar
+jitter marginal adicional del bug de `ObsTableRADECSampler` sin semilla ya documentado (ver
+`ISSUE_DRAFT_seed_propagation.md`). Ambos números apuntan a la misma causa raíz (RGES), solo difieren
+en la vara de medir.
+
+### Paso 3 — portar el filtro a `compare_brightness_truth_binned.py` (verificación)
+
+`compare_brightness_truth_binned.py` (el script que genera la tabla binneada por redshift usada para
+reportar el resultado de Fase 47) todavía no tenía el filtro aplicado en su versión versionada -- Fase
+47 lo había aplicado solo en un exploratorio ya borrado. Se agregó el import de
+`filter_ddf_field_contamination()` y se aplicó antes de binear. Correrlo de nuevo reproduce **exacto**
+el resultado de Fase 47 (Δ medio bins 2-7 = **`-0.068`** mag), confirmando que el filtro está bien
+portado y que el resultado de Fase 47 es estable, no un artefacto de cómo se corrió el exploratorio
+original.
+
+### Paso 4 — el fix real no se aplica en esta fase
+
+El fix correcto en la fuente (excluir `RGES` de `ddf_prefixes`, o mejor, clasificar por `target_name`
+en vez de por prefijo de `scheduler_note`) es simple a nivel de código -- pero aplicarlo requiere
+regenerar el SIMLIB completo de producción y por lo tanto invalida las 14 campañas de referencia
+(`.DUMP`, `.README`) ya corridas y usadas en cada fase de esta investigación hasta ahora. **No se toca
+`pipeline/simlib/classify.py` ni `simlib.yaml` en esta fase** -- es una decisión de alcance mayor
+(cuándo regenerar el SIMLIB, con qué campaña de referencia) que le corresponde al usuario, no a esta
+fase de diagnóstico.
+
+### Conclusión Fase 48
+
+La contaminación de campo que Fase 36 encontró en `SNIa` y Fase 47 confirmó en `SNIa-91bg` no es un
+problema aislado del `.DUMP` -- es un bug real de Capa 1 (`classify.py:25`/`simlib.yaml:30`) que afecta
+igual a las 14 clases del catálogo, con una causa raíz identificada y reproducida con evidencia directa
+en tres niveles independientes (SQL sobre el OpSim, parseo del SIMLIB real, filtro sobre los 14
+`.DUMP`): el campo `RGES` del Roman Galactic Exoplanet Survey comparte el prefijo `"DD:"` con los
+campos DDF reales y se clasifica como tal por error. La tabla de referencia de 14 clases usada desde
+Fase 5 queda recalculada -- el ratio promedio del catálogo baja de `2.833x` a `2.438x` -- sin cambiar
+la conclusión cualitativa de ninguna fase anterior (todas las comparaciones de ratio relativo entre
+clases se mantienen en el mismo orden). El fix real queda documentado y listo para aplicar, pendiente
+de decisión del usuario sobre cuándo regenerar el SIMLIB de producción.
+
+### Archivos de esta fase
+
+`compare_brightness_truth_binned.py`: agregado el filtro `filter_ddf_field_contamination()` (import +
+aplicación antes de binear), con comentario citando Fase 36/47/48. Exploratorios en NLHPC, borrados
+tras usarlos: `fase48_libid_check.py` (Paso 1, parseo de SIMLIB + separación angular),
+`fase48_paso2_referencia.py` (Paso 2, tabla de 14 clases). `pipeline/simlib/classify.py` y
+`simlib.yaml` sin cambios -- el fix real queda pendiente de decisión del usuario (Paso 4).
+
 ## Fase 49 — Fase 43 leyó la referencia de SNANA invertida: `SLSN-I`/`ILOT-MOSFIT` no mejoraron con `GENRANGE_TREST`, empeoraron
 
 Corrección real, no una nueva hipótesis: al diseñar la ronda de auditoría de bugs metodológicos

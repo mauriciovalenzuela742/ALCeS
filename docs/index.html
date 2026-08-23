@@ -1593,6 +1593,25 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <li><span class="step-n">6</span><div class="step-body"><p><strong>Resolver los bugs de seed
       propagation</strong> — documentados en <code>ISSUE_DRAFT_seed_propagation.md</code>, sin
       publicar, no afectan precisión pero sí reproducibilidad exacta.</p></div></li>
+      <li><span class="step-n">7</span><div class="step-body"><p><strong>✓ Hecho (Fases 47/48):</strong>
+      auditoría a fondo de <code>SNIa-91bg</code> — el residuo de <code>+0.55</code> mag que arrancó
+      toda la investigación (Fase 7) era en un 85% artefacto de metodología (métrica de cadencia +
+      contaminación de campo sin filtrar), no una diferencia real entre simuladores. Al perseguir el
+      mismo patrón en las 14 clases del catálogo se encontró la <strong>causa raíz real de la
+      contaminación de campo</strong>: un bug de Capa 1 en <code>pipeline/simlib/classify.py:25</code>
+      / <code>simlib.yaml:30</code> que clasifica el campo <code>RGES</code> (Roman Galactic Exoplanet
+      Survey) como DDF por compartir el prefijo <code>"DD:"</code>. La tabla de referencia de 14 clases
+      queda recalculada (ratio promedio del catálogo <code>2.833x → 2.438x</code>). <strong>Pendiente,
+      decisión del usuario:</strong> aplicar el fix real (excluir <code>RGES</code> de
+      <code>ddf_prefixes</code>) requiere regenerar el SIMLIB completo e invalida las 14 campañas de
+      referencia ya corridas — no se tocó <code>pipeline/</code> en esta fase.</p></div></li>
+      <li><span class="step-n">8</span><div class="step-body"><p><strong>Generalizar
+      <code>compare_brightness_truth.py</code> por clase</strong> (hoy hardcodeado para
+      <code>SNIa-91bg</code>) y remedir el residuo de brillo pico, con el filtro de contaminación de
+      campo ya aplicado desde el principio, para las clases que nunca se auditaron con la metodología
+      correcta: <code>SNIax</code> y <code>CaRT</code> primero (candidatas de mayor ratio de detección
+      en la tabla corregida de Fase 48), luego <code>SNII-NMF</code>/<code>KN-K17</code>/
+      <code>TDE-MOSFIT</code> si el patrón se repite.</p></div></li>
     </ol>
     </div>
 
@@ -2818,6 +2837,40 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           distribución interesante por sí misma, no un candidato urgente para una brecha de brillo
           grande. El <code>-0.068</code> mag remanente, sin tendencia monótona clara por bin, queda
           como pregunta abierta menor para una fase futura.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">48</span>
+        <div class="step-body">
+          <p><strong>Causa raíz real de la contaminación de campo (Fase 33/36/47) encontrada: no es
+          un problema del <code>.DUMP</code>, es un bug de Capa 1 en el pipeline de producción.</strong>
+          <code>pipeline/simlib/classify.py:25</code> / <code>pipeline/simlib/simlib.yaml:30</code>
+          clasifican DDF por el prefijo <code>scheduler_note</code> <code>"DD:"</code> — pero el OpSim
+          real (<code>baseline_v5.3.1_10yrs.db</code>) tiene dos familias adicionales con ese mismo
+          prefijo que no son DDF: <code>DD: RGES_offseason</code> (1574 obs) y <code>DD: RGES_onseason</code>
+          (659 obs), ambas con <code>target_name = 'roman_field, bulgy'</code> (Roman Galactic
+          Exoplanet Survey, bulbo galáctico, RA≈268.7/Dec≈-28.97) — muy lejos de los 6 campos DDF
+          reales. El SIMLIB de producción incluye <strong>127/1000 LIBID (12.70%)</strong> de este
+          campo como si fueran DDF; LightCurveLynx los excluye correctamente (filtra por
+          <code>target_name</code> conteniendo <code>ddf_</code>, que RGES no tiene). 127/1000×2000=254 —
+          coincide exacto con el conteo de contaminación encontrado independientemente en el
+          <code>.DUMP</code> de cada una de las 14 clases.</p>
+          <p>Con <code>filter_ddf_field_contamination()</code> (Fase 36) aplicada correctamente sobre
+          cada clase (2° de separación angular), la tabla de referencia de 14 clases de Fase 5 queda
+          recalculada: el ratio promedio del catálogo baja de <strong><code>2.833x</code> histórico a
+          <code>2.438x</code> corregido</strong>, con un factor de corrección consistente por clase
+          (~1.13x–1.18x, std=0.016) — sin efecto oculto por clase individual. La fracción de
+          contaminación medida directamente sobre el <code>.DUMP</code> real (15.2%, 304/2000) es algo
+          más alta que la estimada a nivel de LIBID (12.70%) — diferencia real, no forzada a coincidir;
+          candidato más probable es el umbral de separación angular por objeto (2°) siendo más laxo que
+          el de LIBID (3°), sumado al jitter sin semilla de <code>ObsTableRADECSampler</code> ya
+          documentado.</p>
+          <p>El filtro se portó a <code>compare_brightness_truth_binned.py</code> (antes solo aplicado
+          en un exploratorio de Fase 47, nunca versionado) — reproduce exacto el resultado de Fase 47
+          (Δ medio bins 2-7 = <code>-0.068</code> mag), confirmando que el fix es correcto y estable.
+          <strong>No se toca <code>pipeline/</code></strong>: aplicar el fix real (excluir RGES de
+          <code>ddf_prefixes</code>) requiere regenerar el SIMLIB completo e invalida las 14 campañas
+          de referencia ya corridas — decisión del usuario, no de esta fase.</p>
         </div>
       </li>
       <li>

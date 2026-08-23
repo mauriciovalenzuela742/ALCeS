@@ -9,6 +9,7 @@ Uso (despues de correr compare_brightness_truth.py):
 import sys
 sys.path.insert(0, ".")
 from compare_brightness import read_snana_dump
+from snana_params import filter_ddf_field_contamination
 import pandas as pd
 import numpy as np
 
@@ -16,10 +17,21 @@ SNANA_DUMP = (
     "/home/mvalenzuela/DATASIM_LSST_1/DDF/SIMDv8/SNIa-91bg_DDF_baseline_v5.3.1_10yrs/"
     "SNIa-91bg_DDF_baseline_v5.3.1_10yrs.DUMP"
 )
+OPSIM_DB = "/home/mvalenzuela/AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db"
 
 
 def main():
     snana = read_snana_dump(SNANA_DUMP)
+    # Fase 36/47/48: ~15% del .DUMP real no son miembros reales de ningun campo
+    # DDF (causa raiz real, Fase 48: el SIMLIB de produccion incluye el campo
+    # RGES del Roman Galactic Exoplanet Survey bajo el mismo prefijo "DD:" que
+    # los 6 campos DDF reales, pipeline/simlib/simlib.yaml:30 -- nunca portado
+    # a este script versionado hasta ahora, solo se aplico en un exploratorio
+    # ya borrado de Fase 47). Filtrar antes de binear.
+    n_before = len(snana)
+    snana = filter_ddf_field_contamination(snana, OPSIM_DB, max_sep_deg=2.0)
+    print(f"Filtro de contaminacion de campo (Fase 36/47/48): {n_before - len(snana)}/{n_before} "
+          f"objetos removidos ({100 * (n_before - len(snana)) / n_before:.1f}%)")
     z_s = snana["ZHELIO"].to_numpy()
     mag_s = snana["PEAKMAG_r"].to_numpy()
     valid = (mag_s > -8) & (mag_s < 90) & np.isfinite(mag_s)
