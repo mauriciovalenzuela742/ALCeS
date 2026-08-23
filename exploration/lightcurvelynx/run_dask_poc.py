@@ -40,7 +40,7 @@ from lightcurvelynx.simulate import simulate_lightcurves
 from lightcurvelynx.survey_info import SurveyInfo
 from lightcurvelynx.utils.extrapolate import LinearDecay, ZeroPadding
 
-from snana_params import build_dndz_powerlaw2_cdf, make_dndz_sampler, make_bifurcated_normal_sampler, SizeAwareFunctionNode
+from snana_params import build_dndz_powerlaw2_cdf, make_dndz_sampler, make_bifurcated_normal_sampler, read_salt2_info, SizeAwareFunctionNode
 
 HERE = Path(__file__).resolve().parent
 SNANA_HOME = Path("/home/mvalenzuela")
@@ -89,7 +89,14 @@ def simulate_chunk(seed_base: int, n_objects: int) -> int:
     # Fase 34/35: H0=70/Om0=0.315 son los valores reales de SNANA (OMEGA_MATTER_DEFAULT,
     # sntools.h), no 73/0.3 -- ver NOTES.md Fase 34.
     distmod_func = DistModFromRedshift(redshift_func, H0=70.0, Omega_m=0.315)
-    m_abs_func = NumpyRandomFunc("normal", loc=-19.3, scale=SIGMA_INT, seed=seed_base + 4)
+    # Fase 20: M_abs real de la convencion SALT2x0calc() de SNANA es -19.365, no
+    # -19.3 (placeholder de literatura). Fase 37: ademas hay que sumar el
+    # `MAG_OFFSET: 0.27` real del SALT2.INFO del modelo, que SNANA aplica
+    # (`genmag_SALT2.c:2257`) y sncosmo ignora por completo. Ver NOTES.md 20/37.
+    m_abs_func = NumpyRandomFunc(
+        "normal", loc=-19.365 + read_salt2_info(SALT2_LOCAL_DIR)["MAG_OFFSET"],
+        scale=SIGMA_INT, seed=seed_base + 4,
+    )
     x0_func = X0FromDistMod(distmod=distmod_func, x1=x1_func, c=c_func, alpha=ALPHA, beta=BETA, m_abs=m_abs_func)
     radec_sampler = ObsTableRADECSampler(obs_table, seed=seed_base + 5)
     t0_func = NumpyRandomFunc(

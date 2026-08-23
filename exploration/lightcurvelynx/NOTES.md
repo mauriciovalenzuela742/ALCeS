@@ -5056,3 +5056,284 @@ DDF, reutilizable). Exploratorios en NLHPC, borrados tras usarlos: `fase36_popul
 (recorrida poblacional 6 bandas, output `fase36_population_6band_output.parquet` también borrado),
 `fase36_analysis.py` (comparación con/sin filtro, outputs `fase36_diff_unfiltered.csv`/
 `fase36_diff_filtered.csv` también borrados tras extraer los números).
+
+## Fase 37 — RESUELTO: el residuo acromático era `MAG_OFFSET: 0.27`, una clave del `SALT2.INFO` real del modelo que `sncosmo` no lee en absoluto
+
+Cierra el residuo que la investigación persigue desde Fase 16. **No estaba en la cadena SALT2, ni en
+la fotometría sintética, ni en el muestreo poblacional: estaba en un archivo del propio directorio del
+modelo que `sncosmo` abre pero nunca lee.**
+
+### El cambio de método que lo destrabó: comparación PAREADA, no mediana-contra-mediana
+
+Todas las comparaciones poblacionales de Fases 16-36 son `mediana(LCL)` contra `mediana(SNANA)` de
+**dos poblaciones muestreadas independientemente** (LightCurveLynx samplea su propio `z`/`x1`/`c`;
+SNANA los suyos). Eso mezcla irreversiblemente dos efectos distintos:
+
+- **(a) diferencia de FOTOMETRÍA** — mismos parámetros, distinto flujo;
+- **(b) diferencia de MUESTREO POBLACIONAL** — distinta distribución de `z`/`x1`/`c`/`MU`.
+
+Ninguna fase anterior pudo separarlos, y por eso el espacio de candidatos parecía agotado: cada fase
+atacaba un mecanismo de (a) o de (b) sin poder acotar cuánto podía aportar cada familia. El `.DUMP`
+usado desde Fase 16 no trae `x1`/`c` (36 columnas reales, ninguna es `S2c`/`S2x1`), así que el pareo
+nunca fue posible con ese archivo.
+
+**Lo que sí lo hace posible, y nunca se había mirado: el `_HEAD.FITS` real de producción.** Tiene 212
+columnas, entre ellas `SIM_SALT2x0`, `SIM_SALT2x1`, `SIM_SALT2c`, `SIM_SALT2mB`, `SIM_SALT2alpha`,
+`SIM_SALT2beta`, `SIM_DLMU`, `SIM_MWEBV`, `SIM_PEAKMJD`, `SIM_MAGSMEAR_COH` y `SIM_PEAKMAG_u..Y` —
+**por objeto**. Con eso se le pueden dar a LightCurveLynx los parámetros EXACTOS que usó SNANA y
+comparar objeto a objeto, aislando (a) de (b) por primera vez en todo el proyecto.
+
+### Paso 0 — hallazgo lateral de higiene: el `.DUMP` de referencia estaba truncado
+
+El archivo usado desde Fase 16 vive en `_stale_pre_v8fix/` y tiene **1957** filas. Existe la versión
+no-stale de la MISMA simulación (mismo `RANSEED: 12945`, filas 1-1957 byte-idénticas) en
+`/home/mvalenzuela/DATASIM_LSST_1/DDF/SIMDv8/SNIa_DDF_baseline_v5.3.1_10yrs/`, con las **2000** filas
+completas (`NGENTOT_LC: 2000`). El `_stale` era simplemente una copia truncada, no una corrida
+distinta. Se pasa a la versión completa (43 objetos más, ~2%).
+
+De paso, su `.README` confirma contra el registro real de la corrida varios valores que fases
+anteriores dedujeron indirectamente: `OMEGA_MATTER: 0.3150` y `H0 = 70.00` (Fase 34 ✓),
+`GENSIGMA_VPEC: 0` (Fase 34 ✓), `GENSIGMA_MWEBV_RATIO: 0.16` (Fase 10 ✓), `WRFLAG_MODELPAR: 1`.
+
+### Paso 1 — verificación previa: la definición de `mB` de SNANA, objeto por objeto
+
+Antes de nada, con las columnas reales del `_HEAD.FITS` (597 objetos escritos):
+
+| relación probada | residuo mediano | std |
+|---|---:|---:|
+| `SIM_SALT2mB` vs `-2.5·log10(SIM_SALT2x0) + 10.635` | **0.000000** | — |
+| `SIM_SALT2mB` vs `SIM_DLMU − 19.365 − α·x1 + β·c` | **0.000000** | 0.000001 |
+
+`SIM_SALT2alpha=0.14`, `SIM_SALT2beta=3.1`, `SIM_SALT2gammaDM=0` exactos. **`M_abs=-19.365` de Fase 20
+queda confirmado por tercera vez, ahora contra datos reales por objeto y no contra una reconstrucción.**
+Además `SIM_MAGSMEAR_COH` tiene `std=0.0911` — es el término coherente de G10, y coincide con el
+`SIGMA_INT=0.090` que el proyecto ya usaba.
+
+### Paso 2 — la comparación pareada: el residuo es 100% fotométrico y perfectamente plano
+
+Se alimentó a LightCurveLynx, objeto por objeto, el `SIM_SALT2x0`/`x1`/`c`/`SIM_REDSHIFT_HELIO`/
+`SIM_MWEBV`/`SIM_PEAKMJD` **exactos** de SNANA (`SncosmoWrapperModel` +
+`compute_single_noise_free_lightcurve()` en `rest_phase=0`, mismo motor real de Fases 22-36), con el
+filtro de contaminación de Fase 36 aplicado (586/597):
+
+| banda | N | mediana Δ (LCL−SNANA) | media | std | p16 | p84 |
+|---|---:|---:|---:|---:|---:|---:|
+| `u` | 28 | -0.2931 | -0.2803 | 0.189 | -0.438 | -0.117 |
+| `g` | 266 | -0.2656 | -0.2746 | 0.132 | -0.409 | -0.154 |
+| `r` | 584 | -0.2620 | -0.2641 | 0.114 | -0.369 | -0.153 |
+| `i` | 585 | -0.2613 | -0.2620 | 0.098 | -0.355 | -0.165 |
+| `z` | 566 | -0.2608 | -0.2605 | 0.094 | -0.353 | -0.168 |
+| `y` | 517 | -0.2574 | -0.2607 | 0.094 | -0.354 | -0.165 |
+
+Y **descontando el smear coherente real de cada objeto** (`SIM_PEAKMAG − SIM_MAGSMEAR_COH`):
+
+| banda | mediana Δ | std |
+|---|---:|---:|
+| `g` | -0.2722 | 0.098 |
+| `r` | -0.2722 | 0.073 |
+| `i` | -0.2710 | **0.033** |
+| `z` | -0.2693 | **0.023** |
+| `y` | -0.2699 | **0.022** |
+
+Ajustando `Δ_r` contra `SIM_MAGSMEAR_COH`: **pendiente `-0.9672`, intercepto `-0.2719`** — confirma
+numéricamente que `SIM_PEAKMAG` SÍ incluye el smear intrínseco (dato nuevo: Fase 27 había supuesto lo
+contrario) y que, quitándolo, lo que queda es una **constante**.
+
+Y por bin de `z` (mediana, banda `r`): `-0.2977 / -0.2492 / -0.2700 / -0.2694 / -0.2623 / -0.2387 /
+-0.2637` — **plano también en redshift**.
+
+Con `std` de **0.022-0.033 mag** en `i`/`z`/`y` sobre ~570 objetos, esto no es un residuo estadístico:
+es un **offset constante y acromático de −0.272 mag**. Y como el pareo elimina por construcción toda
+diferencia de muestreo, **el 100% del residuo es fotométrico** — toda la familia (b) queda descartada
+de un solo golpe.
+
+### Paso 3 — ¿de qué lado está el error? Prueba a tres bandas
+
+Se comparó la MISMA magnitud AB sintética para el mismo objeto SALT2 (`z=0.6`, sin extinción) por tres
+caminos independientes: (1) LightCurveLynx (`PassbandGroup`/`evaluate_bandfluxes`), (2) `sncosmo`
+nativo (`Model.bandmag(band, "ab", t0)`, implementación de referencia independiente), y (3) una
+integral AB photon-counting escrita a mano desde `model.flux()`:
+
+| banda | LCL | sncosmo | manual | LCL−sncosmo | LCL−manual |
+|---|---:|---:|---:|---:|---:|
+| `g` | 24.7335 | 24.6997 | 24.7335 | +0.0338 | **0.0000** |
+| `r` | 23.3787 | 23.3761 | 23.3787 | +0.0027 | **0.0000** |
+| `i` | 23.3418 | 23.3441 | 23.3418 | -0.0023 | **0.0000** |
+| `z` | 23.3757 | 23.3781 | 23.3757 | -0.0024 | **0.0000** |
+| `y` | 23.4704 | 23.4641 | 23.4704 | +0.0062 | **0.0000** |
+
+(las diferencias contra `sncosmo` son el recorte `trim_quantile` de las bandas, ya cuantificado en
+Fase 31). **La fotometría absoluta de LightCurveLynx es correcta**, verificada contra dos referencias
+independientes. Y del lado de SNANA, el punto cero también: el `PrimarySED` real de `kcor_LSST.fits`
+resultó ser **exactamente** AB (3631 Jy) — razón contra `3631 Jy` constante en las 991 longitudes de
+onda con `std = 1.7e-7` — con `Primary Mag = 0`, `ZPoff(Primary) = 0` en las 6 bandas, y el log real de
+la corrida confirma `MODEL mag offsets (ugrizY): 0.00 0.00 0.00 0.00 0.00 0.00`. También se verificó en
+el fuente que `SEDMODEL.FLUXSCALE = X0SCALE_SALT2 = 1.0E-12` (`genmag_SALT2.c:257`), **el mismo valor
+exacto** que `sncosmo.SALT2Source._SCALE_FACTOR`, y que los factores `lamstep/hc8` se cancelan entre
+`Finteg` y el `ZP`. Los dos lados, por separado, son correctos.
+
+### Paso 4 — el hallazgo: `MAG_OFFSET: 0.27` en el `SALT2.INFO` del modelo
+
+`/home/mvalenzuela/run_SNANA/plasticc_models/SALT2.WFIRST-H17/SALT2.INFO` (y su copia local
+`exploration/lightcurvelynx/salt2_h17_local/SALT2.INFO`, el directorio que los scripts le pasan a
+`sncosmo.SALT2Source(modeldir=...)`) declara:
+
+```
+RESTLAMBDA_RANGE  2000. 23000
+COLORLAW_VERSION: 1
+COLORCOR_PARAMS: 2800 9500 4 -1.33154627 0.61225710 -0.12117791 0.00840832
+COLOR_OFFSET:  0.0
+
+MAG_OFFSET: 0.27          <---- ESTO
+SEDFLUX_INTERP_OPT: 1
+...
+SIGMA_INT: 0.090
+```
+
+**SNANA lo lee y lo aplica a TODA magnitud del modelo** — `genmag_SALT2.c`, línea real 2257:
+
+```c
+magobs = ZP - 2.5*log10(flux) + INPUT_SALT2_INFO.MAG_OFFSET ;
+```
+
+(leído en `genmag_SALT2.c:1275-1276`, default `0.0` en la línea 1205; y aplicado también al
+espectrógrafo en la línea 3586 vía `FSCALE_ZP = pow(TEN,-0.4*MAG_OFFSET)`). Como entra después de la
+integral de banda, es **aditivo en magnitud y exactamente acromático**, y afecta a `peakmag_obs` y por
+lo tanto a `PEAKMAG_<filt>` del `.DUMP` y a `SIM_PEAKMAG_<filt>` del `_HEAD.FITS`.
+
+**`sncosmo.SALT2Source` no lee `SALT2.INFO` en absoluto.** Verificado sobre el fuente real del paquete
+instalado (`sncosmo==2.13.0`, vía `inspect.getsource`): ni la cadena `"SALT2.INFO"` ni `"MAG_OFFSET"`
+aparecen en la clase. Sus argumentos de `__init__` son exclusivamente `m0file`, `m1file`, `clfile`,
+`cdfile`, `errscalefile`, `lcrv00file`/`11`/`01` — el `SALT2.INFO` está en el mismo directorio, se copia
+junto al resto del modelo, y se ignora silenciosamente.
+
+**Valor declarado: `0.27`. Residuo pareado medido: `-0.2722` mag. Coinciden a 0.002 mag.**
+
+Detalle de honestidad: ese `0.0022` residual es consistente con un efecto real de segundo orden que se
+encontró en el mismo paso pero no se corrigió — `snlc_sim.c:25324` real muestra que
+`SIM_PEAKMAG = peakmag_obs − MCOR_TRUE_MW`, es decir el `_HEAD.FITS` reporta la magnitud **con la
+extinción MW ya descontada**, mientras el pareo de arriba sí la aplicó del lado de LightCurveLynx.
+A los `E(B-V)` reales de DDF eso vale ~0.02-0.07 mag según banda y explica también por qué el `Δ`
+pareado no es perfectamente plano entre `u` y `y` (`-0.293` vs `-0.257`). No cambia la conclusión y se
+documenta como caveat conocido, no se oculta.
+
+**Ironía real del hallazgo**: `run_snia_ddf_poc.py` ya citaba este mismo archivo desde las primeras
+fases — su docstring dice literalmente *"SIGMA_INT=0.090 (de SALT2.INFO)"*. El proyecto leyó
+`SALT2.INFO`, tomó `SIGMA_INT` de ahí, y nunca miró la clave que está **dos líneas más arriba**.
+
+### Paso 5 — corregido y medido sobre la población completa (2000 objetos)
+
+Nueva función `read_salt2_info()` en `snana_params.py` que parsea el `SALT2.INFO` real (no hardcodea el
+`0.27`), y `m_abs = -19.365 + MAG_OFFSET` en los scripts. Es exactamente equivalente al offset aditivo
+de SNANA: `x0 ~ 10^(-0.4·m_abs)`, así que `+0.27` en `m_abs` atenúa las 6 bandas por igual en `+0.27`
+mag.
+
+Recorrida completa: **la misma población de 2000 objetos** (mismo `seed_base=20260812`, mismos
+`z`/`x1`/`c`/`t0`/`ra`/`dec`) evaluada **dos veces en la misma corrida**, con y sin el offset, contra el
+`.DUMP` real completo ya filtrado de contaminación (1696/2000, Fase 36),
+`compute_noise_free_lightcurves()` en `rest_phase=0`, mediana por los mismos 7 bins de `z`, media de
+bins 2-7 — metodología idéntica a Fases 32/34/36:
+
+| banda | sin fix (estado Fase 36) | con fix `MAG_OFFSET` | cambio |
+|---|---:|---:|---:|
+| `u` | +0.8105 (no confiable, borde de template) | +1.0805 | +0.2700 |
+| `g` | -0.2304 | **+0.0396** | +0.2700 |
+| `r` | -0.2509 | **+0.0191** | +0.2700 |
+| `i` | -0.2647 | **+0.0053** | +0.2700 |
+| `z` | -0.2892 | **-0.0192** | +0.2700 |
+| `y` | -0.2880 | **-0.0180** | +0.2700 |
+
+**NIVEL ACROMÁTICO (media `g/r/i/z/y`): `-0.2646` → `+0.0054` mag — el residuo se reduce un 98%.**
+
+Sanity check real: la columna "sin fix" reproduce el número de Fase 36 (`-0.2642`) a **0.0004 mag** de
+diferencia, con un script escrito de cero — la comparación es la misma, no una redefinición conveniente.
+El spread cromático `g−y` no cambia (`+0.0577` antes y después): el offset es exactamente acromático por
+construcción, como debe ser. (Ese `+0.058` es algo mayor que el `+0.016` de Fase 36 por usar ahora el
+`.DUMP` completo de 2000 filas en vez del truncado de 1957; sigue siendo compatible con ruido de
+cobertura de bins, no con un patrón cromático sistemático.) `u` sigue sin ser confiable — mismo problema
+de borde de template de Fase 13/23/27, con 1-2 bins válidos.
+
+### Paso 6 — cabo suelto de Fase 32 cerrado de paso: los samplers de `c`/`x1`, contra los draws reales
+
+Fase 32 verificó la **fracción de rama** del sampler bifurcado, nunca la distribución completa ni el
+comportamiento en los bordes de truncamiento (`GENRANGE_SALT2c/x1`). Se cerró de dos formas.
+
+**Por lectura de código real**: `getRan_GENGAUSS_ASYM()` (`sntools_genGauss_asym.c`, bloque final de la
+función) trunca por **rechazo puro con redraw completo** (`if (ranval < lo) { goto
+BEGIN_RANDOM_SELECT; }`), que vuelve a sortear también el lado — exactamente lo que hace
+`make_bifurcated_normal_sampler()`. No hay diferencia de mecanismo.
+
+**Por medición directa**: se reprodujo la corrida de producción con el `.INPUT` real **sin editarlo**
+(`snlc_sim.exe sim_SNIa_DDF_baseline_v5.3.1_10yrs.INPUT GENVERSION TEST_FASE37_dump SIMGEN_DUMPADD
+S2c,S2x1,S2mb` — `SIMGEN_DUMPADD` es un override de línea de comandos, la vía limpia que evita el bug
+de claves duplicadas de Fase 27), obteniendo los `c`/`x1` reales de los **2000 objetos generados**
+(`SIMGEN_DUMPALL`, sin sesgo de trigger; 79 filas traen el flag `-9` y se enmascaran):
+
+| | `c` real (N=1921) | `c` LCL (200k) | `x1` real | `x1` LCL |
+|---|---:|---:|---:|---:|
+| media | -0.0061 | -0.0075 | -0.0083 | -0.0028 |
+| mediana | -0.0153 | -0.0163 | 0.1695 | 0.1586 |
+| std | 0.0753 | 0.0745 | 0.9034 | 0.9101 |
+| P(lado alto) | 0.7090 | 0.7028 | 0.1223 | 0.1321 |
+| fuera de rango | 0 | 0 | 0 | 0 |
+
+Test KS de dos muestras: `c` → `stat=0.0187, p=0.515`; `x1` → `stat=0.0214, p=0.345` — **no se puede
+rechazar que sean la misma distribución** en ninguno de los dos. Impacto en magnitud de las diferencias
+de media: **`-0.0041` mag (`c`) y `-0.0008` mag (`x1`)**. **Los samplers están correctos**, bordes de
+truncamiento incluidos — coherente con el Paso 2, que ya había mostrado que el residuo es 100%
+fotométrico y por lo tanto que no quedaba nada por encontrar del lado poblacional.
+
+### Conclusión Fase 37 — el residuo queda cerrado, y la lección metodológica es la parte transferible
+
+1. **El residuo acromático de ~0.26 mag que la investigación persigue desde Fase 16 queda explicado y
+   corregido**: `MAG_OFFSET: 0.27` del `SALT2.INFO` real del modelo `SALT2.WFIRST-H17`, aplicado por
+   SNANA (`genmag_SALT2.c:2257`) e ignorado por completo por `sncosmo`/LightCurveLynx. Nivel acromático
+   `-0.2646` → `+0.0054` mag, **98% de reducción**, sin patrón cromático residual.
+2. **Cadena completa de la investigación**: Fase 22 midió `~0.52` mag; Fase 32 (bug del sampler
+   bifurcado) bajó a `~0.33`; Fase 36 (contaminación de campo del `.DUMP`) a `~0.26`; Fase 37
+   (`MAG_OFFSET`) a `~0.005`. Las cuatro correcciones son reales, independientes y verificadas contra
+   código o datos reales.
+3. **Por qué 21 fases no lo encontraron, y qué lo destrabó.** Dos razones concretas, ambas
+   estructurales y no de esfuerzo:
+   - *La métrica lo escondía.* Todas las pruebas código-real-contra-código-real de Fases 26-31 se
+     midieron **relativas a la banda `r`** (`diff = (LCL−r) − (SNANA−r)`). Esa normalización **cancela
+     por construcción cualquier offset acromático** — y `MAG_OFFSET` es exactamente eso. La búsqueda
+     estaba, sin saberlo, ciega a la única clase de causa que quedaba.
+   - *La comparación mezclaba dos familias de causas.* Comparar mediana contra mediana de dos
+     poblaciones independientes impedía saber si el residuo venía de la fotometría o del muestreo. El
+     pareo objeto-a-objeto (posible sólo mirando el `_HEAD.FITS`, nunca usado antes) lo resolvió en una
+     sola corrida y con `std = 0.022` mag.
+4. **Lección de fidelidad, generalizable más allá de este proyecto**: cuando se reemplaza un simulador
+   por otro reusando los **mismos archivos de modelo**, no alcanza con verificar que los archivos de
+   datos sean byte-idénticos (Fase 20 lo hizo, con `md5sum`) — hay que verificar que el nuevo código
+   **lea todas las claves de configuración** que el viejo lee. `sncosmo` copia y abre el directorio
+   `SALT2.WFIRST-H17` entero, y descarta silenciosamente `MAG_OFFSET`, `COLOR_OFFSET`,
+   `SEDFLUX_INTERP_OPT`, `MAGERR_*` y `RESTLAMBDA_RANGE`. Es un modo de falla silencioso: no hay error,
+   no hay warning, sólo un sesgo constante de 0.27 mag. Es el mismo patrón de las Fases 24/32/34
+   (`O94` vs `F99`, split 50/50, `Om0=0.3`) llevado a su forma más pura: **un valor asumido por
+   omisión, nunca contrastado contra la fuente real**.
+5. **Cabo suelto menor documentado, no corregido**: `SIM_PEAKMAG` del `_HEAD.FITS` viene con la
+   extinción MW descontada (`snlc_sim.c:25324`), mientras `PEAKMAG_<filt>` del `.DUMP` no. Cualquier
+   comparación futura contra `_HEAD.FITS` debe apagar la extinción del lado de LightCurveLynx. Efecto
+   ~0.02-0.07 mag; no afecta la comparación principal de esta fase, que usa el `.DUMP`.
+
+### Archivos de esta fase
+
+- `snana_params.py`: nueva función `read_salt2_info()` — parsea el `SALT2.INFO` real del directorio del
+  modelo (no hardcodea `0.27`), con la cita de `genmag_SALT2.c:2257` y la verificación de que `sncosmo`
+  no lo lee.
+- `compare_brightness_truth_salt2.py`, `run_snia_ddf_poc.py`, `run_dask_poc.py`: `m_abs = -19.365 +
+  MAG_OFFSET` leído del `SALT2.INFO` real. En `run_dask_poc.py` se corrige además el `-19.3` que había
+  quedado sin migrar desde Fase 20 (mismo criterio de seguimiento que Fase 35 para `Om0`).
+- `bench_snia.py`: **no** se toca — usa el modelo `"salt2-h17"` del registry de `sncosmo` (no el
+  directorio real de producción, así que no hay `SALT2.INFO` que leer) y una población sintética
+  (`x1~N(0,2)`, `c~N(0,0.02)`, `z` uniforme); es un benchmark de rendimiento, no parte de la cadena de
+  fidelidad. Queda anotado honestamente, no corregido a ciegas.
+- Referencia de comparación: se pasa del `.DUMP` truncado de `_stale_pre_v8fix/` (1957 filas) al
+  completo de `DDF/SIMDv8/` (2000 filas, misma corrida).
+- Exploratorios en NLHPC, borrados tras usarlos: `fase37_paired.py`/`.sbatch` (Paso 2, comparación
+  pareada contra `_HEAD.FITS`), `fase37_3way.py` (Paso 3, LCL vs `sncosmo` vs integral manual),
+  `fase37_pop.py`/`.sbatch` (Paso 5, población completa con y sin fix), `run_fase37_dump.sh` (Paso 6,
+  reproducción de la corrida de producción con `SIMGEN_DUMPADD`). GENVERSION `TEST_FASE37_dump`
+  generado en `SNDATA_ROOT/SIM/` y borrado tras extraer los `c`/`x1` reales. Sin parches nuevos a
+  SNANA — esta fase no necesitó instrumentar el binario, sólo leer su fuente y sus archivos de entrada.

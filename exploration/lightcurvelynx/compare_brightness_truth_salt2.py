@@ -46,7 +46,7 @@ from pipeline.simlib.formatobs import format_obs  # noqa: E402
 
 from snana_params import (
     build_dndz_powerlaw2_cdf, make_dndz_sampler, make_bifurcated_normal_sampler,
-    make_mwebv_ratio_scatter,
+    make_mwebv_ratio_scatter, read_salt2_info,
     SizeAwareFunctionNode,
 )
 
@@ -125,7 +125,20 @@ def main():
     # exacto con SALT2x0calc() de SNANA -- ver run_snia_ddf_poc.py y NOTES.md
     # Fase 20 para la verificacion numerica completa (no cierra el residuo,
     # es una correccion de calibracion real, independiente de esa pregunta).
-    m_abs_func = NumpyRandomFunc("normal", loc=-19.365, scale=SIGMA_INT, seed=seed_base + 4)
+    #
+    # Fase 37: el SALT2.INFO real del modelo declara `MAG_OFFSET: 0.27`, que
+    # SNANA aplica a TODA magnitud del modelo (`genmag_SALT2.c:2257`:
+    # `magobs = ZP - 2.5*log10(flux) + MAG_OFFSET`) y que sncosmo ignora por
+    # completo (nunca lee SALT2.INFO). Sumarlo a m_abs es exactamente
+    # equivalente: x0 ~ 10^(-0.4*m_abs), asi que +0.27 en m_abs atenua todas
+    # las bandas por igual en +0.27 mag, igual que el offset aditivo de SNANA.
+    # Es la causa del residuo acromatico de ~0.26 mag que persiguieron las
+    # Fases 16-36 -- ver NOTES.md Fase 37.
+    salt2_mag_offset = read_salt2_info(SALT2_LOCAL_DIR)["MAG_OFFSET"]
+    print(f"SALT2.INFO real: MAG_OFFSET = {salt2_mag_offset}")
+    m_abs_func = NumpyRandomFunc(
+        "normal", loc=-19.365 + salt2_mag_offset, scale=SIGMA_INT, seed=seed_base + 4
+    )
     x0_func = X0FromDistMod(
         distmod=distmod_func, x1=x1_func, c=c_func, alpha=ALPHA, beta=BETA, m_abs=m_abs_func,
     )

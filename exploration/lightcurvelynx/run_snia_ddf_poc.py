@@ -77,7 +77,7 @@ from pipeline.simlib.formatobs import format_obs  # noqa: E402
 
 from snana_params import (
     build_dndz_powerlaw2_cdf, make_dndz_sampler, make_bifurcated_normal_sampler,
-    make_mwebv_ratio_scatter, make_wfd_ebv_lookup,
+    make_mwebv_ratio_scatter, make_wfd_ebv_lookup, read_salt2_info,
     SizeAwareFunctionNode,
 )
 from searcheff import (
@@ -222,7 +222,21 @@ def main(seed_index: int = 0, wfd: bool = False):
     # direccion CONTRARIA (mas brillante todavia, no mas tenue), asi que el
     # residuo real sigue sin explicarse; este cambio es una correccion de
     # calibracion real, no un intento de cerrar la brecha.
-    m_abs_func = NumpyRandomFunc("normal", loc=-19.365, scale=SIGMA_INT, seed=seed_base + 4)
+    #
+    # Fase 37: el residuo SI queda explicado, y no estaba en la cadena SALT2
+    # sino en un archivo que sncosmo nunca lee. El SALT2.INFO real del modelo
+    # (SALT2.WFIRST-H17, el mismo directorio que se le pasa a SALT2Source)
+    # declara `MAG_OFFSET: 0.27`, dos lineas arriba del `SIGMA_INT: 0.090` que
+    # este script ya citaba. SNANA lo aplica a TODA magnitud del modelo
+    # (`genmag_SALT2.c:2257`: `magobs = ZP - 2.5*log10(flux) + MAG_OFFSET`);
+    # `sncosmo.SALT2Source` no lee SALT2.INFO en absoluto. Sumarlo a m_abs es
+    # exactamente equivalente (x0 ~ 10^(-0.4*m_abs) -> atenua las 6 bandas por
+    # igual). Medido pareado objeto-a-objeto contra el _HEAD.FITS real:
+    # -0.2722 mag, plano en banda y en z. Ver NOTES.md Fase 37.
+    salt2_mag_offset = read_salt2_info(SALT2_LOCAL_DIR)["MAG_OFFSET"]
+    m_abs_func = NumpyRandomFunc(
+        "normal", loc=-19.365 + salt2_mag_offset, scale=SIGMA_INT, seed=seed_base + 4
+    )
     x0_func = X0FromDistMod(
         distmod=distmod_func, x1=x1_func, c=c_func, alpha=ALPHA, beta=BETA, m_abs=m_abs_func,
     )

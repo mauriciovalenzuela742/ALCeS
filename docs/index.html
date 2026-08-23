@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "38&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "39&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,7 +1268,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-36</span>
+      <span class="verdict-badge critical">Actualización Fases 22-37</span>
       <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
       pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
       subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "38 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "39 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "38 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "39 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,8 +1439,31 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "38 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "39 fases" (Fase 36) para el detalle
       completo.</p>
+      <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
+      del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
+      Lo que lo destrabó fue un cambio de método, no otro candidato: hasta acá toda comparación era
+      mediana-contra-mediana de dos poblaciones muestreadas <em>independientemente</em>, lo que mezcla
+      diferencias de fotometría con diferencias de muestreo. El <code>_HEAD.FITS</code> real de
+      producción — nunca antes usado — trae <code>SIM_SALT2x0/x1/c/mB</code>, <code>SIM_DLMU</code>,
+      <code>SIM_MWEBV</code> y <code>SIM_PEAKMAG_u..Y</code> <strong>por objeto</strong>; alimentando a
+      LightCurveLynx los parámetros EXACTOS de SNANA, el residuo pareado sale
+      <strong><code>-0.272</code> mag, plano en las 6 bandas y en los 7 bins de <code>z</code>, con
+      <code>std</code> de sólo <code>0.022-0.033</code> mag</strong> — un offset constante, 100%
+      fotométrico. Verificado que ambas fotometrías son correctas por separado (LightCurveLynx coincide
+      con <code>sncosmo.bandmag("ab")</code> a <code>0.002</code> mag y con una integral AB hecha a mano
+      a <code>0.0000</code>; el <code>PrimarySED</code> de <code>kcor_LSST.fits</code> es exactamente AB
+      con <code>ZPoff=0</code>). La causa: <code>SALT2.INFO</code> del modelo
+      <code>SALT2.WFIRST-H17</code> declara <code>MAG_OFFSET: 0.27</code>, que SNANA aplica a toda
+      magnitud (<code>genmag_SALT2.c:2257</code>) y que <code>sncosmo.SALT2Source</code> ignora
+      silenciosamente — ni <code>"SALT2.INFO"</code> ni <code>"MAG_OFFSET"</code> aparecen en su fuente.
+      <strong>Declarado <code>0.27</code>, medido <code>-0.2722</code>.</strong> Corregido
+      (<code>read_salt2_info()</code> en <code>snana_params.py</code>, que parsea el archivo real) y
+      medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
+      <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
+      cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
+      cerrado.</strong> Ver pestaña "39 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1700,7 +1723,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y ocho fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Treinta y nueve fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2330,6 +2353,67 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           ningún patrón cromático claro que perseguir.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">37</span>
+        <div class="step-body">
+          <p><strong>RESUELTO — el residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave del
+          <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
+          No estaba en la cadena SALT2, ni en la fotometría sintética, ni en el muestreo poblacional:
+          estaba en un archivo del propio directorio del modelo que <code>sncosmo</code> abre pero
+          ignora silenciosamente.</p>
+          <p><strong>El cambio de método que lo destrabó: comparación pareada.</strong> Todas las
+          comparaciones de Fases 16-36 son mediana-contra-mediana de dos poblaciones muestreadas
+          <em>independientemente</em>, lo que mezcla irreversiblemente (a) diferencias de fotometría y
+          (b) diferencias de muestreo. El <code>.DUMP</code> no trae <code>x1</code>/<code>c</code>, así
+          que el pareo nunca fue posible con ese archivo — pero el <code>_HEAD.FITS</code> real de
+          producción, nunca antes usado, trae 212 columnas incluidas
+          <code>SIM_SALT2x0/x1/c/mB</code>, <code>SIM_DLMU</code>, <code>SIM_MWEBV</code> y
+          <code>SIM_PEAKMAG_u..Y</code> <strong>por objeto</strong>. Alimentando a LightCurveLynx los
+          parámetros EXACTOS de SNANA, objeto a objeto: <strong><code>Δ = -0.272</code> mag en las 6
+          bandas y en los 7 bins de <code>z</code>, con <code>std</code> de sólo
+          <code>0.022-0.033</code> mag</strong> — un offset constante y acromático, y el 100% del
+          residuo resulta fotométrico.</p>
+          <p><strong>¿De qué lado estaba el error?</strong> Prueba a tres bandas de la misma magnitud AB
+          sintética: LightCurveLynx coincide con <code>sncosmo.Model.bandmag(..., "ab")</code> a
+          <code>0.002</code> mag y con una integral AB photon-counting escrita a mano a
+          <code>0.0000</code>. Del lado de SNANA, el <code>PrimarySED</code> de
+          <code>kcor_LSST.fits</code> resultó ser exactamente AB (3631 Jy, razón constante con
+          <code>std=1.7e-7</code>), con <code>ZPoff=0</code> y offsets de modelo <code>0.00</code> en
+          las 6 bandas. Los dos lados, por separado, correctos.</p>
+          <p><strong>El hallazgo:</strong> el <code>SALT2.INFO</code> de
+          <code>SALT2.WFIRST-H17</code> declara <code>MAG_OFFSET: 0.27</code>, y SNANA lo aplica a toda
+          magnitud del modelo (<code>genmag_SALT2.c:2257</code>:
+          <code>magobs = ZP - 2.5*log10(flux) + MAG_OFFSET</code>). <code>sncosmo.SALT2Source</code>
+          nunca lee ese archivo — ni <code>"SALT2.INFO"</code> ni <code>"MAG_OFFSET"</code> aparecen en
+          su fuente. <strong>Valor declarado <code>0.27</code>, residuo medido <code>-0.2722</code>:
+          coinciden a 0.002 mag.</strong> Ironía real: <code>run_snia_ddf_poc.py</code> ya citaba este
+          mismo archivo desde las primeras fases (<em>"SIGMA_INT=0.090 (de SALT2.INFO)"</em>) — el
+          proyecto lo leyó y nunca miró la clave que está dos líneas más arriba.</p>
+          <p><strong>Corregido y medido sobre la población completa (2000 objetos, con y sin el fix en
+          la misma corrida, metodología idéntica a Fases 32/34/36):</strong> el nivel acromático pasa de
+          <code>-0.2646</code> a <code>+0.0054</code> mag — <strong>98% de reducción</strong>. La
+          columna "sin fix" reproduce el número de Fase 36 (<code>-0.2642</code>) a
+          <code>0.0004</code> mag. El spread cromático <code>g−y</code> no cambia: el offset es
+          exactamente acromático, como debe ser. Nueva función <code>read_salt2_info()</code> en
+          <code>snana_params.py</code> que parsea el <code>SALT2.INFO</code> real en vez de hardcodear
+          el valor.</p>
+          <p><strong>Cerrado de paso el cabo suelto de Fase 32:</strong> reproduciendo la corrida de
+          producción con <code>SIMGEN_DUMPADD S2c,S2x1,S2mb</code> se obtuvieron los <code>c</code>/
+          <code>x1</code> reales de los 2000 objetos generados (sin sesgo de trigger). Los samplers
+          coinciden con los draws reales de SNANA — KS <code>p=0.515</code> (<code>c</code>) y
+          <code>p=0.345</code> (<code>x1</code>), bordes de truncamiento incluidos, impacto en magnitud
+          <code>≤0.004</code> mag.</p>
+          <p><strong>Por qué 21 fases no lo encontraron:</strong> todas las pruebas
+          código-real-contra-código-real de Fases 26-31 se midieron <em>relativas a la banda
+          <code>r</code></em>, y esa normalización <strong>cancela por construcción cualquier offset
+          acromático</strong> — justo la única clase de causa que quedaba. La lección transferible: al
+          reemplazar un simulador por otro reusando los mismos archivos de modelo, no alcanza con que
+          los archivos de datos sean byte-idénticos (Fase 20 lo verificó con <code>md5sum</code>) — hay
+          que verificar que el código nuevo <strong>lea todas las claves de configuración</strong> que
+          el viejo lee. Es un modo de falla silencioso: sin error, sin warning, sólo un sesgo constante
+          de 0.27 mag.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -2659,7 +2743,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "resumen", label: "Resumen" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "38 fases" },
+    { id: "fases", label: "39 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

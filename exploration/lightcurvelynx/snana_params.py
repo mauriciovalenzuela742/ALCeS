@@ -662,6 +662,69 @@ def filter_ddf_field_contamination(df, opsim_db_path, max_sep_deg: float = 2.0):
     return out[out["field_sep_deg"] < max_sep_deg].reset_index(drop=True)
 
 
+# ------------------------------------------------------------------ SALT2.INFO
+def read_salt2_info(model_dir):
+    """Parsea el `SALT2.INFO` real del directorio del modelo SALT2.
+
+    Fase 37: `sncosmo.SALT2Source` **NO lee `SALT2.INFO` en absoluto** --
+    solo `salt2_template_0/1.dat`, `salt2_color_correction.dat`,
+    `salt2_color_dispersion.dat` y los mapas de error (confirmado leyendo la
+    firma real de `SALT2Source.__init__` en `sncosmo==2.13.0`, y grepeando su
+    fuente: ni `SALT2.INFO` ni `MAG_OFFSET` aparecen). SNANA si lo lee, y
+    aplica dos claves que este proyecto ignoraba sin saberlo:
+
+      MAG_OFFSET: 0.27   -> `genmag_SALT2.c:2257` real:
+                            `magobs = ZP - 2.5*log10(flux) + MAG_OFFSET;`
+                            (leido en `genmag_SALT2.c:1275-1276`). Es un
+                            offset ADITIVO de magnitud, acromatico, aplicado
+                            a TODA magnitud del modelo -- incluido
+                            `peakmag_obs` y por lo tanto `PEAKMAG_<filt>` del
+                            `.DUMP` y `SIM_PEAKMAG_<filt>` del `_HEAD.FITS`.
+      SIGMA_INT: 0.090   -> la dispersion intrinseca coherente que el
+                            proyecto ya usaba (queda confirmada aca como
+                            valor real del modelo, no un supuesto).
+
+    El `SALT2.INFO` real de `SALT2.WFIRST-H17` (el modelo de produccion de
+    esta campana) declara `MAG_OFFSET: 0.27` -- y la comparacion PAREADA
+    objeto-a-objeto contra el `_HEAD.FITS` real de produccion (Fase 37,
+    alimentando a LightCurveLynx los `SIM_SALT2x0/x1/c/z/MWEBV` exactos de
+    SNANA) midio un residuo acromatico de **-0.2722 mag**, plano en banda y
+    en `z` -- el valor declarado, a 0.002 mag. Ver NOTES.md Fase 37.
+
+    Parameters
+    ----------
+    model_dir : str o Path
+        Directorio del modelo SALT2 (el mismo que se le pasa a
+        `sncosmo.SALT2Source(modeldir=...)`). Debe contener `SALT2.INFO`.
+
+    Returns
+    -------
+    dict
+        Claves numericas reales del archivo. Siempre trae al menos
+        `MAG_OFFSET` (0.0 si no esta declarada -- mismo default que
+        `INPUT_SALT2_INFO.MAG_OFFSET = 0.0` en `genmag_SALT2.c:1205`).
+    """
+    from pathlib import Path
+
+    info_path = Path(model_dir) / "SALT2.INFO"
+    out = {"MAG_OFFSET": 0.0}
+    if not info_path.exists():
+        return out
+    for line in info_path.read_text().splitlines():
+        line = line.split("#", 1)[0].strip()
+        if ":" not in line:
+            continue
+        key, _, val = line.partition(":")
+        parts = val.split()
+        if len(parts) != 1:
+            continue
+        try:
+            out[key.strip()] = float(parts[0])
+        except ValueError:
+            continue
+    return out
+
+
 if __name__ == "__main__":
     # sanity check standalone (sin LightCurveLynx) -- corridas rapidas para
     # confirmar que las formas son razonables antes de conectarlas al grafo.
