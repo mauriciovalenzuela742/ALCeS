@@ -5767,3 +5767,121 @@ públicable con confianza.
 usarlos -- la v1 tenía el bug de sentinelas `-9` sin filtrar, documentado arriba como hallazgo de
 higiene real, no como error oculto). Sin cambios a `snana_params.py` -- ningún candidato llegó al
 umbral de "bug confirmado y cuantificado" que justificara una corrección esta fase.
+
+## Fase 42 — `readout_noise`/`dark_current` reales del SIMLIB: corregido por fidelidad, efecto real pero despreciable (y en la dirección contraria)
+
+Pregunta 1 de la ronda anterior: Fase 4 (muy temprana en el proyecto) descartó `dark_current`/
+`readout_noise` como causa del entonces-residuo de SNR/detección (40-80%) porque el efecto medido era
+de solo ~2% en SNR -- irrelevante contra 40-80%. Fase 38 dejó un residuo mucho más chico (SNR mediano
++7.6%, ratio de detección 1.615x±0.045); un efecto de ~2% podría ya no ser despreciable a esa escala.
+
+### Recálculo real con los parámetros actuales
+
+`snana_noise_columns()` nunca pasaba `read_noise`/`dark_current` explícitos a `OpSim`, así que
+LightCurveLynx caía en los defaults genéricos de la clase (`read_noise=8.8` e⁻, `dark_current=0.2`
+e⁻/s, constantes de LSSTCam citadas de `smtn-002.lsst.io`) en vez de los valores reales y mucho más
+chicos de esta campaña (`read_noise=0.25`, `dark_current=0`, del SIMLIB real -- confirmado en Fase 16
+Paso 1). Con condiciones DDF `r`-band reales (mediana `sky_bg_e≈811` e⁻/pix², `psf_footprint≈55`
+pix²): el exceso de varianza de los defaults sobre el real es **~10.3% de `sky_variance`** -- un
+efecto de sensibilidad real, no ruido de cálculo, y del orden correcto para importar a esta escala de
+residuo.
+
+### Corregido por fidelidad, y medido: la dirección es la contraria a "cerrar el residuo"
+
+`OpSim(df_ddf, zp_err_mag=0.005, read_noise=0.25, dark_current=0.0)` en `run_snia_ddf_poc.py` (antes
+sin esos dos argumentos). Recorrida real de 5 semillas (mismo patrón exacto de Fase 38):
+
+| métrica | SNANA real | Fase 38 (antes) | Fase 42 (después, 5 semillas) |
+|---|---:|---:|---:|
+| `snr_median` | 0.78 | 0.839 ± 0.013 | **0.843** (0.8245–0.8616) |
+| `snr_p90` | 2.26 | 2.614 ± 0.138 | **2.654** (2.483–2.884) |
+| eficiencia detección | 29.85% | 48.22% ± 1.35% | **48.88%** (47.25–50.45%) |
+| ratio detección | 1.00x | 1.615x ± 0.045 | **1.638x** |
+
+El cambio (1.615x → 1.638x) queda **dentro de 1σ** del ruido de semilla ya reportado en Fase 38
+(`±0.045`) -- no es una mejora ni un empeoramiento estadísticamente significativo, es ruido. Confirma
+exactamente lo que predijo el recálculo analítico: quitarle ruido de más a LightCurveLynx lo hace
+*levemente* más sensible (SNR más alto), no menos -- la dirección correcta para explicar un exceso de
+brillo/detección es la contraria (habría que *agregar* ruido, no quitarlo, y el propio `Om0` de Fase 34
+ya mostró que "más fiel al real" no siempre implica "más cerca del residuo cero"). El fix queda aplicado
+igual, por fidelidad real con el SIMLIB de la campaña -- mismo criterio que Fase 24/34.
+
+### Verificación rápida del trigger por épocas
+
+`searcheff.py::group_into_epochs()` usa `NEWMJD_DIF=0.007` días (~10 min) -- confirmado, de nuevo, que
+coincide con el default real de SNANA (`snlc_sim.c` línea ~849) -- ahora también verificado que el
+resultado con la población ya corregida (Fase 32/34/37/42) sigue produciendo conteos de época
+consistentes con lo esperado (no se detectó ninguna anomalía nueva al recorrer las 5 semillas).
+
+### Conclusión Fase 42
+
+El candidato de ruido queda **descartado como explicación del residuo de detección remanente** -- real
+y corregido por fidelidad, pero de magnitud despreciable y de signo contrario al que haría falta. El
+residuo de detección (~1.6x) sigue sin causa identificada; candidatos que quedan sin probar: el resto
+de `SEARCHEFF_PIPELINE` (más allá del agrupamiento de épocas, que ya se confirmó correcto), o algo en
+la lógica de trigger no cubierta por este análisis.
+
+### Archivos de esta fase
+
+`run_snia_ddf_poc.py`: `OpSim(...)` ahora pasa `read_noise=0.25, dark_current=0.0` reales, con
+comentario citando Fase 4/16/42. 5 semillas corridas vía `run_snia_ddf_poc.sbatch` (outputs en
+`poc_output`/`poc_output_seed1-4`, no borrados -- son productos de un script de producción, quedan
+para referencia futura igual que las corridas de Fase 38).
+
+## Fase 43 — `GENRANGE_TREST` real por clase: mejora sustancial en `SLSN-I`, sobre-corrección real en `ILOT-MOSFIT`
+
+Pregunta 2 de la ronda anterior: Fase 40 encontró que los 7 scripts de producción usan
+`rest_time_window_offset=(-30, 100)` hardcodeado e idéntico para las 14 clases, mientras el
+`GENRANGE_TREST` real por clase va de `-50/300` a `-100/1000` días. `ILOT-MOSFIT` cubría solo 11.8% de
+su ventana real; `SLSN-I` cubría 21.7%.
+
+### Corregido por clase en `CLASS_CONFIGS` (`run_simsed_poc.py`)
+
+Nuevo campo `trest_range` por clase (default `(-30, 100)` para las clases no re-medidas en esta fase),
+leído en `main()` vía `cfg.get("trest_range", (-30.0, 100.0))` y pasado a
+`rest_time_window_offset=trest_range` en `simulate_lightcurves()` (antes hardcodeado). `SLSN-I` ahora
+usa `(-100, 500)` (real); `ILOT-MOSFIT` usa `(-100, 1000)` (real, el caso más extremo de las 14).
+
+### Resultado real: dos direcciones distintas, ambas honestas
+
+**`SLSN-I`** (1 semilla de verificación, no el barrido completo de 5 -- corrida cara, ~5-6 min de
+templates + simulación real):
+
+| | histórico (`-30/100`, 5 semillas) | Fase 43 (`-100/500`, 1 semilla) | SNANA real |
+|---|---:|---:|---:|
+| detección | 41.20% ± 2.3% (ratio 1.604x) | **72.0%** (1440/2000) | 63.3% (1266/2000) |
+
+Mejora sustancial: de sub-detectar (41.2% vs. 63.3% real) a sobre-detectar levemente (72.0% vs. 63.3%
+real) -- mucho más cerca del real que antes, aunque ahora en la dirección opuesta. Con 1 sola semilla
+no se puede descartar que parte del salto sea varianza de semilla -- queda marcado como verificación
+rápida, no como número definitivo con banda de incertidumbre.
+
+**`ILOT-MOSFIT`** (5 semillas completas):
+
+| | histórico (`-30/100`, 5 semillas) | Fase 43 (`-100/1000`, 5 semillas) | SNANA real |
+|---|---:|---:|---:|
+| detección | 3.65% (ratio 1.96x, LCL sub-detecta) | **31.03% ± 0.63%** (605-639/2000) | 7.15% (143/2000) |
+
+Acá la corrección **sobre-corrige de forma dramática**: pasa de sub-detectar 2x (3.65% vs. 7.15% real)
+a sobre-detectar ~4.3x (31.03% vs. 7.15% real) -- peor en magnitud absoluta que el problema original,
+aunque de signo opuesto. No se fuerza una lectura positiva: extender la ventana de generación al
+`GENRANGE_TREST` real completo no es, por sí sola, la corrección que hace falta para esta clase -- algo
+en cómo LightCurveLynx extrapola/genera flujo dentro de esa ventana extendida (posiblemente la
+extrapolación tardía `LinearDecay`/`ZeroPadding`, o el propio modelo MOSFIT evaluado muy lejos de su
+pico) está generando demasiadas detecciones espurias de baja SNR en la cola extendida que SNANA no
+produce en la misma magnitud. Candidato real, no cerrado, para una fase futura.
+
+### Conclusión Fase 43
+
+`GENRANGE_TREST` real por clase es una corrección de fidelidad genuina (el proyecto no debería seguir
+usando una ventana hardcodeada e idéntica para 14 clases con ventanas reales muy distintas), pero su
+efecto en el ratio de detección **no es uniformemente positivo**: mejora sustancialmente a `SLSN-I`,
+empeora sustancialmente a `ILOT-MOSFIT`. Documentado honestamente en ambas direcciones -- ninguna de
+las dos es el resultado que se buscaba encontrar, y eso es información real. Las otras 12 clases no se
+re-midieron en esta fase (quedan con el default `-30/100`, sin cambio).
+
+### Archivos de esta fase
+
+`run_simsed_poc.py`: `CLASS_CONFIGS["SLSN-I"]`/`CLASS_CONFIGS["ILOT-MOSFIT"]` ganan `trest_range`
+real; `main()` lo usa en vez del hardcode. Corridas: `poc_output_slsni` (1 semilla),
+`poc_output_ilotmosfit`/`_seed1-4` (5 semillas) -- no borrados, productos de script de producción.

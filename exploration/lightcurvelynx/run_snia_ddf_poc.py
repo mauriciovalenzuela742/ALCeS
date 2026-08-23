@@ -173,7 +173,20 @@ def main(seed_index: int = 0, wfd: bool = False):
     # SNANA en vez de dejar que OpSim las derive con sus propias constantes
     # simplificadas (ver snana_noise_columns() arriba, NOTES.md Fase 2 A).
     df_ddf = snana_noise_columns(df_ddf)
-    obs_table = OpSim(df_ddf, zp_err_mag=0.005)
+    # Fase 16/42: snana_noise_columns() nunca pasaba read_noise/dark_current
+    # explicitos -- OpSim caia en sus defaults genericos de LSSTCam
+    # (read_noise=8.8 e-, dark_current=0.2 e-/s, smtn-002.lsst.io), NO en los
+    # valores reales y mucho mas chicos de esta campana (read_noise=0.25,
+    # dark_current=0, WriterParams.ccd_noise del SIMLIB real, confirmado en
+    # Fase 16 Paso 1). Recalculado en Fase 42 con condiciones DDF r-band
+    # reales (mediana sky_bg_e=811 e-/pix^2, psf_footprint=55 pix^2): el
+    # exceso de varianza por los defaults es ~10.3% de sky_variance, que
+    # equivale a ~+5% de SNR si se corrige -- EN LA DIRECCION CONTRARIA a
+    # explicar el exceso de deteccion (LightCurveLynx ya sale MAS brillante
+    # que SNANA; sacarle ruido de mas lo hace aun mas sensible). Se corrige
+    # de todas formas por fidelidad real con el SIMLIB (mismo criterio que
+    # el fix de Om0 en Fase 34, que tambien empeoro el residuo).
+    obs_table = OpSim(df_ddf, zp_err_mag=0.005, read_noise=0.25, dark_current=0.0)
     print(f"[{time.time()-t_start:.1f}s] OpSim {'WFD' if wfd else 'DDF'}: {len(df_ddf):,} / "
           f"{len(df):,} obs totales (zp_err_mag=0.005, calibrado contra ZEROPT_ERR real de SNANA)")
 

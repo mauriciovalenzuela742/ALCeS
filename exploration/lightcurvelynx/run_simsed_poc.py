@@ -198,6 +198,9 @@ CLASS_CONFIGS = {
         # dndz MD14) ya esta en z>=2.2, donde la banda u empieza a quedar
         # fuera. Primera clase de prueba de esta fase (ver NOTES.md).
         restlambda_range=(1000.0, 11000.0),
+        # Fase 43: GENRANGE_TREST real del .INPUT es -100/500 (Fase 40) --
+        # el hardcode global (-30,100) cubria solo 21.7% de esa ventana.
+        trest_range=(-100.0, 500.0),
     ),
     "SNIax": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNIax",
@@ -271,6 +274,11 @@ CLASS_CONFIGS = {
         dndz=("ccs15", 0.06),
         sntype=61,
         host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
+        # Fase 43: GENRANGE_TREST real del .INPUT es -100/1000 (Fase 40) --
+        # el peor caso de las 14 clases, el hardcode global (-30,100) cubria
+        # solo 11.8% de esa ventana ("Intermediate Luminosity Optical
+        # Transient", evolucion mas lenta que una SN estandar).
+        trest_range=(-100.0, 1000.0),
     ),
     "SNIIn-MOSFIT": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNIIn-MOSFIT",
@@ -572,9 +580,15 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     # que si no se pasa cae en un generador default no reproducible. Los
     # otros nodos (redshift, radec, t0, host_av, template) ya tienen su
     # propio seed explicito arriba -- este cierra el ultimo hueco.
+    # Fase 43: rest_time_window_offset real por clase (antes hardcodeado
+    # (-30,100) e identico para las 14, pese a que GENRANGE_TREST real varia
+    # de -50/300 a -100/1000 -- ver NOTES.md Fase 40/43). Default (-30,100)
+    # para las clases que no declaran trest_range explicito en CLASS_CONFIGS
+    # (no re-medidas en esta fase, ver NOTES.md Fase 43 para el alcance).
+    trest_range = cfg.get("trest_range", (-30.0, 100.0))
     lc = simulate_lightcurves(source_model, ngentot, survey_info=SurveyInfo(
         obstable=obs_table, passbands=passband_group, survey_name="LSST",
-    ), rest_time_window_offset=(-30, 100), rng=np.random.default_rng(seed_base + 2))
+    ), rest_time_window_offset=trest_range, rng=np.random.default_rng(seed_base + 2))
     sim_wall_time = time.time() - t_sim0
     print(f"[{time.time()-t_start:.1f}s] simulacion terminada: {len(lc)} objetos, "
           f"{sim_wall_time:.1f}s ({sim_wall_time/max(len(lc),1)*1000:.2f} ms/objeto)")
