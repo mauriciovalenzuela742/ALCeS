@@ -5885,3 +5885,89 @@ re-midieron en esta fase (quedan con el default `-30/100`, sin cambio).
 `run_simsed_poc.py`: `CLASS_CONFIGS["SLSN-I"]`/`CLASS_CONFIGS["ILOT-MOSFIT"]` ganan `trest_range`
 real; `main()` lo usa en vez del hardcode. Corridas: `poc_output_slsni` (1 semilla),
 `poc_output_ilotmosfit`/`_seed1-4` (5 semillas) -- no borrados, productos de script de producción.
+
+## Fase 44 — `SIMSED_REDCOR` reimplementado con el mecanismo real (Cholesky + grilla), pero no explica el residuo: la brecha vive en otro lado
+
+Pregunta 3 de la ronda anterior: Fase 41 confirmó que `make_correlated_normal_weights()` pesa la
+densidad Gaussiana exactamente en el punto discreto de cada template, mientras SNANA real
+(`prep_user_SIMSED()`/`nearest_gridval_SIMSED()`, `genmag_SEDtools.c` línea real 2427) arma una
+descomposición de Cholesky, samplea un valor continuo correlacionado, y snapea cada parámetro por
+separado al valor de grilla más cercano en ese eje -- dos mecanismos genuinamente distintos, nunca
+comparados directamente hasta ahora.
+
+### Parámetros reales confirmados, antes de tocar el algoritmo
+
+`GENPEAK_stretch: 0.975`, `GENSIGMA_stretch: 0.096 0.096`, `GENPEAK_color: 0.557`,
+`GENSIGMA_color: 0.175 0.175`, `SIMSED_REDCOR(stretch,color): -0.656` -- confirmados exactos contra
+`/home/mvalenzuela/run_SNANA/model_config/SIMGEN_INCLUDE_SNIa-91bg.INPUT` real. Los parámetros que
+usaba el proyecto ya eran correctos; el candidato real era puramente el mecanismo de muestreo.
+
+### Reimplementado: Cholesky + celdas de Voronoi rectangulares (masa exacta, no Monte Carlo)
+
+Sobre una grilla Cartesiana genuina (35 templates: `stretch` 7 valores × `color` 5 valores,
+`simsed_91bg_local/SED.INFO` real), el redondeo independiente por eje de `nearest_gridval_SIMSED()`
+es exactamente el redondeo a la celda de Voronoi **rectangular** de cada template (bordes en los
+puntos medios entre valores de grilla adyacentes por eje). La probabilidad real de que un draw
+continuo caiga en la celda de un template dado es la masa exacta de la normal multivariada
+correlacionada dentro de ese hiper-rectángulo -- calculada exacta vía inclusión-exclusión sobre las
+`2^N` esquinas con `scipy.stats.multivariate_normal.cdf()`, no aproximada por muestreo Monte Carlo.
+`make_correlated_normal_weights()` reimplementada así en `snana_params.py`, misma firma, compatible
+con los 2 call sites reales (`compare_brightness_truth.py`, `run_simsed_poc.py`).
+
+### Resultado, en dos partes: el mecanismo mejora poco el ajuste estadístico, y no mueve el residuo de brillo en absoluto
+
+**Test KS, peso viejo vs. peso nuevo (200k resampleos vs. 1919 objetos reales del `.DUMP`,
+`SELECTION: NONE`, sentinelas `ZHELIO=-9` filtrados)**:
+
+| | peso viejo (Fase 41) | peso nuevo (Cholesky+grilla) |
+|---|---:|---:|
+| `stretch` KS stat / p | 0.211 / 7.6e-75 | 0.207 / 3.8e-72 |
+| `color` KS stat / p | 0.271 / 5.6e-124 | 0.256 / 3.4e-110 |
+| `stretch` media sim / mediana sim | 0.9752 / 0.9500 | 0.9750 / 0.9500 |
+| `color` media sim / mediana sim | 0.5568 / 0.5000 | 0.5565 / 0.5000 |
+
+El mecanismo más fiel al algoritmo real **apenas mueve el `stat` de KS** (0.211→0.207,
+0.271→0.256) -- sigue siendo un desajuste estadístico abrumador, prácticamente sin cambios. La
+distinción "densidad puntual vs. masa de celda" que motivó esta fase **no es la causa principal**
+del desajuste real -- algo más queda sin identificar en el mecanismo (candidatos no explorados:
+un `WGTMAP` real que sobreescriba el peso Gaussiano simple, algo del propio `nearest_gridval_SIMSED()`
+no capturado en esta lectura, o una interacción con `SIMSED_GRIDONLY`).
+
+**Impacto en el residuo de brillo poblacional: esencialmente cero.** Re-corrida completa de
+`compare_brightness_truth.py` (2000 objetos, con el peso nuevo) y comparación banda `r`, mismos 7
+bins de `z` de siempre, contra el `.DUMP` real:
+
+| z bin | mediana SNANA | mediana LCL (peso viejo, histórico) | mediana LCL (peso nuevo, Fase 44) |
+|---|---:|---:|---:|
+| [0.011,0.095) | 19.122 | 19.564 | 19.570 |
+| [0.095,0.179) | 21.072 | 21.245 | 21.256 |
+| [0.179,0.263) | 22.151/22.152 | 22.440 | 22.439 |
+| [0.263,0.348) | 23.188 | 23.415 | 23.390 |
+| [0.348,0.432) | 24.022/24.028 | 24.464 | 24.474 |
+| [0.432,0.516) | 24.782/24.784 | 25.343 | 25.332 |
+| [0.516,0.600) | 25.694/25.703 | 26.092 | 26.084 |
+
+Mediana global: SNANA `24.801`, LCL peso nuevo `25.347` (peso viejo histórico: `25.351`) --
+**diferencia de `0.004` mag entre los dos mecanismos, dentro de ruido de simulación**. El residuo
+real de esta clase (LCL ~0.3-0.6 mag más tenue que SNANA, documentado desde el hallazgo original con
+`compare_brightness_truth.py`) **no se mueve** al corregir el mecanismo de `SIMSED_REDCOR`.
+
+### Conclusión Fase 44
+
+Fix aplicado por fidelidad real (reimplementa el algoritmo documentado de SNANA con precisión, no
+una aproximación) -- pero **no es la causa** ni del desajuste estadístico fuerte que encontró Fase 41
+ni del residuo de brillo poblacional real de `SNIa-91bg` (~0.3-0.6 mag, tenue). Ambos quedan
+abiertos, ahora con un candidato menos en la lista: la forma exacta de calcular el peso de cada
+template (densidad puntual vs. masa de celda) no es, por sí sola, la explicación. El mecanismo de
+muestreo de `SIMSED_REDCOR` de SNANA real puede tener algo más (un `WGTMAP` real, o algo no
+capturado en `nearest_gridval_SIMSED()`) que sigue sin identificarse -- candidato concreto para una
+fase futura, ahora más acotado que antes.
+
+### Archivos de esta fase
+
+`snana_params.py`: `make_correlated_normal_weights()` reimplementada (Cholesky + masa exacta de
+celda de Voronoi rectangular vía inclusión-exclusión), firma sin cambios. Exploratorios en NLHPC,
+borrados tras usarlos: `fase44_redcor_test.py` (test KS peso viejo vs. nuevo),
+`fase44_zbin_compare.py` (comparación de brillo banda `r`). Corrida real de producción (no
+exploratoria, resultado documentado arriba): `compare_brightness_truth.py` re-ejecutado con el peso
+nuevo, output en `compare_brightness_truth_output.parquet` (no borrado).

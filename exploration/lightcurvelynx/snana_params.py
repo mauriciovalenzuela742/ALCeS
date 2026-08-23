@@ -482,16 +482,44 @@ def make_correlated_normal_weights(
     redcor: dict[tuple[str, str], float],
 ) -> np.ndarray:
     """Generaliza el peso de `SIMSED_REDCOR` a N parametros (no solo los 2
-    de SALT2 c/x1) -- evalua la PDF de la normal multivariada
-    correlacionada (covarianza construida desde sigmas + REDCOR
-    pareados) en el valor propio de cada template, igual criterio que
-    `template_weights_from_redcor` en run_simsed_91bg_ddf_poc.py pero
-    para cualquier numero de parametros (p.ej. pc1/pc2/pc3 de SNII-NMF).
+    de SALT2 c/x1).
+
+    Fase 44: la version anterior evaluaba la PDF Gaussiana exactamente en
+    el punto discreto de cada template ("peso = altura de la campana ahi"),
+    asumiendo que eso aproxima bien la probabilidad de que ese template sea
+    el elegido. Fase 41 encontro, comparando 200k draws contra los
+    stretch/color reales de 2000 objetos SNIa-91bg, que esto NO reproduce
+    la distribucion real (KS p=1.2e-77 en stretch, p=2.7e-133 en color) --
+    leyendo el algoritmo real de SNANA (`prep_user_SIMSED()`/
+    `nearest_gridval_SIMSED()`, `~/github/SNANA_src/src/genmag_SEDtools.c`
+    linea real 2427) se confirmo que SNANA arma la descomposicion de
+    Cholesky de la covarianza real, samplea un valor CONTINUO correlacionado,
+    y recien despues snapea cada parametro POR SEPARADO (no conjunto) al
+    valor de grilla mas cercano en ESE eje (`frac=(lumipar-parval0)/
+    (parval1-parval0); if frac<0.5: usa parval0 else parval1` -- redondeo de
+    vecino mas cercano en 1D, un eje a la vez).
+
+    Verificado que el SED.INFO real de SNIa-91bg (`simsed_91bg_local/
+    SED.INFO`) es una grilla Cartesiana genuina (stretch: 7 valores
+    {0.65..1.25} x color: 5 valores {0.0..1.0} = 35 templates) -- el
+    redondeo independiente por eje sobre una grilla Cartesiana es
+    exactamente el redondeo a la celda de Voronoi RECTANGULAR de cada
+    template (bordes en los puntos medios entre valores de grilla
+    adyacentes en cada eje). La probabilidad real de que un draw continuo
+    caiga en la celda de un template dado es entonces la masa exacta de la
+    normal multivariada correlacionada dentro de ese rectangulo (o
+    hiper-rectangulo en N dimensiones) -- no aproximada por Monte Carlo,
+    calculada exacta via inclusion-exclusion sobre los `scipy.stats.
+    multivariate_normal.cdf()` de las 2^N esquinas de la caja.
 
     `values`: {nombre_param: array de valores por template}.
     `peaks`/`sigmas`: {nombre_param: GENPEAK/GENSIGMA (simetrica)}.
     `redcor`: {(param_i, param_j): SIMSED_REDCOR(param_i,param_j)} -- solo
     los pares declarados, el resto se asume no correlacionado (0)."""
+    from itertools import product as _iproduct
+
+    from scipy.stats import multivariate_normal as _mvn
+
     names = list(values.keys())
     n_par = len(names)
     n_tmpl = len(next(iter(values.values())))
@@ -503,10 +531,37 @@ def make_correlated_normal_weights(
         i, j = names.index(a), names.index(b)
         cov[i, j] = cov[j, i] = rc * sigmas[a] * sigmas[b]
 
-    inv_cov = np.linalg.inv(cov)
-    d = np.stack([values[n] - peaks[n] for n in names], axis=1)  # (n_tmpl, n_par)
-    exponent = -0.5 * np.einsum("ni,ij,nj->n", d, inv_cov, d)
-    return np.exp(exponent)
+    mean = np.array([peaks[n] for n in names])
+    dist = _mvn(mean=mean, cov=cov)
+
+    # celda de Voronoi rectangular por eje: bordes en los puntos medios
+    # entre valores de grilla adyacentes (unicos, ordenados); extremos
+    # abiertos hacia +-inf, aproximados por +-50 sigma (mas alla de eso la
+    # masa Gaussiana es numericamente cero).
+    lo = np.empty((n_tmpl, n_par))
+    hi = np.empty((n_tmpl, n_par))
+    for k, name in enumerate(names):
+        grid = np.unique(values[name])
+        mid = (grid[:-1] + grid[1:]) / 2.0
+        edges = np.concatenate(([mean[k] - 50 * sigmas[name]], mid, [mean[k] + 50 * sigmas[name]]))
+        idx = np.searchsorted(grid, values[name])  # posicion de cada template en la grilla ordenada
+        lo[:, k] = edges[idx]
+        hi[:, k] = edges[idx + 1]
+
+    # masa exacta de la caja [lo,hi]^N via inclusion-exclusion sobre las
+    # 2^N esquinas (formula estandar de probabilidad de rectangulo N-dim).
+    weights = np.zeros(n_tmpl)
+    corners = list(_iproduct([0, 1], repeat=n_par))
+    for t in range(n_tmpl):
+        box = np.stack([lo[t], hi[t]], axis=1)  # (n_par, 2)
+        acc = 0.0
+        for corner in corners:
+            point = np.array([box[k, corner[k]] for k in range(n_par)])
+            sign = (-1) ** (n_par - sum(corner))
+            acc += sign * dist.cdf(point)
+        weights[t] = max(acc, 0.0)  # errores numericos pueden dar -1e-16
+
+    return weights
 
 
 # ------------------------------------------------------------------ MWEBV scatter (Fase 10)
