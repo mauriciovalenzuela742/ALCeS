@@ -6106,3 +6106,101 @@ futura, no cerrado acá.
 `run_simsed_poc.py` -- ninguna corrección aplicada esta fase, el hallazgo queda como diagnóstico
 honesto y un candidato nuevo (posible distinción generación-vs-trigger en `GENRANGE_TREST` real) para
 retomar más adelante.
+
+## Fase 47 — RESUELTO: el residuo original de `SNIa-91bg` (Fase 7, el que arrancó toda esta investigación) era casi enteramente un artefacto de metodología
+
+Arranca el programa de auditoría a fondo de `SNIa-91bg` -- la clase que originó toda la investigación
+(Fase 7: LightCurveLynx ~0.2-0.6 mag más TENUE que SNANA, signo opuesto al caso SALT2 cerrado en
+Fase 37). Dos bugs metodológicos reales, identificados por lectura de código antes de correr nada:
+
+1. `compare_brightness_truth.py` seguía usando `flux_perfect.max()` sobre la cadencia real observada
+   -- la MISMA métrica que la propia Fase 22 declaró inválida para SNIa/SALT2 (subestima el brillo real
+   para objetos con mala cobertura de cadencia cerca del pico). Ese fix migró a
+   `compare_brightness_truth_salt2.py` en Fase 39, pero **nunca se portó a este script** -- las Fases
+   41/44/45 midieron el residuo de `SIMSED_REDCOR` con este mismo sesgo sin saberlo.
+2. El `.DUMP` real de `SNIa-91bg` nunca se filtró con `filter_ddf_field_contamination()` (Fase 36) --
+   nunca se verificó si tiene el mismo problema de contaminación de campo que `SNIa`.
+
+### Paso 1 -- migración a la metodología correcta
+
+`compare_brightness_truth.py` migrado de `flux_perfect.max()` a `compute_noise_free_lightcurves()`
+evaluado en `rest_phase=0` (mismo patrón exacto que Fase 39 aplicó al script SALT2: `sample_parameters()`
++ `compute_noise_free_lightcurves(..., rest_frame_phase_min=0.0, rest_frame_phase_max=0.5,
+rest_frame_phase_step=1.0)`, extrayendo `sub["r"].to_numpy()[0]` en vez de
+`r_band["flux_perfect"].max()`). Verificado con `py_compile`.
+
+Impacto inmediato, visible ya en la corrida cruda (2000 objetos, sin comparar todavía contra SNANA):
+mediana de `PEAKMAG_r_true` pasa de `25.347` (Fase 44, método viejo) a **`24.556`** (método correcto) --
+LightCurveLynx sale **sustancialmente más brillante** una vez medido en el pico verdadero continuo, no
+en el máximo sobre la cadencia real (`std` también baja de `2.013` a `1.319`, consistente con que el
+sesgo viejo agregaba dispersión espuria dependiente de qué tan bien la cadencia de cada objeto cubría
+su propio pico).
+
+### Paso 2 -- contaminación real confirmada, mismo problema que `SNIa`
+
+`filter_ddf_field_contamination()` (`<2°` al campo DDF real más cercano, mismo criterio de Fase 33/36)
+aplicado al `.DUMP` real de `SNIa-91bg`:
+
+| | N | mediana `PEAKMAG_r` |
+|---|---:|---:|
+| sin filtrar (1919 con `PEAKMAG_r` válido) | 1919 | 24.801 |
+| filtrado (`<2°`) | 1696 (88.4%) | 24.649 |
+
+**11.6% de contaminación real** (223/1919 objetos fuera del footprint DDF real) -- del mismo orden que
+el 15.2% que encontró Fase 33 para `SNIa`. Mismo mecanismo: objetos `GW_case_*`/`neutrino_*` del OpSim
+real mezclados en el mismo `.DUMP` de referencia, sistemáticamente más tenues (extinción extrema),
+inflando la mediana de SNANA hacia el lado tenue.
+
+### Paso 3 -- con ambos fixes aplicados, el residuo prácticamente desaparece
+
+Comparación banda `r`, mismos 7 bins de `z` de siempre, SNANA filtrado (contaminación) vs. LCL con la
+metodología correcta:
+
+| z bin | N SNANA (filt) | mediana SNANA (filt) | N SNANA (raw) | mediana SNANA (raw) | N LCL | mediana LCL | Δ (filt) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| [0.011,0.095) | 7 | 18.937 | 9 | 19.122 | 9 | 19.543 | +0.606 |
+| [0.095,0.179) | 47 | 20.960 | 57 | 21.072 | 50 | 20.872 | -0.088 |
+| [0.179,0.263) | 120 | 22.110 | 130 | 22.152 | 139 | 22.018 | -0.092 |
+| [0.263,0.348) | 178 | 23.123 | 201 | 23.188 | 238 | 23.125 | +0.002 |
+| [0.348,0.432) | 296 | 23.963 | 338 | 24.028 | 371 | 23.910 | -0.053 |
+| [0.432,0.516) | 446 | 24.731 | 499 | 24.784 | 513 | 24.687 | -0.045 |
+| [0.516,0.600) | 599 | 25.641 | 682 | 25.703 | 680 | 25.510 | -0.131 |
+
+**Media de Δ (bins 2-7, mismo criterio de siempre): `-0.068` mag** (filtrado) -- contra el
+`+0.55` mag histórico (Fase 7, redescubierto en Fase 44 con la metodología vieja). Mediana global: SNANA
+filtrado `24.649`, LCL `24.556`, delta global `-0.093` mag. El primer bin (`N` muy chico, 7-9 objetos)
+queda como ruido de baja estadística, igual que en las comparaciones de `SNIa`/SALT2 desde Fase 20.
+
+### Conclusión Fase 47 -- el residuo que originó la investigación era, en gran parte, el mismo tipo de artefacto que ya se había encontrado dos veces
+
+**El residuo de `~0.2-0.6` mag de `SNIa-91bg` (Fase 7, nunca revisado desde entonces con la metodología
+correcta) queda reducido a `~0.07-0.09` mag** -- del mismo orden que el ruido residual que quedó en
+otras comparaciones ya cerradas de esta investigación (Fase 44 dejó `SNIa` en `+0.005` mag, pero otras
+clases con menos escrutinio, como el candidato de ruido de Fase 42, también dejaron residuos de un
+pareado similar). No es un cierre tan limpio como `MAG_OFFSET` (Fase 37, `0.005` mag), pero es una
+reducción del **~85%** del residuo histórico, lograda con los MISMOS DOS bugs metodológicos (cadencia
+vs. pico verdadero, contaminación de datos) que ya se habían encontrado y corregido para `SNIa` en
+Fases 22/36 -- nunca portados a este script. Confirma, con un segundo ejemplo real e independiente, que
+la lección metodológica de esta investigación (verificar la metodología de medición antes de cazar
+causas físicas) generaliza más allá del caso SALT2 donde se descubrió.
+
+**Reinterpretación real de las Fases 41/44/45**: el test KS de `SIMSED_REDCOR` (Fase 41/44/45) no se ve
+afectado por este hallazgo -- comparaba distribuciones de parámetros (`stretch`/`color`), no magnitudes,
+así que sigue siendo válido que el mecanismo de muestreo de `SIMSED_REDCOR` no explica ningún residuo de
+brillo (con razón: ahora se sabe que casi no había residuo de brillo que explicar). Lo que sí cambia es
+la urgencia de retomar `SIMSED_REDCOR`: con el residuo de brillo prácticamente cerrado, ese hilo pasa a
+ser una discrepancia de forma de distribución interesante por derecho propio, no un candidato urgente
+para explicar una brecha de brillo grande.
+
+**Candidato nuevo, no cerrado en esta fase**: el `-0.068` mag remanente (y el signo que cambia de bin a
+bin, sin tendencia monótona clara) queda como pregunta abierta menor -- candidato para Fase 48
+(cobertura de claves de `SED.INFO`) o una fase de pareado objeto-a-objeto contra el `_HEAD.FITS` real
+(mismo método que cerró Fase 37 para SALT2), si se decide seguir apretando este último tramo.
+
+### Archivos de esta fase
+
+`compare_brightness_truth.py`: migrado de `flux_perfect.max()`/`simulate_lightcurves()` a
+`compute_noise_free_lightcurves()` en `rest_phase=0` (import de `SurveyInfo` removido, ya no se usa).
+Exploratorios en NLHPC, borrados tras usarlos: `fase47_zbin_analysis.py` (Pasos 2-3),
+`fase47_compare_brightness.sbatch` (Paso 1). Output real conservado (no exploratorio, producto de
+script de producción): `compare_brightness_truth_output.parquet`.

@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "46&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "47&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "46 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "47 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "46 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "47 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "46 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "47 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "46 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "47 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1516,7 +1516,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       objetos "nuevos" disparan a <code>|rest_phase|&gt;45</code> días (mediana <code>265</code> días),
       dentro del rango físico válido del propio modelo (<code>REBIN_DAY</code> hasta 2000 días) — ni
       artefacto de extrapolación ni resultado limpio, resultado genuinamente mixto. Ver pestaña
-      "46 fases" (Fases 38/42-46) para el detalle completo.</p>
+      "47 fases" (Fases 38/42-46) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1846,7 +1846,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-fases">
-    <h3 style="margin:10px 0 12px; font-size:1rem;">Cuarenta y seis fases, cada una con una decisión real</h3>
+    <h3 style="margin:10px 0 12px; font-size:1rem;">Cuarenta y siete fases, cada una con una decisión real</h3>
     <ol class="recipe">
       <li>
         <span class="step-n">0</span>
@@ -2783,6 +2783,37 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           angosta, algo que esta fase no investigó.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">47</span>
+        <div class="step-body">
+          <p><strong>RESUELTO en gran parte — el residuo original de <code>SNIa-91bg</code>, el que
+          arrancó toda esta investigación en Fase 7, era casi enteramente un artefacto de
+          metodología.</strong> Arranca la auditoría a fondo de esta clase (SIMSED, no SALT2 —
+          la única otra clase con un residuo de brillo real y grande nunca cerrado). Dos bugs
+          metodológicos reales, idénticos en espíritu a los que ya se habían encontrado y corregido
+          para <code>SNIa</code>: <code>compare_brightness_truth.py</code> seguía usando
+          <code>flux_perfect.max()</code> sobre la cadencia real (la métrica que la propia Fase 22
+          declaró inválida — nunca migrada aquí, pese a que las Fases 41/44/45 la usaron para medir
+          <code>SIMSED_REDCOR</code>), y el <code>.DUMP</code> real nunca se filtró con
+          <code>filter_ddf_field_contamination()</code> (Fase 36).</p>
+          <p>Migrado a <code>compute_noise_free_lightcurves()</code> en <code>rest_phase=0</code>
+          (mismo patrón que Fase 39): la mediana de brillo salta de <code>25.347</code> a
+          <code>24.556</code> — LightCurveLynx sale sustancialmente más brillante una vez medido en
+          el pico verdadero. Contaminación de campo confirmada: <strong>11.6%</strong> del
+          <code>.DUMP</code> real (223/1919 objetos), del mismo orden que el 15.2% de <code>SNIa</code>
+          (Fase 33/36). Con ambos fixes aplicados, el residuo banda <code>r</code> (7 bins de
+          <code>z</code>) cae de <strong><code>+0.55</code> mag histórico a <code>-0.068</code> mag</strong>
+          — una reducción del <strong>~85%</strong>, con el mismo par de bugs metodológicos (cadencia
+          vs. pico verdadero, contaminación de datos) que ya habían resuelto la mayor parte del caso
+          SALT2 en Fases 22/36, nunca portados a este script hasta ahora.</p>
+          <p>Las conclusiones de Fases 41/44/45 sobre <code>SIMSED_REDCOR</code> siguen siendo válidas
+          (comparaban distribuciones de parámetros, no magnitudes) — pero pierden urgencia: con el
+          residuo de brillo prácticamente cerrado, ese hilo pasa a ser una discrepancia de forma de
+          distribución interesante por sí misma, no un candidato urgente para una brecha de brillo
+          grande. El <code>-0.068</code> mag remanente, sin tendencia monótona clara por bin, queda
+          como pregunta abierta menor para una fase futura.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3113,7 +3144,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "46 fases" },
+    { id: "fases", label: "47 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
