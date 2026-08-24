@@ -41,13 +41,37 @@ class ClippedExtinctionEffect(ExtinctionEffect):
     extincion se mantiene constante (igual al valor de borde) mas alla del
     rango calibrado, en vez de fallar toda la simulacion por un punado de
     objetos en la cola de mayor z.
+
+    Fase 51: `ebv_param_name` -- BasePhysicalModel.add_effect() (physical_model.py)
+    fusiona los parametros de todos los efectos de un modelo en un solo dict por
+    NOMBRE, y el primero que se registra gana en silencio si dos efectos declaran
+    el mismo nombre (sin error, sin warning). ExtinctionEffect.__init__ siempre
+    registra su parametro como "ebv" -- con MW extinction agregada primero
+    (build_source_model, run_simsed_poc.py) y host extinction despues, el efecto
+    de host nunca registraba su propio setter: quedaba recibiendo en silencio el
+    E(B-V) de MW (~0.006-0.025) en vez del propio (host_av/R_V, hasta ~1.0),
+    reduciendo su extincion real a ~2-8% de la nominal en las 12 clases con
+    `host_av` en CLASS_CONFIGS. Confirmado con un smoke test real contra el
+    ModelNode real (no simulado): "host effect requested ebv=0.4 -> model
+    delivers 0.02". Ver NOTES.md Fase 51 -- reportado tambien como bug real de
+    la libreria (add_effect() no deberia fusionar por nombre en silencio).
     """
 
+    def __init__(self, *, ebv_param_name="ebv", **kwargs):
+        super().__init__(**kwargs)
+        self._ebv_param_name = ebv_param_name
+        if ebv_param_name != "ebv":
+            self.parameters[ebv_param_name] = self.parameters.pop("ebv")
+
     def apply(self, flux_density, times=None, wavelengths=None, ebv=None, **kwargs):
+        # `ebv` (la clave original) puede traer el valor de OTRO efecto con el
+        # mismo nombre (ver docstring) -- el valor real de este efecto llega
+        # bajo self._ebv_param_name, y pisa lo que haya llegado como `ebv`.
+        ebv = kwargs.pop(self._ebv_param_name, ebv)
         x_min, x_max = self._extinction_wrapper.ext_obj.x_range  # 1/micron
         lam_min_aa, lam_max_aa = 1e4 / x_max, 1e4 / x_min
         clipped = np.clip(wavelengths, lam_min_aa, lam_max_aa)
-        return super().apply(flux_density, times=times, wavelengths=clipped, ebv=ebv, **kwargs)
+        return ExtinctionEffect.apply(self, flux_density, times=times, wavelengths=clipped, ebv=ebv, **kwargs)
 
 
 class SizeAwareFunctionNode(FunctionNode):

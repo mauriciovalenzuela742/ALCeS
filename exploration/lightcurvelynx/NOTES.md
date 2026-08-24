@@ -6543,3 +6543,145 @@ scripts). 3 jobs reales en NLHPC (`sbatch`, sondeados con `squeue`/`sacct`, sin 
 automático): `12069695` (`SNIa-91bg` control, 2m22s), `12069696` (`SNIax`, 10m57s, 1001 templates),
 `12069697` (`CaRT`, 2m51s, 225 templates). Outputs reales conservados (no exploratorios, producto de
 scripts de producción): `compare_brightness_truth_{snia91bg,sniax,cart}_output.parquet`.
+
+## Fase 51 — RESUELTO: la extinción de host nunca se aplicaba con su propio valor real -- un bug de colisión de nombres en `add_effect()` la dejaba al ~2-8% de lo nominal en las 12 clases que la usan
+
+Siguiendo la idea de Fase 50 ("candidato mecánico nuevo, no probado: el paso de extinción de host"),
+un agente Opus (solo lectura, sin tocar código) audita a fondo ese paso -- comparando línea por línea
+el wrapper real de LightCurveLynx (`lightcurvelynx/effects/extinction.py`) contra el código C real de
+SNANA (`~/github/SNANA_src/src/genmag_SIMSED.c`/`MWgaldust.c`, clon compilable del usuario). Encuentra
+dos cosas: la hipótesis original (ley de polvo equivocada) es real pero demasiado chica para explicar
+el residuo -- y un segundo bug, no buscado, que sí lo explica.
+
+### Paso 1 — la hipótesis original (CCM89 vs. O'Donnell94) es real pero insuficiente
+
+`run_simsed_poc.py::build_source_model()` construye la extinción de host con
+`extinction_model="CCM89"` (Cardelli, Clayton & Mathis 1989) -- pero la aplicación real de SNANA
+(`genmag_SIMSED.c:1567`, dentro de `genmag_SIMSED()`, llamada desde `snlc_sim.c:29243` cuando
+`INDEX_GENMODEL == MODEL_SIMSED`) llama `GALextinct(RV_host, AV_host, meanlam_rest, 94, &PARDUM,
+fnam)` -- el argumento `94` es literal, no una variable: `MWgaldust.h:27` declara
+`OPT_MWCOLORLAW_ODON94 94 // O'Donnel (1994) update [to CCM89]`. Es decir, SNANA real **siempre**
+aplica O'Donnell94 al host de un modelo SIMSED, sin importar el valor real de `GENSNXT`/
+`INPUTS.OPT_SNXT` (esa variable existe y por defecto vale `"CCM89"`, pero su único consumidor real,
+`init_genmag_extinction()` en `snlc_sim.c:27045`, está condicionado a `GENFRAME_OPT == GENFRAME_REST`
+-- solo se usa para modelos rest-frame como MLCS2K2/SNOOPY, nunca para SIMSED, que es observer-frame).
+Los `.INPUT` reales de `SNIax`/`CaRT` no declaran `GENSNXT`/`EXTINC_HOSTGAL` (confirmado en
+`~/AUTOSIM/build/full_v5.3_10yrs/includes/include_model_{SNIax,CaRT}.INPUT`), así que no hay override
+-- irónicamente ambos `.INPUT` traen el comentario `# CCM89 V-band extinction`, un comentario que el
+código real contradice.
+
+O94 y CCM89 (mismo `R_V`) solo difieren en la rama `1.1 ≤ x < 3.3` (3030-9091 Å marco de reposo,
+`MWgaldust.c:568-604`) -- fuera de ese rango son idénticas. Medido con la librería real
+(`dust_extinction.CCM89`/`O94`, mismo backend que usa LightCurveLynx): la diferencia máxima, en
+`R_V=3.1` y `AV` hasta 3.0 (el máximo real de `GENRANGE_AV`), es **0.13 mag** -- y no crece con `z`
+(al contrario: se anula por completo en el UV profundo, donde ambas leyes usan los mismos
+coeficientes). **15-50x demasiado chico** para explicar el residuo de Fase 50 (hasta -2.0 mag en
+`u`), y de signo oscilante, no monótono como el patrón observado. Hipótesis real, pero no la causa
+dominante.
+
+### Paso 2 — el bug real: `add_effect()` fusiona parámetros por nombre, y el primero que llega gana en silencio
+
+Seguir la traza completa (`lightcurvelynx/models/physical_model.py::add_effect()`, línea ~470-476)
+encuentra el bug real:
+```python
+for param_name, setter in effect.parameters.items():
+    if param_name not in self.setters:
+        self.add_parameter(param_name, setter, ...)
+```
+Cualquier efecto que declare un parámetro con un nombre ya registrado por OTRO efecto simplemente no
+se registra -- sin excepción, sin warning, en silencio. `ExtinctionEffect.__init__()` (la clase base
+real, `lightcurvelynx/effects/extinction.py`) siempre registra su parámetro como `"ebv"`, sin importar
+para qué efecto se use. `build_source_model()` agrega `mw_extinction` primero (línea 500,
+`extinction_model="F99"`) y `host_extinction` después (línea 536, antes `"CCM89"`) -- ambos con
+parámetro `"ebv"`. El segundo (host) nunca registraba su propio setter: en tiempo de evaluación
+recibía en silencio el mismo valor de E(B-V) que MW (~0.006-0.025, típico de los 6 campos DDF reales)
+en vez del propio (`host_av/R_V`, hasta ~1.0) -- reduciendo la extinción de host real a **~2-8% de
+la nominal**, en las **12 clases** de `CLASS_CONFIGS` que declaran `host_av` (todas menos
+`SNIa-91bg`/`SNIa-91bg-elastic`/`SNII-NMF`, que no aplican extinción de host separada).
+
+Confirmado con un smoke test real contra el `ModelNode` real (no simulado, sin tocar código todavía):
+`host effect requested ebv=0.4 -> model delivers 0.02`. Mismo bug, línea por línea idéntica,
+encontrado también en `run_non1ased_poc.py` (MW línea 299, host línea 331).
+
+### Paso 3 — el fix: nombre de parámetro propio para el host, más O94 en vez de CCM89
+
+`ClippedExtinctionEffect` (`snana_params.py`) gana un parámetro nuevo, `ebv_param_name` (default
+`"ebv"`, sin cambio de comportamiento para MW): si se pasa un nombre distinto, re-mapea la entrada de
+`self.parameters` a ese nombre después de `super().__init__()`, y `apply()` extrae el valor bajo ese
+nombre en vez de `"ebv"` directo (evitando además una colisión de argumento con `**kwargs` al
+reenviar a `ExtinctionEffect.apply()`). `run_simsed_poc.py`/`run_non1ased_poc.py`: `host_extinction`
+ahora se construye con `extinction_model="O94"` (Paso 1) y `ebv_param_name="host_ebv"` (Paso 2), más
+un `assert "host_ebv" in source_model.setters` justo después de `add_effect()` -- si esta colisión de
+nombres volviera a pasar (p.ej. con un tercer efecto rest-frame futuro), la corrida falla ruidosamente
+en vez de volver a fallar en silencio.
+
+Verificado con un segundo smoke test real (`CaRT`, `ModelNode` real, 8 muestras) tras el fix:
+`ebv (MW) sample: [0.006, 0.0074, ..., 0.008]` vs. `host_ebv sample: [0.012, 0.0099, 0.1676, 0.5604,
+...]` -- dos setters distintos (`setters with ebv: ['ebv', 'host_ebv']`), con la escala real esperada
+para cada uno.
+
+### Paso 4 — re-medido: control positivo sin cambio, `SNIax`/`CaRT` con el residuo casi cerrado
+
+3 jobs reales en NLHPC (`sbatch`, sondeados con `squeue`/`sacct`): `12101078` (`SNIa-91bg` control,
+2m15s), `12101079` (`SNIax`, 15m09s), `12101080` (`CaRT`, 3m25s).
+
+**Control positivo**: `SNIa-91bg` (sin `host_av`, no debería moverse) -- `compare_brightness_truth_
+snia91bg_output.parquet` sale **bit-idéntico** al de Fase 50 (mismo hash `md5`, mismas 8 columnas
+resumen exactas). Confirma que el fix no tiene efecto colateral en clases sin extinción de host.
+
+| banda | Δ Fase 50 (bug) | Δ Fase 51 (fix) |
+|---|---:|---:|
+| `SNIax` u | -2.018 | **-0.760** |
+| `SNIax` g | -1.114 | **-0.208** |
+| `SNIax` r | -0.609 | **+0.122** |
+| `SNIax` i | -0.466 | **+0.111** |
+| `SNIax` z | -0.397 | **+0.093** |
+| `SNIax` y | -0.350 | **+0.073** |
+| `CaRT` u | -1.200 | **-0.623** |
+| `CaRT` g | -0.884 | **-0.283** |
+| `CaRT` r | -0.602 | **-0.117** |
+| `CaRT` i | -0.495 | **-0.087** |
+| `CaRT` z | -0.375 | **-0.066** |
+| `CaRT` y | -0.348 | **-0.078** |
+
+`SNIax` bandas `r`/`i`/`z`/`y` **cambian de signo y quedan prácticamente cerradas** (+0.07 a +0.12
+mag, LCL ahora levemente más tenue que SNANA -- dentro del mismo orden que el `-0.068` mag remanente
+ya aceptado como ruido en Fase 47). `CaRT` cae por un factor de ~2-5x en las 6 bandas. Y, dato clave:
+el patrón que queda en ambas clases (`u`/`g` con un residuo real, `r`-`y` casi cerrado) tiene la
+**misma forma y escala** que el patrón ya visto en el control positivo `SNIa-91bg` (u: -0.537, g:
+-0.245, r: -0.088...) -- una clase que nunca tuvo extinción de host en absoluto. Esto sugiere
+fuertemente que el residuo azul que sobrevive en las 3 clases **no es del paso de extinción de host**
+(ya remedido, ya con nombre propio) -- es un efecto más chico, universal, presente incluso sin
+extinción de host, todavía sin explicar (candidato para una fase futura: K-corrección/integración de
+banda en el UV, o el resto de la corrección F99-vs-O94 en el lado de extinción de MW).
+
+### Conclusión Fase 51
+
+El hallazgo real de esta fase no fue la hipótesis con la que arrancó (ley de polvo CCM89-vs-O94,
+confirmada real pero 15-50x insuficiente) sino un bug de biblioteca más profundo y de mayor impacto:
+`add_effect()` de LightCurveLynx fusiona parámetros de efectos por nombre, sin detectar colisiones --
+dos efectos con el mismo nombre de parámetro (`"ebv"`, el que usa `ExtinctionEffect` para CUALQUIER
+extinción) hacen que el segundo pierda su propio valor en silencio. Esto apagó la extinción de host
+real (a ~2-8% de lo nominal) en **las 12 clases de `CLASS_CONFIGS` que la declaran** (9 `wv07`, 2
+`exp_halfgauss`, 1 `exp`) durante TODAS las fases anteriores de este proyecto que las tocaron --
+significa que cualquier resultado de brillo o ratio de detección ya reportado para esas 12 clases
+(prácticamente todo el catálogo salvo `SNIa`/`SNIa-91bg`/`SNII-NMF`) se midió con la extinción de host
+efectivamente apagada, y debería re-derivarse. Corregido con un nombre de parámetro propio
+(`ebv_param_name="host_ebv"`) más un `assert` de regresión, y la ley de polvo real corregida a O94 de
+paso. Verificado con dos smoke tests reales (antes/después del fix) y una remedición completa de las
+2 clases de Fase 50: el control positivo (`SNIa-91bg`) sale bit-idéntico (cero efecto colateral),
+`SNIax` queda prácticamente cerrado en 4 de 6 bandas, `CaRT` mejora por un factor de 2-5x en las 6.
+Candidato nuevo para el residuo `u`/`g` que sobrevive en las 3 clases, universal y no relacionado con
+extinción de host -- pendiente para una fase futura. Este bug también se reporta como candidato real
+para `ISSUE_DRAFT_seed_propagation.md` (o un draft nuevo análogo) -- pendiente de confirmación
+explícita del usuario antes de publicar, mismo criterio que el resto del proyecto.
+
+### Archivos de esta fase
+
+`snana_params.py` (`ClippedExtinctionEffect`: `ebv_param_name` nuevo, re-mapeo de parámetro,
+`apply()` corregido). `run_simsed_poc.py`/`run_non1ased_poc.py` (`host_extinction`:
+`extinction_model="O94"`, `ebv_param_name="host_ebv"`, `assert` de regresión). Agente Opus
+(solo lectura, diagnóstico -- ver plan de la fase) para el Paso 1/2. 3 jobs reales en NLHPC
+(`sbatch`, sondeados con `squeue`/`sacct`): `12101078`/`12101079`/`12101080`. Outputs reales
+actualizados (reemplazan los de Fase 50): `compare_brightness_truth_{snia91bg,sniax,cart}_
+output.parquet` (`snia91bg` bit-idéntico, confirmado por hash).

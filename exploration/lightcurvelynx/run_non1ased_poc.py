@@ -325,10 +325,20 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
             return np.asarray(host_av) / hp["r_v"]
 
         host_ebv_func = SizeAwareFunctionNode(_av_to_ebv, node_label="host_ebv", host_av=av_func)
+        # Fase 51: mismo fix que run_simsed_poc.py (ver ClippedExtinctionEffect
+        # en snana_params.py y NOTES.md) -- extinction_model="O94" (GALextinct
+        # real usa OPT=94 fijo, no CCM89) y ebv_param_name="host_ebv" (evita la
+        # colision de nombre "ebv" con mw_extinction que dejaba la extincion de
+        # host efectivamente apagada, ~2-8% de la nominal).
         host_extinction = ClippedExtinctionEffect(
-            extinction_model="CCM89", ebv=host_ebv_func, r_v=hp["r_v"], frame="rest", backend="dust_extinction",
+            extinction_model="O94", ebv=host_ebv_func, r_v=hp["r_v"], frame="rest", backend="dust_extinction",
+            ebv_param_name="host_ebv",
         )
         source_model.add_effect(host_extinction)
+        assert "host_ebv" in source_model.setters, (
+            "host_extinction no registro un setter propio -- colision de "
+            "nombre de parametro con mw_extinction sin resolver (Fase 51)"
+        )
         print(f"[{time.time()-t_start:.1f}s] extincion de host real aplicada "
               f"(kind={kind}, {av_desc}, R_V={hp['r_v']})")
 

@@ -530,10 +530,24 @@ def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: flo
             return np.asarray(host_av) / hp["r_v"]
 
         host_ebv_func = SizeAwareFunctionNode(_av_to_ebv, node_label="host_ebv", host_av=av_func)
+        # Fase 51: extinction_model="O94" (no "CCM89") -- GALextinct() real
+        # (genmag_SIMSED.c:1567) llama siempre con OPT=94 (O'Donnell 1994,
+        # MWgaldust.h:27) para host, ignorando INPUTS.OPT_SNXT/GENSNXT="CCM89"
+        # (esa variable solo se usa para modelos rest-frame tipo MLCS2K2, no
+        # para SIMSED -- confirmado, ver NOTES.md). ebv_param_name="host_ebv"
+        # evita la colision de nombre "ebv" con mw_extinction (ver docstring
+        # de ClippedExtinctionEffect) -- la causa real y dominante del residuo
+        # de Fase 50, no esta diferencia de ley de polvo (que por si sola mide
+        # <0.13 mag, ver NOTES.md).
         host_extinction = ClippedExtinctionEffect(
-            extinction_model="CCM89", ebv=host_ebv_func, r_v=hp["r_v"], frame="rest", backend="dust_extinction",
+            extinction_model="O94", ebv=host_ebv_func, r_v=hp["r_v"], frame="rest", backend="dust_extinction",
+            ebv_param_name="host_ebv",
         )
         source_model.add_effect(host_extinction)
+        assert "host_ebv" in source_model.setters, (
+            "host_extinction no registro un setter propio -- colision de "
+            "nombre de parametro con mw_extinction sin resolver (Fase 51)"
+        )
         print(f"[{time.time()-t_start:.1f}s] extincion de host real aplicada "
               f"(kind={kind}, {av_desc}, R_V={hp['r_v']})")
 
