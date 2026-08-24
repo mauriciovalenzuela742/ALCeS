@@ -352,50 +352,16 @@ def snana_noise_columns(df_ddf: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 0, wfd: bool = False):
-    cfg = CLASS_CONFIGS[class_key]
-    # la mayoria de las clases DDF usan NGENTOT_LC=2000 (pipeline/models.yaml:
-    # ngen_ddf), pero PISN-STELLA-HYDROGENIC es la excepcion real (ngen_ddf:
-    # 20000) -- cfg["ngentot_lc"] la overridea; ngentot_override (usado por
-    # los smoke tests) tiene prioridad sobre ambas. Fase 17: WFD usa el
-    # mismo NGENTOT que DDF (misma excepcion incluida) -- el usuario eligio
-    # "NGENTOT chico, tipo DDF" en vez de la escala real de produccion
-    # (200.000/clase) para no volver a agotar la cuota de NLHPC.
-    ngentot = ngentot_override if ngentot_override is not None else cfg.get("ngentot_lc", NGENTOT_LC)
-    # Fase 5: seed_index != 0 corre una realizacion independiente (semilla
-    # real distinta, offset grande para no chocar con los sub-offsets +1..+9
-    # ya usados abajo) en un directorio de salida separado -- no pisa el
-    # resultado "principal" (seed_index=0) ya reportado en el dashboard/
-    # NOTES.md, para poder cuantificar varianza entre semillas sin invalidar
-    # las comparaciones ya publicadas.
-    seed_base = SEED_BASE + seed_index * 1_000_000
-    seed_suffix = f"_seed{seed_index}" if seed_index else ""
-    wfd_suffix = "_wfd" if wfd else ""
-    out_dir = HERE / f"poc_output_{class_key.lower().replace('-', '')}{seed_suffix}{wfd_suffix}"
-    out_dir.mkdir(exist_ok=True)
-    t_start = time.time()
-
-    con = sqlite3.connect(str(OPSIM_DB))
-    df = pd.read_sql_query("SELECT * FROM observations", con)
-    if wfd:
-        # Fase 17: mismo patron ya establecido de leer directo del .db en vez
-        # del SIMLIB pre-construido (minimiza riesgo de una ruta de datos
-        # nueva sin probar) -- WFD es simplemente "todo lo que no es DDF" en
-        # el mismo baseline_v5.3.1_10yrs.db (confirmado: 1,698,844/1,844,189
-        # filas, 92.1%, ver NOTES.md Fase 17). Sin campos fijos, asi que no
-        # hay columna "field" que extraer.
-        df_ddf = df[~df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
-    else:
-        df_ddf = df[df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
-        df_ddf["field"] = df_ddf["target_name"].str.extract(r"ddf_(\w+)")
-    df_ddf = snana_noise_columns(df_ddf)
-    obs_table = OpSim(df_ddf, zp_err_mag=0.005)
-    print(f"[{time.time()-t_start:.1f}s] [{class_key}] OpSim {'WFD' if wfd else 'DDF'}: "
-          f"{len(df_ddf):,} obs, ruido real de SNANA inyectado")
-
-    passband_group = PassbandGroup.from_preset(preset="LSST")
-    print(f"[{time.time()-t_start:.1f}s] passbands cargados")
-
+def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: float, wfd: bool = False):
+    """Arma el SIMSEDModel real (pesos SIMSED_REDCOR o uniformes, dndz,
+    radec/t0/distancia, extincion MW+host, fixes de semilla) para una clase
+    de CLASS_CONFIGS -- bloque compartido entre main() (14 clases,
+    produccion) y compare_brightness_truth.py (Fase 50: medir brillo
+    verdadero sin duplicar parametros a mano en un segundo script, el mismo
+    duplicado que hizo que el fix de Fase 22 tardara 25 fases en llegar a
+    ese archivo -- ver NOTES.md). Devuelve (source_model, radec_sampler);
+    trest_range/restlambda_range se leen directo de cfg por el llamador,
+    no dependen de la construccion del modelo."""
     simsed_dir = cfg["simsed_dir"]
     file_names, _ = SIMSEDModel._read_simsed_info_file(simsed_dir)
     if "redcor_params" in cfg:
@@ -572,6 +538,55 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
               f"(kind={kind}, {av_desc}, R_V={hp['r_v']})")
 
     print(f"[{time.time()-t_start:.1f}s] SIMSEDModel cargado ({len(source_model)} templates)")
+
+    return source_model, radec_sampler
+
+
+def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 0, wfd: bool = False):
+    cfg = CLASS_CONFIGS[class_key]
+    # la mayoria de las clases DDF usan NGENTOT_LC=2000 (pipeline/models.yaml:
+    # ngen_ddf), pero PISN-STELLA-HYDROGENIC es la excepcion real (ngen_ddf:
+    # 20000) -- cfg["ngentot_lc"] la overridea; ngentot_override (usado por
+    # los smoke tests) tiene prioridad sobre ambas. Fase 17: WFD usa el
+    # mismo NGENTOT que DDF (misma excepcion incluida) -- el usuario eligio
+    # "NGENTOT chico, tipo DDF" en vez de la escala real de produccion
+    # (200.000/clase) para no volver a agotar la cuota de NLHPC.
+    ngentot = ngentot_override if ngentot_override is not None else cfg.get("ngentot_lc", NGENTOT_LC)
+    # Fase 5: seed_index != 0 corre una realizacion independiente (semilla
+    # real distinta, offset grande para no chocar con los sub-offsets +1..+9
+    # ya usados abajo) en un directorio de salida separado -- no pisa el
+    # resultado "principal" (seed_index=0) ya reportado en el dashboard/
+    # NOTES.md, para poder cuantificar varianza entre semillas sin invalidar
+    # las comparaciones ya publicadas.
+    seed_base = SEED_BASE + seed_index * 1_000_000
+    seed_suffix = f"_seed{seed_index}" if seed_index else ""
+    wfd_suffix = "_wfd" if wfd else ""
+    out_dir = HERE / f"poc_output_{class_key.lower().replace('-', '')}{seed_suffix}{wfd_suffix}"
+    out_dir.mkdir(exist_ok=True)
+    t_start = time.time()
+
+    con = sqlite3.connect(str(OPSIM_DB))
+    df = pd.read_sql_query("SELECT * FROM observations", con)
+    if wfd:
+        # Fase 17: mismo patron ya establecido de leer directo del .db en vez
+        # del SIMLIB pre-construido (minimiza riesgo de una ruta de datos
+        # nueva sin probar) -- WFD es simplemente "todo lo que no es DDF" en
+        # el mismo baseline_v5.3.1_10yrs.db (confirmado: 1,698,844/1,844,189
+        # filas, 92.1%, ver NOTES.md Fase 17). Sin campos fijos, asi que no
+        # hay columna "field" que extraer.
+        df_ddf = df[~df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
+    else:
+        df_ddf = df[df["target_name"].str.contains("ddf_", na=False)].reset_index(drop=True)
+        df_ddf["field"] = df_ddf["target_name"].str.extract(r"ddf_(\w+)")
+    df_ddf = snana_noise_columns(df_ddf)
+    obs_table = OpSim(df_ddf, zp_err_mag=0.005)
+    print(f"[{time.time()-t_start:.1f}s] [{class_key}] OpSim {'WFD' if wfd else 'DDF'}: "
+          f"{len(df_ddf):,} obs, ruido real de SNANA inyectado")
+
+    passband_group = PassbandGroup.from_preset(preset="LSST")
+    print(f"[{time.time()-t_start:.1f}s] passbands cargados")
+
+    source_model, radec_sampler = build_source_model(cfg, obs_table, seed_base, t_start, wfd=wfd)
 
     t_sim0 = time.time()
     # Fase 5: rng= explicito -- simulate_lightcurves() acepta un

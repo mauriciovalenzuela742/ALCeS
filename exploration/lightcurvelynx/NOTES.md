@@ -6401,3 +6401,145 @@ tardía de Fase 46.
 Sin scripts nuevos -- fase de lectura/verificación pura (`.README` reales vía `ssh`, `.DUMP` real vía
 el venv de NLHPC para las 3 definiciones alternativas del Paso 1, sin `sbatch`). `docs/index.html`
 modificado (3 secciones). `run_simsed_poc.py` sin cambios -- el código de Fase 43 se mantiene.
+
+## Fase 50 — primera medición de brillo verdadero fuera de `SNIa`/`SNIa-91bg`: `SNIax` y `CaRT` tienen residuos reales, grandes y fuertemente cromáticos (LCL hasta 2 mag más brillante en `u`)
+
+Cuarenta y tres fases después de que Fase 7 dejara pendiente medir brillo verdadero en las 12 clases
+restantes del catálogo (siempre se comparó solo ratio de detección, nunca `PEAKMAG` sin ruido), esta
+fase generaliza la herramienta y mide las dos primeras: `SNIax` (1001 templates) y `CaRT` (225
+templates, peor ratio de detección del catálogo, 10.8x en Fase 48).
+
+### Paso 0 — generalizar la herramienta, sin duplicar parámetros a mano
+
+`compare_brightness_truth.py` reescrito para aceptar cualquier clase de `CLASS_CONFIGS` por línea de
+comando, importando (no copiando) `CLASS_CONFIGS` y una función nueva, `build_source_model()`,
+extraída de `run_simsed_poc.py::main()` (refactor puro -- se movió el bloque completo de construcción
+de `SIMSEDModel`/`dndz`/`radec_sampler`/extinción de host y MW, confirmado línea a línea que no cambia
+ninguna lógica). Este era exactamente el mecanismo que hizo que el fix de Fase 22 tardara 25 fases en
+llegar a este script (Fase 47): con `build_source_model()` compartida entre producción y auditoría, no
+puede volver a pasar. `compare_brightness_truth_binned.py` generalizado en paralelo: `CLASS_CONFIGS`
+para los bins de `z` reales por clase, `DUMP_FOLDER_OVERRIDES = {"TDE-MOSFIT": "TDE", "ILOT-MOSFIT":
+"ILOT"}` para las 2 carpetas reales que no calzan con la clave de config, y las 6 bandas LSST (antes
+solo `r`) vía un mapeo `SNANA_COL` (`PEAKMAG_Y` con mayúscula, confirmado contra el `.DUMP` real).
+
+**Hallazgo lateral al hacer el smoke test con `CaRT`**: evaluar en un solo punto `rest_phase=0` (la
+convención que usaron Fases 39/47) devolvía flujo `0.0` en las 6 bandas para los 2000 objetos -- no un
+fallo de `compute_noise_free_lightcurves()`, sino que la grilla real de `SIMSED.CART-MOSFIT`
+(`SED.INFO`) arranca en fase `0.501`, no en una fase negativa: es una convención "días desde la
+explosión", distinta de la convención "días desde el pico" (pico en fase=0 por construcción) que usan
+`SNIa-91bg` y la mayoría de clases SIMSED. Fix: evaluar sobre toda la ventana `trest_range` real de
+generación (la misma que ya se usa para generar, Fase 40/43), paso de 1 día, y tomar el máximo de
+flujo por banda -- encuentra el pico real sin asumir dónde cae, válido para cualquier convención de
+fase.
+
+### Paso 1 — control positivo: `SNIa-91bg` con la herramienta generalizada (obligatorio antes de tocar otra clase)
+
+| banda | Δ medio (bins 2-7) |
+|---|---:|
+| u | -0.537 |
+| g | -0.245 |
+| r | -0.088 |
+| i | -0.032 |
+| z | -0.016 |
+| y | -0.020 |
+
+Banda `r`: mismo signo y orden de magnitud que Fase 47, pero el valor exacto cambió de `-0.068` a
+**`-0.088`** mag. Investigado antes de aceptarlo (mismo criterio de Fase 47: no dar un cambio de
+número por bueno sin entender por qué) -- es un efecto esperado del nuevo método, no un bug: el máximo
+sobre toda la grilla `trest_range` es por definición mayor o igual al valor puntual en el nodo
+fase=0 exacto (el pico continuo real de un template dado no cae necesariamente exacto en ese nodo de
+grilla), así que el nuevo método da LCL igual o más brillante que el método de un solo punto -- exactamente
+la dirección observada, y con una magnitud pequeña (`0.02` mag ≈ 2% de flujo) consistente con que el
+pico real esté cerca pero no exacto en fase=0. El control positivo pasa.
+
+**Hallazgo nuevo, no medido antes** (Fase 47 solo midió banda `r`): el residuo de `SNIa-91bg` es
+fuertemente dependiente de banda, monótono de azul a rojo -- de `-0.537` mag en `u` a `-0.020` mag en
+`y`. El "residuo prácticamente cerrado" de Fase 47 solo era cierto para `r`; en `u`/`g` sigue habiendo
+un residuo real y grande que nunca se había visto porque nadie había medido esas bandas. Reabre el
+hilo cromático/extinción (Fases 23/24/36/37) para esta clase.
+
+### Paso 2 — `SNIax`
+
+| banda | Δ medio (bins 2-7) |
+|---|---:|
+| u | -2.018 |
+| g | -1.114 |
+| r | -0.609 |
+| i | -0.466 |
+| z | -0.397 |
+| y | -0.350 |
+
+Banda `r`, detalle por bin (mismos 7 bins de `z` reales de la clase, `filter_ddf_field_contamination`
+aplicado, 304/2000 objetos removidos = 15.2%, mismo orden que las demás clases):
+
+| z bin | N SNANA | mediana SNANA | N LCL | mediana LCL | Δ |
+|---|---:|---:|---:|---:|---:|
+| [0.011,0.109) | 6 | 21.082 | 5 | 24.011 | +2.929 |
+| [0.109,0.208) | 36 | 22.741 | 37 | 23.295 | +0.554 |
+| [0.208,0.306) | 105 | 24.691 | 121 | 24.438 | -0.253 |
+| [0.306,0.405) | 174 | 25.625 | 220 | 24.667 | -0.958 |
+| [0.405,0.503) | 287 | 26.299 | 350 | 25.317 | -0.982 |
+| [0.503,0.602) | 462 | 26.677 | 538 | 25.764 | -0.912 |
+| [0.602,0.700) | 623 | 27.531 | 729 | 26.426 | -1.105 |
+
+### Paso 3 — `CaRT`
+
+| banda | Δ medio (bins 2-7) |
+|---|---:|
+| u | -1.200 |
+| g | -0.884 |
+| r | -0.602 |
+| i | -0.495 |
+| z | -0.375 |
+| y | -0.348 |
+
+Banda `r`, detalle por bin:
+
+| z bin | N SNANA | mediana SNANA | N LCL | mediana LCL | Δ |
+|---|---:|---:|---:|---:|---:|
+| [0.012,0.210) | 7 | 23.215 | 7 | 23.114 | -0.101 |
+| [0.210,0.409) | 43 | 25.367 | 44 | 25.019 | -0.348 |
+| [0.409,0.607) | 121 | 26.657 | 148 | 26.064 | -0.592 |
+| [0.607,0.805) | 196 | 27.644 | 247 | 27.213 | -0.431 |
+| [0.805,1.003) | 304 | 28.431 | 388 | 27.659 | -0.772 |
+| [1.003,1.202) | 454 | 29.345 | 540 | 28.516 | -0.829 |
+| [1.202,1.400) | 569 | 29.982 | 626 | 29.343 | -0.639 |
+
+### Interpretación -- las 3 clases comparten una misma forma cromática, en escalas muy distintas
+
+`SNIa-91bg`, `SNIax` y `CaRT` muestran el mismo patrón cualitativo: LCL más brillante que SNANA en
+todas las bandas, con el residuo creciendo monótonamente hacia el azul. Pero la escala difiere por un
+factor de 4 a 40x: `SNIa-91bg` (`u`: -0.54, `y`: -0.02), `CaRT` (`u`: -1.20, `y`: -0.35), `SNIax`
+(`u`: -2.02, `y`: -0.35). Un candidato mecánico real y verificable para explicar por qué `SNIa-91bg`
+tiene el residuo más chico: su corrida (Paso 1, log real) nunca imprime la línea "extincion de host
+real aplicada" -- a diferencia de `SNIax` (`kind=exp_halfgauss, GENTAU_AV=1.7`) y `CaRT`
+(`kind=wv07`), que sí aplican un paso extra de extinción de host sobre el template base. `SNIa-91bg`
+decorrelaciona su enrojecimiento vía `SIMSED_REDCOR` (stretch/color, ya cerrado como no-causa del
+residuo de brillo en Fase 44/47) directamente en la familia de templates, sin una capa de extinción
+de host separada. Esto sugiere -- sin probarlo todavía -- que el paso de aplicar extinción de host
+(ley de polvo, grilla de longitud de onda rest-frame vs. observada al integrarla, valor de `R_V`) es
+donde diverge la implementación de LightCurveLynx de la de SNANA, y que el residuo cromático que
+aparece incluso en `SNIa-91bg` (Paso 1, sin ese paso) sería un segundo efecto más chico, independiente.
+
+### Conclusión Fase 50
+
+Aplicando el criterio de lectura del plan: `SNIax` y `CaRT` **no** caen en `|Δ|<0.1` mag -- son, con
+40+ fases de por medio, las primeras clases fuera de `SNIa`/`SNIa-91bg` con un residuo de brillo real,
+grande y sistemático (hasta 2 mag en `u`), no solo de ratio de detección. Y el residuo es fuertemente
+dependiente de banda en las 3 clases medidas hasta ahora -- reabre con fuerza el hilo cromático/
+extinción, ahora con una hipótesis mecánica concreta y verificable (el paso de extinción de host) en
+vez de una sospecha vaga. Esto cambia la prioridad de la Fase 51 originalmente condicional: antes de
+sumar cobertura a más clases, vale más investigar la causa del residuo de extinción de host en las 2
+clases que ya lo muestran grande.
+
+### Archivos de esta fase
+
+`compare_brightness_truth.py` (generalizado: clase por CLI, `build_source_model()` importada, 6
+bandas, filtro de contaminación integrado desde el arranque, fix de convención de fase vía
+`trest_range` completo). `compare_brightness_truth_binned.py` (generalizado: `CLASS_CONFIGS` para
+bins de `z` reales, `DUMP_FOLDER_OVERRIDES`, 6 bandas vía `SNANA_COL`). `run_simsed_poc.py`
+(`build_source_model()` extraída de `main()`, sin cambio de comportamiento, usada ahora por ambos
+scripts). 3 jobs reales en NLHPC (`sbatch`, sondeados con `squeue`/`sacct`, sin esperar aviso
+automático): `12069695` (`SNIa-91bg` control, 2m22s), `12069696` (`SNIax`, 10m57s, 1001 templates),
+`12069697` (`CaRT`, 2m51s, 225 templates). Outputs reales conservados (no exploratorios, producto de
+scripts de producción): `compare_brightness_truth_{snia91bg,sniax,cart}_output.parquet`.

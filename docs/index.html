@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "49 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "50 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "49 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "50 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "49 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "50 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "49 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "50 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1521,7 +1521,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       objetos "nuevos" disparan a <code>|rest_phase|&gt;45</code> días (mediana <code>265</code> días),
       dentro del rango físico válido del propio modelo (<code>REBIN_DAY</code> hasta 2000 días) — ni
       artefacto de extrapolación ni resultado limpio, resultado genuinamente mixto. Ver pestaña
-      "49 fases" (Fases 38/42-46) para el detalle completo.</p>
+      "50 fases" (Fases 38/42-46) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1605,13 +1605,30 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       decisión del usuario:</strong> aplicar el fix real (excluir <code>RGES</code> de
       <code>ddf_prefixes</code>) requiere regenerar el SIMLIB completo e invalida las 14 campañas de
       referencia ya corridas — no se tocó <code>pipeline/</code> en esta fase.</p></div></li>
-      <li><span class="step-n">8</span><div class="step-body"><p><strong>Generalizar
-      <code>compare_brightness_truth.py</code> por clase</strong> (hoy hardcodeado para
-      <code>SNIa-91bg</code>) y remedir el residuo de brillo pico, con el filtro de contaminación de
-      campo ya aplicado desde el principio, para las clases que nunca se auditaron con la metodología
-      correcta: <code>SNIax</code> y <code>CaRT</code> primero (candidatas de mayor ratio de detección
-      en la tabla corregida de Fase 48), luego <code>SNII-NMF</code>/<code>KN-K17</code>/
-      <code>TDE-MOSFIT</code> si el patrón se repite.</p></div></li>
+      <li><span class="step-n">8</span><div class="step-body"><p><strong>✓ Hecho en Fase 50:</strong>
+      <code>compare_brightness_truth.py</code> generalizado por clase (<code>build_source_model()</code>
+      importada de <code>run_simsed_poc.py</code>, no duplicada), 6 bandas LSST, filtro de contaminación
+      integrado desde el arranque. <code>SNIax</code> y <code>CaRT</code> remedidas: primeras clases
+      fuera de <code>SNIa</code>/<code>SNIa-91bg</code>, en 43 fases, con residuo de brillo real y
+      grande (hasta <code>-2.0</code> mag en <code>u</code>), fuertemente dependiente de banda en las 3
+      clases medidas hasta ahora (incluido el control positivo <code>SNIa-91bg</code>, que solo se
+      había medido en <code>r</code> hasta ahora).</p></div></li>
+      <li><span class="step-n">9</span><div class="step-body"><p><strong>Candidato nuevo, no probado:
+      el paso de extinción de host</strong> — <code>SNIax</code>/<code>CaRT</code> (residuo grande)
+      aplican una capa extra de extinción de host (<code>exp_halfgauss</code>/<code>wv07</code>) sobre
+      el template base; <code>SNIa-91bg</code> (residuo 4-40x más chico) decorrelaciona su enrojecimiento
+      directamente vía <code>SIMSED_REDCOR</code>, sin esa capa. Verificar si la ley de polvo, la grilla
+      de longitud de onda (rest-frame vs. observada al integrar) o <code>R_V</code> divergen entre la
+      implementación de LightCurveLynx y la real de SNANA para ese paso — candidato mecánico directo
+      para el residuo cromático, no solo una sospecha de "algo cromático" como en Fases 23/24/36.</p>
+      </div></li>
+      <li><span class="step-n">10</span><div class="step-body"><p><strong>Extender la medición de
+      brillo verdadero a más clases</strong> — <code>SNII-NMF</code> (única otra clase con
+      <code>SIMSED_REDCOR</code> además de <code>SNIa-91bg</code>, test directo de si ese mecanismo dejó
+      residuo en una segunda clase, sin extinción de host, comparación limpia), <code>KN-K17</code>
+      (ratio alto, <code>z</code> chico, estadística densa), <code>TDE-MOSFIT</code> (mejor
+      comportamiento entre las de extinción exponencial pura) — para saber si el patrón cromático de
+      Fase 50 es universal o específico de las 3 clases medidas hasta ahora.</p></div></li>
     </ol>
     </div>
 
@@ -2897,6 +2914,40 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           SNR marginal) con evidencia más fuerte que antes, en vez de contradecirlo.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">50</span>
+        <div class="step-body">
+          <p><strong>Primera medición de brillo verdadero fuera de <code>SNIa</code>/<code>SNIa-91bg</code>:
+          <code>SNIax</code> y <code>CaRT</code> tienen residuos reales, grandes y fuertemente
+          cromáticos — hasta 2 mag más brillante en <code>u</code>.</strong> Herramienta generalizada
+          para cualquier clase (<code>build_source_model()</code> extraída de
+          <code>run_simsed_poc.py</code> e importada, no duplicada a mano — el mecanismo exacto que
+          hizo que el fix de Fase 22 tardara 25 fases en llegar a este script), midiendo las 6 bandas
+          LSST (antes solo <code>r</code>). Hallazgo lateral: la grilla real de
+          <code>SIMSED.CART-MOSFIT</code> usa convención "días desde la explosión" (arranca en fase
+          <code>0.501</code>), no "días desde el pico" como <code>SNIa-91bg</code> — evaluar en un solo
+          punto <code>rest_phase=0</code> devolvía flujo <code>0.0</code>; corregido evaluando el máximo
+          sobre toda la ventana <code>trest_range</code> real.</p>
+          <p>Control positivo (<code>SNIa-91bg</code>) confirma Fase 47 en banda <code>r</code>
+          (<code>-0.068→-0.088</code> mag, cambio esperado y verificado: el máximo de grilla es por
+          definición ≥ el valor puntual en fase=0 exacta) — pero revela, por primera vez, que el
+          residuo es fuertemente dependiente de banda: <code>-0.537</code> mag en <code>u</code> a
+          <code>-0.020</code> mag en <code>y</code>, algo que Fase 47 nunca pudo ver al medir solo
+          <code>r</code>. <code>SNIax</code> y <code>CaRT</code> muestran la misma forma cromática, en
+          escala mucho mayor: <code>SNIax</code> <code>u: -2.018 → y: -0.350</code> mag;
+          <code>CaRT</code> <code>u: -1.200 → y: -0.348</code> mag — las primeras clases fuera de
+          <code>SNIa</code>/<code>SNIa-91bg</code>, en 43 fases, con un residuo de brillo real y grande,
+          no solo de ratio de detección.</p>
+          <p>Candidato mecánico nuevo, no probado todavía: las 3 clases comparten la misma forma
+          cromática en escalas de 4-40x — <code>SNIax</code>/<code>CaRT</code> aplican un paso extra de
+          extinción de host sobre el template base (<code>exp_halfgauss</code>/<code>wv07</code>
+          respectivamente), mientras <code>SNIa-91bg</code> decorrelaciona su enrojecimiento
+          directamente vía <code>SIMSED_REDCOR</code> sin esa capa extra — candidato directo para el
+          paso donde diverge la implementación de LightCurveLynx de la de SNANA. Cambia la prioridad de
+          la Fase 51 originalmente condicional: investigar esta causa antes de sumar cobertura a más
+          clases.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3227,7 +3278,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "49 fases" },
+    { id: "fases", label: "50 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
