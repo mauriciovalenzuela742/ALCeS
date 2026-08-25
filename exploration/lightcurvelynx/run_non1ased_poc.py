@@ -225,8 +225,10 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     print(f"[{time.time()-t_start:.1f}s] [{class_key}] OpSim {'WFD' if wfd else 'DDF'}: "
           f"{len(df_ddf):,} obs, ruido real de SNANA inyectado")
 
-    passband_group = PassbandGroup.from_preset(preset="LSST")
-    print(f"[{time.time()-t_start:.1f}s] passbands cargados")
+    # Fase 55: mismo fix real que run_simsed_poc.py -- u.dat local trunca a
+    # 413.4nm/4134A, el corte real que usa el kcor de SNANA (ver NOTES.md).
+    passband_group = PassbandGroup.from_preset(preset="LSST", table_dir=str(HERE / "lsst_passbands_local"))
+    print(f"[{time.time()-t_start:.1f}s] passbands cargados (Fase 55: u truncado a 4134A real)")
 
     z_min, z_max = cfg["genrange_redshift"]
     dndz_kind, dndz_params = cfg["dndz"]

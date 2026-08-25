@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "54 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "56 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "54 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "56 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "54 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "56 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "54 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "56 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1521,7 +1521,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       objetos "nuevos" disparan a <code>|rest_phase|&gt;45</code> días (mediana <code>265</code> días),
       dentro del rango físico válido del propio modelo (<code>REBIN_DAY</code> hasta 2000 días) — ni
       artefacto de extrapolación ni resultado limpio, resultado genuinamente mixto. Ver pestaña
-      "54 fases" (Fases 38/42-46) para el detalle completo.</p>
+      "56 fases" (Fases 38/42-46) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1678,6 +1678,30 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <code>CaRT</code> (no es literalmente "fase 0 del archivo SIMSED"), y qué explica el trade-off
       azul-mejora/rojo-empeora incluso en clases donde el mecanismo aplica sin ambigüedad. Quedan sin
       probar los mecanismos 1 (fuga de filtro <code>u</code>) y 3 (grilla SIMSED discreta) de Fase 52.</p>
+      </div></li>
+      <li><span class="step-n">15</span><div class="step-body"><p><strong>✓ Hecho en Fase 55 —
+      mecanismo 1 (fuga de filtro <code>u</code>) corregido, limpio:</strong> filtro
+      <code>u</code> real truncado a <code>413.4nm</code>/<code>4134Å</code> (el corte real del
+      <code>kcor</code>), aplicado también a producción por ser corrección de datos sin ambigüedad.
+      Solo <code>u</code> se mueve (<code>-0.014</code> a <code>-0.072</code> mag en las 3 clases),
+      <code>g</code>-<code>y</code> bit-idénticos — cero trade-off, cerró exactamente como predecía
+      el diagnóstico. Queda sin probar el mecanismo 3 de Fase 52 (grilla SIMSED discreta).</p></div></li>
+      <li><span class="step-n">16</span><div class="step-body"><p><strong>✓ RESUELTO en Fase 56 —
+      la causa raíz real, no un mecanismo más:</strong> <code>Trest=0</code> real de SNANA es el pico
+      bolométrico de cada template (<code>T0shiftPeak_SEDMODEL()</code>, activo por defecto en
+      SIMSED), no la fase nativa 0 del archivo. Con el fix, las 6 bandas caen juntas por primera vez
+      en la investigación — <code>SNIa-91bg</code> a <code>≤0.05</code> mag en las 6, <code>SNIax</code>
+      y <code>CaRT</code> con el patrón salvaje azul/rojo colapsado a un rango chico. El mecanismo 3
+      (grilla SIMSED discreta) pierde urgencia — la mayor parte del residuo cromático que motivaba
+      retomarlo ya se explicó por esta causa.</p></div></li>
+      <li><span class="step-n">17</span><div class="step-body"><p><strong>Candidatos nuevos, mucho más
+      chicos, que deja Fase 56</strong> — un offset acromático de <code>~0.15</code> mag en
+      <code>SNIax</code> (mismo signo/magnitud en las 6 bandas, no cromático, naturaleza distinta a lo
+      investigado hasta ahora) y un residuo azul residual de <code>~0.11</code> mag en <code>CaRT</code>
+      (mucho más chico que cualquier valor medido para esta clase). Extender
+      <code>simsed_t0_mode="bolometric_peak"</code> a producción (<code>main()</code>) queda como
+      decisión separada y de mayor impacto — cambiaría el eje temporal completo de la curva de luz
+      para las 12 clases SIMSED, con efecto directo en detección/trigger, no solo en brillo pico.</p>
       </div></li>
     </ol>
     </div>
@@ -3136,6 +3160,60 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           honestamente el intento.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">55</span>
+        <div class="step-body">
+          <p><strong>Mecanismo 1 (fuga de filtro <code>u</code>) corregido — efecto real, pequeño, sin
+          daño colateral.</strong> El filtro <code>u</code> que carga LightCurveLynx
+          (<code>total_u.dat</code>) es byte-idéntico al real de SNANA hasta el punto donde el
+          <code>kcor</code> real lo trunca — confirmado en NLHPC: <code>LSST_u.dat</code> real corta en
+          exactamente <code>413.4nm</code>/<code>4134Å</code>. Fix: copia local versionada de los 6
+          filtros reales (<code>lsst_passbands_local/</code>, solo <code>u.dat</code> truncado),
+          cargada vía el <code>table_dir=</code> nativo de <code>PassbandGroup.from_preset()</code> —
+          sin tocar la librería. A diferencia de Fase 53, este SÍ se aplica también a
+          producción/<code>main()</code>: es una corrección de datos sin ambigüedad de diseño, no una
+          decisión de convención.</p>
+          <p>Medido con 3 jobs reales: solo <code>u</code> se mueve (<code>SNIa-91bg
+          -0.537→-0.465</code>, <code>SNIax -0.733→-0.710</code>, <code>CaRT -0.621→-0.607</code>) —
+          <code>g</code> a <code>y</code> bit-idénticos en las 3 clases, confirma cero efecto
+          colateral. Corrección limpia, sin trade-offs — a diferencia de los mecanismos 2 y 4, cerró
+          exactamente como predecía el diagnóstico.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">56</span>
+        <div class="step-body">
+          <p><strong>RESUELTO — la causa raíz real del residuo: SNANA shiftea cada template SIMSED a
+          su propio pico bolométrico real, no a la fase nativa 0 del archivo. Las 6 bandas caen juntas
+          por primera vez en toda la investigación.</strong> Un agente Opus de solo lectura resuelve la
+          pregunta abierta de Fase 54: <code>T0shiftPeak_SEDMODEL()</code>
+          (<code>genmag_SEDtools.c:2825-2884</code>) shiftea la grilla <code>DAY</code> de CADA
+          template para que el día de mayor flujo bolométrico (suma simple sobre todos los bins de
+          λ, sin ponderar) quede en <code>DAY=0</code> — activo por defecto para SIMSED
+          (<code>genmag_SIMSED.c:226-230</code>, "shift T=0 to peak"), confirmado sin excepción en las
+          12 clases SIMSED reales. Verificado sobre los templates reales: <code>SNIa-91bg</code> pica
+          en fase nativa <code>+1</code>/<code>+2</code> (nunca 0); <code>CaRT</code> pica en fase
+          nativa <code>+4</code> a <code>+33.5</code> (mediana ~14) — cierra exacto el caso de Fase 54:
+          su template evaluaba <code>6.5</code> días antes del <code>Trest=0</code> real.</p>
+          <p>Causa raíz en LightCurveLynx: <code>SIMSEDModel._read_simsed_data_file()</code> usa
+          <code>sed_data_t0=0.0</code> (fase nativa del archivo) sin verificar el pico real — desalinea
+          la curva de luz COMPLETA, no solo <code>PEAKMAG</code>. Fix:
+          <code>load_simsed_templates_bolometric()</code> nueva (replica
+          <code>T0shiftPeak_SEDMODEL()</code> exacto), <code>build_source_model()</code> gana
+          <code>simsed_t0_mode</code> (default <code>"raw"</code>, producción/<code>main()</code> sin
+          cambios — mismo criterio que Fase 53). Con <code>"bolometric_peak"</code>,
+          <code>rest_phase=0</code> ya es el pico real — vuelve a ser seguro evaluar en un único punto,
+          la convención original de Fase 39/47.</p>
+          <p>Medido con 3 jobs reales: <code>SNIa-91bg</code> las 6 bandas caen a <code>≤0.05</code>
+          mag (mediana global <code>r</code>: SNANA <code>24.648</code>, LCL <code>24.642</code>,
+          <code>Δ=0.006</code> mag — el cierre más limpio del proyecto después de
+          <code>MAG_OFFSET</code>). <code>SNIax</code>: el rango salvaje banda-a-banda
+          (<code>-0.71</code> a <code>+0.12</code>) colapsa a un grupo apretado (<code>+0.14</code> a
+          <code>+0.17</code>) — queda un offset acromático chico, candidato nuevo. <code>CaRT</code>:
+          de <code>0.54</code> mag de rango a <code>0.11</code>, <code>z</code>/<code>y</code>
+          prácticamente cerrados.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3466,7 +3544,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "54 fases" },
+    { id: "fases", label: "56 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

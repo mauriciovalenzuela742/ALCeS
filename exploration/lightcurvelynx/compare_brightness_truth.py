@@ -66,7 +66,7 @@ from lightcurvelynx.simulate import compute_noise_free_lightcurves
 sys.path.insert(0, "/home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx")
 from run_simsed_poc import (  # noqa: E402
     CLASS_CONFIGS, build_source_model, snana_noise_columns, restlambda_gate,
-    passband_mean_wavelengths, host_extinction_mag_offset,
+    passband_mean_wavelengths, host_extinction_mag_offset, LSST_PASSBAND_TABLE_DIR,
 )
 
 HERE = Path("/home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx")
@@ -95,60 +95,59 @@ def main(class_key: str):
     obs_table = OpSim(df_ddf, zp_err_mag=0.005)
     print(f"[{time.time()-t_start:.1f}s] [{class_key}] OpSim DDF: {len(df_ddf):,} obs")
 
-    passband_group = PassbandGroup.from_preset(preset="LSST")
-    print(f"[{time.time()-t_start:.1f}s] passbands cargados")
+    passband_group = PassbandGroup.from_preset(preset="LSST", table_dir=str(LSST_PASSBAND_TABLE_DIR))
+    print(f"[{time.time()-t_start:.1f}s] passbands cargados (Fase 55: u truncado a 4134A real)")
 
     # Fase 50: bloque real de armado de modelo REUSADO de run_simsed_poc.py
     # (extincion host segun cfg["host_av"]["kind"], dndz, redcor si la clase
     # los declara, seeds) -- no se duplica a mano.
+    # Fase 56: simsed_t0_mode="bolometric_peak" -- ver NOTES.md. Reemplaza la
+    # cadena de intentos de Fases 47/50/52/54 (que asumian que Trest=0 real de
+    # SNANA era la fase nativa 0 del archivo .SED, o el maximo sobre una
+    # ventana) por la causa raiz real: SNANA shiftea cada template a su pico
+    # bolometrico real ANTES de generar (T0shiftPeak_SEDMODEL, confirmado
+    # activo por defecto para SIMSED), asi que Trest=0 real ES el pico
+    # bolometrico -- no una convencion a adivinar por clase.
     source_model, _radec_sampler = build_source_model(
-        cfg, obs_table, seed_base, t_start, wfd=False, host_extinction_mode="scalar",
+        cfg, obs_table, seed_base, t_start, wfd=False,
+        host_extinction_mode="scalar", simsed_t0_mode="bolometric_peak",
     )
 
     # Fase 47: `flux_perfect.max()` sobre la cadencia real es la metrica que la propia
     # Fase 22 declaro invalida para SNIa/SALT2 (subestima el brillo real para ~33.6% de
-    # los objetos, cadencia real de DDF nunca cae cerca del pico verdadero). Corregido:
-    # `compute_noise_free_lightcurves()` real sobre una grilla de fase DENSA Y CONTINUA
-    # (no atada a ninguna cadencia real observada -- es la diferencia real con el bug de
-    # Fase 22/47), tomando el maximo de flujo por banda sobre esa grilla.
+    # los objetos, cadencia real de DDF nunca cae cerca del pico verdadero). Corregido a
+    # `compute_noise_free_lightcurves()` real, evaluado en un unico punto continuo
+    # (`rest_phase=0`), no atado a ninguna cadencia observada.
     #
-    # Fase 50: `rest_phase=0` (un unico punto, la convencion de Fase 39/47) asume que
-    # phase=0 ES el pico -- cierto para plantillas tipo SNIa (SALT2, 91bg, SNIax: la
-    # grilla real de sus SED arranca en phase negativo, p.ej. -25.0, con phase=0 el
-    # maximo por construccion). Descubierto corriendo `CaRT` con ese supuesto: devolvio
-    # flujo 0.0 en las 6 bandas para los 2000 objetos -- la grilla real de
-    # SIMSED.CART-MOSFIT (`SED.INFO`) arranca en phase=**0.501**, no en phase negativo
-    # (convencion "dias desde la explosion", no "dias desde el pico", verificado
-    # inspeccionando los `.dat.gz` reales). `rest_phase=0` cae fuera de la grilla
-    # definida y el modelo no extrapola -- devuelve 0, no NaN. Fase 50 corrigio evaluando
-    # sobre el `trest_range` real de la clase (mismo `cfg.get("trest_range", (-30, 100))`
-    # que ya usa `run_simsed_poc.py`) y tomando el MAXIMO de flujo por banda sobre esa
-    # grilla completa -- valido para reproducir Fase 47/39 en `r`, pero Fase 52 encontro
-    # que `PEAKMAG_x` real de SNANA es la magnitud exacta en `Trest=0`
-    # (`snlc_sim.c:8455-8456/27104-27107`, `GENLC.peakmag_obs` se fija en la epoca con
-    # `OBSFLAG_PEAK`, `epoch_rest=0.0`), no el maximo de la curva completa -- el pico
-    # fisico real de cada banda NO cae exacto en `Trest=0` (bandas azules tipicamente
-    # pican antes que las rojas, fisica real de SNe), asi que tomar el maximo por banda
-    # sobreestima el brillo real en las bandas cuyo pico fisico esta lejos de `Trest=0`.
-    # Fase 54 (investigado, revertido -- ver NOTES.md): probar "flujo en el punto de
-    # grilla valido mas cercano a Trest=0" en vez del maximo reproduce EXACTO la
-    # prediccion de Fase 52 para `SNIa-91bg` (confirma el mecanismo), pero rompe
-    # clases explosion-referenced como `CaRT` (+2 a +4 mag -- su primer punto valido,
-    # dias antes del pico real, es ~20x mas tenue). La nocion de `Trest=0` real de
-    # SNANA para esas clases no es literalmente "fase 0 del archivo SIMSED"; de donde
-    # sale su PEAKMJD real queda como pregunta abierta. Se mantiene el maximo sobre la
-    # grilla completa hasta resolverla -- ver mas abajo.
-    trest_range = cfg.get("trest_range", (-30.0, 100.0))
+    # Fase 50 tuvo que abandonar temporalmente el punto unico y usar el maximo sobre
+    # una ventana completa porque, bajo `simsed_t0_mode="raw"` (el unico que existia
+    # entonces), `rest_phase=0` significaba literalmente "fase nativa 0 del archivo
+    # .SED" -- valido por construccion para `SNIa-91bg`/`SNIax` (fase nativa 0 =
+    # pico, ~cierto), pero `CaRT` arranca en fase nativa +0.501 y su pico real cae
+    # varios dias despues (Fase 54: hasta +33 dias segun el template) -- `rest_phase=0`
+    # caia fuera de la grilla y devolvia flujo 0. Fase 52/54 investigaron el `PEAKMAG`
+    # real de SNANA (`snlc_sim.c:8455-8456/27104-27107`, magnitud exacta en
+    # `Trest=0`) pero interpretaron "Trest=0" como la fase nativa del archivo -- Fase 54
+    # confirmo que esa lectura reproduce EXACTO la prediccion para `SNIa-91bg` pero
+    # rompe `CaRT` (+2 a +4 mag).
+    #
+    # Fase 56 resuelve la causa raiz: con `simsed_t0_mode="bolometric_peak"` (arriba),
+    # `rest_phase=0` YA ES el pico bolometrico real de cada template -- el mismo Trest=0
+    # que usa SNANA (`genmag_SIMSED.c:351-361`, `T0shiftPeak_SEDMODEL` real). Vuelve a
+    # ser seguro evaluar en un unico punto (`rest_frame_phase_min=0.0,
+    # rest_frame_phase_max=0.5, rest_frame_phase_step=1.0`, la convencion original de
+    # Fase 39/47) para las 3 clases -- el pico bolometrico de cualquier template, por
+    # construccion, cae dentro de su propia cobertura real (`CaRT` incluido).
     t_sim0 = time.time()
     graph_state = source_model.sample_parameters(
         num_samples=NGENTOT, rng_info=np.random.default_rng(seed_base + 2),
     )
     lc = compute_noise_free_lightcurves(
         source_model, graph_state, passband_group,
-        rest_frame_phase_min=trest_range[0], rest_frame_phase_max=trest_range[1], rest_frame_phase_step=1.0,
+        rest_frame_phase_min=0.0, rest_frame_phase_max=0.5, rest_frame_phase_step=1.0,
     )
     print(f"[{time.time()-t_start:.1f}s] evaluacion sin ruido terminada: {len(lc)} objetos, "
-          f"trest_range={trest_range}, {time.time()-t_sim0:.1f}s")
+          f"Trest=0 (pico bolometrico real), {time.time()-t_sim0:.1f}s")
 
     # Fase 53: correccion escalar de extincion de host, precalculada una vez
     # por banda (no por objeto -- host_extinction_mag_offset() ya vectoriza
@@ -191,18 +190,10 @@ def main(class_key: str):
                 rec[f"PEAKMAG_{band}_true"] = np.nan
                 n_gated[band] += 1
                 continue
-            # Fase 54: se investigo evaluar en el punto de grilla valido mas
-            # cercano a Trest=0 (en vez del maximo) -- revertido, ver
-            # NOTES.md Fase 54: funciona exacto para clases peak-referenced
-            # (SNIa-91bg reproduce la prediccion de Fase 52 al mag) pero
-            # rompe clases explosion-referenced como CaRT (+2 a +4 mag,
-            # el primer punto valido de su grilla es ~20x mas tenue que el
-            # pico real, pocos dias despues) -- la nocion "Trest=0 real de
-            # SNANA" no es literalmente "fase 0 del archivo SIMSED" para
-            # esas clases, y de donde sale su PEAKMJD real queda sin
-            # resolver. Se mantiene el maximo sobre la grilla completa
-            # (Fase 50) hasta investigar esa referencia real.
-            peak_flux_true = sub[band].to_numpy().max()
+            # Fase 56: un unico punto de grilla (rest_phase=0, ya el pico
+            # bolometrico real gracias a simsed_t0_mode="bolometric_peak" --
+            # ver bloque de arriba). sub tiene una sola fila por banda.
+            peak_flux_true = sub[band].to_numpy()[0]
             if peak_flux_true <= 0:
                 rec[f"PEAKMAG_{band}_true"] = np.nan
                 continue

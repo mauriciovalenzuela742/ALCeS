@@ -55,7 +55,7 @@ import pandas as pd
 from lightcurvelynx.astro_utils.passbands import PassbandGroup
 from lightcurvelynx.math_nodes.np_random import NumpyRandomFunc
 from lightcurvelynx.math_nodes.ra_dec_sampler import ObsTableRADECSampler
-from lightcurvelynx.models.sed_template_model import SIMSEDModel
+from lightcurvelynx.models.sed_template_model import SIMSEDModel, SEDTemplate
 from lightcurvelynx.obstable.opsim import OpSim
 from lightcurvelynx.simulate import simulate_lightcurves
 from lightcurvelynx.survey_info import SurveyInfo
@@ -82,6 +82,16 @@ OPSIM_DB = SNANA_HOME / "AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db"
 SEARCHEFF_PIPELINE_FILE = SNANA_HOME / "run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
 SEARCHEFF_LOGIC_FILE = SNANA_HOME / "run_SNANA/LSST_PIPELINE_LOGIC.DAT"
 PIXSIZE = 0.2
+# Fase 55: copia local versionada de los 6 filtros reales LSST (mismo
+# total_{u,g,r,i,z,y}.dat que descarga PassbandGroup.from_preset("LSST") por
+# defecto) -- solo u.dat difiere, truncado a 413.4nm/4134A, el corte real
+# que usa el kcor de SNANA (LSST_u.dat real en
+# $SNDATA_ROOT/filters/LSST/baseline_1.9/, confirmado byte-identico a
+# total_u.dat hasta ese corte). El preset por defecto de LightCurveLynx
+# nunca trunca -- incluye una fuga fuera de banda hacia el rojo (T~4e-5,
+# hasta 1150nm) que SNANA real nunca ve, ~0.07-0.10 mag de mas brillo
+# espurio en banda u, 0.000 en las otras 5 (ver NOTES.md Fase 52/55).
+LSST_PASSBAND_TABLE_DIR = HERE / "lsst_passbands_local"
 NGENTOT_LC = 2000  # igual para las 3 clases (pipeline/models.yaml: ngen_ddf)
 SEED_BASE = 20260813
 
@@ -392,8 +402,47 @@ def host_extinction_mag_offset(z, host_av, r_v, meanlam_obs_band):
     return -2.5 * np.log10(factor)
 
 
+def load_simsed_templates_bolometric(simsed_dir):
+    """Fase 56: replica `T0shiftPeak_SEDMODEL()` real de SNANA
+    (`genmag_SEDtools.c:2825-2884`), activo por defecto para SIMSED via
+    `OPTMASK_T0SHIFT_PEAKMAG` (`genmag_SIMSED.c:226-230`, "shift T=0 to
+    peak") -- confirmado sin excepcion en los `SED.INFO` reales de las 12
+    clases SIMSED de esta campana (ninguno declara `OPTFLAG_T0SHIFT_
+    PEAKMAG: 0`, y las tres condiciones para que se ejecute (`SIMSED_USE_
+    BINARY: 0` real, sin `MJD_EXPLODE`/`OPTMASK_T0SHIFT_EXPLODE` reales)
+    se cumplen). SNANA shiftea la grilla `DAY` de CADA template para que
+    el dia con mayor flujo bolometrico (suma simple de flujo sobre todos
+    los bins de lambda del archivo, sin ponderar por dlambda -- formula
+    real confirmada linea por linea) quede en `DAY=0`. `Trest=0` real de
+    SNANA es entonces el pico bolometrico del template, NO la fase nativa
+    0 del archivo `.SED` (que en `SNIa-91bg` vale `+1`/`+2` dias segun el
+    template, y en `CaRT` hasta `+33` dias -- ver NOTES.md Fase 56).
+
+    Devuelve (templates, flux_scale) en el MISMO orden que
+    `SIMSEDModel.from_dir()` (orden real de las lineas `SED:` en
+    `SED.INFO`) -- `selected_template` indexa ese mismo orden
+    (`MultiSEDTemplateModel.__init__`, confirmado leyendo la fuente real
+    del paquete instalado)."""
+    simsed_dir = Path(simsed_dir)
+    file_names, simsed_params = SIMSEDModel._read_simsed_info_file(simsed_dir)
+    flux_scale = float(simsed_params.get("FLUX_SCALE", 1.0))
+    templates = []
+    for file_name in file_names:
+        path = Path(file_name)
+        if not path.exists() and path.suffix != ".gz":
+            path = path.with_suffix(path.suffix + ".gz")
+        data = np.loadtxt(path, comments="#")
+        phases = np.unique(data[:, 0])
+        fluxsum = np.array([data[data[:, 0] == p, 2].sum() for p in phases])
+        t0_bolo = float(phases[np.argmax(fluxsum)])
+        templates.append(SEDTemplate(
+            data, sed_data_t0=t0_bolo, interpolation_type="linear", periodic=False,
+        ))
+    return templates, flux_scale
+
+
 def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: float, wfd: bool = False,
-                        host_extinction_mode: str = "sed"):
+                        host_extinction_mode: str = "sed", simsed_t0_mode: str = "raw"):
     """Arma el SIMSEDModel real (pesos SIMSED_REDCOR o uniformes, dndz,
     radec/t0/distancia, extincion MW+host, fixes de semilla) para una clase
     de CLASS_CONFIGS -- bloque compartido entre main() (14 clases,
@@ -420,7 +469,20 @@ def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: flo
     SNIax/CaRT). El default se deja en "sed" para no alterar en silencio los
     resultados de produccion/deteccion ya reportados por main() -- extender
     el modo "scalar" a produccion queda pendiente de una fase separada
-    (requiere resolver si FLUXCALERR debe re-escalarse junto con FLUXCAL)."""
+    (requiere resolver si FLUXCALERR debe re-escalarse junto con FLUXCAL).
+
+    simsed_t0_mode (Fase 56): "raw" (default, produccion -- main()) arma los
+    templates con `SIMSEDModel.from_dir()`, que fija `sed_data_t0=0.0` -- la
+    fase nativa 0 del archivo `.SED`, sin verificar si coincide con el pico
+    real. "bolometric_peak" (usado por compare_brightness_truth.py) arma los
+    templates con `load_simsed_templates_bolometric()` -- cada uno shifteado
+    a su propio pico bolometrico real, replicando el `T0shiftPeak_SEDMODEL()`
+    real de SNANA (ver docstring de esa funcion y NOTES.md Fase 56). El
+    default se deja en "raw" por el mismo criterio que `host_extinction_mode`
+    -- no alterar en silencio produccion; extender "bolometric_peak" a
+    produccion cambiaria el eje temporal completo de la curva de luz (no solo
+    el brillo pico) para las 12 clases SIMSED, con impacto directo en
+    deteccion/trigger -- decision separada, pendiente."""
     simsed_dir = cfg["simsed_dir"]
     file_names, _ = SIMSEDModel._read_simsed_info_file(simsed_dir)
     if "redcor_params" in cfg:
@@ -541,11 +603,19 @@ def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: flo
         extinction_model="F99", ebv=ebv_func, r_v=MW_RV, frame="observer", backend="dust_extinction",
     )
 
-    source_model = SIMSEDModel.from_dir(
-        simsed_dir, weights=weights,
-        ra=radec_sampler.ra, dec=radec_sampler.dec,
-        redshift=redshift_func, distance=distance_func, t0=t0_func,
-    )
+    if simsed_t0_mode == "bolometric_peak":
+        templates, flux_scale = load_simsed_templates_bolometric(simsed_dir)
+        source_model = SIMSEDModel(
+            templates, flux_scale=flux_scale, weights=weights,
+            ra=radec_sampler.ra, dec=radec_sampler.dec,
+            redshift=redshift_func, distance=distance_func, t0=t0_func,
+        )
+    else:
+        source_model = SIMSEDModel.from_dir(
+            simsed_dir, weights=weights,
+            ra=radec_sampler.ra, dec=radec_sampler.dec,
+            redshift=redshift_func, distance=distance_func, t0=t0_func,
+        )
     # Fase 4: SIMSEDModel.from_dir() nunca pasa un seed a su
     # GivenValueSampler interno (confirmado leyendo sed_template_model.py:
     # `self._sampler_node = GivenValueSampler(all_inds, weights=weights)`,
@@ -668,8 +738,8 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     print(f"[{time.time()-t_start:.1f}s] [{class_key}] OpSim {'WFD' if wfd else 'DDF'}: "
           f"{len(df_ddf):,} obs, ruido real de SNANA inyectado")
 
-    passband_group = PassbandGroup.from_preset(preset="LSST")
-    print(f"[{time.time()-t_start:.1f}s] passbands cargados")
+    passband_group = PassbandGroup.from_preset(preset="LSST", table_dir=str(LSST_PASSBAND_TABLE_DIR))
+    print(f"[{time.time()-t_start:.1f}s] passbands cargados (Fase 55: u truncado a 4134A real)")
 
     source_model, radec_sampler = build_source_model(cfg, obs_table, seed_base, t_start, wfd=wfd)
 

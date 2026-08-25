@@ -7015,3 +7015,197 @@ línea de código activa). Sin cambios netos en el repositorio -- los parquets y
 siguen siendo los vigentes (no se sobrescribieron con los resultados rotos de esta fase). 3 jobs reales
 en NLHPC (`sbatch`, sondeados con `squeue`/`sacct`, borrados tras usarlos): `12109513`/`12109514`/
 `12109515`.
+
+## Fase 55 -- mecanismo 1 (fuga de filtro `u`) corregido: efecto real, pequeño y sin daño colateral
+
+Corrige el mecanismo 1 del diagnóstico de Fase 52: el filtro `u` que carga
+`PassbandGroup.from_preset("LSST")` (`total_u.dat`, descargado de `lsst/throughputs`) es
+byte-idéntico al que usa el `kcor` real de SNANA (`$SNDATA_ROOT/filters/LSST/baseline_1.9/
+total_u.dat`, confirmado por hash) hasta el punto en que SNANA lo trunca -- el `kcor.input` real usa
+`LSST_u.dat`, la misma curva pero cortada. Verificado directo en NLHPC (no de memoria): `LSST_u.dat`
+real termina en `4134.00` (columna mal etiquetada "nm" pero con valores en Å -- confirmado comparando
+grilla contra `total_u.dat`, mismo paso `0.1nm` real, `3000.00`↔`300.0nm` etc.) -- **413.4 nm / 4134
+Å exacto**. Más allá de ese punto, `total_u.dat` sigue hasta `1150nm` con una fuga fuera de banda real
+(`T~4e-5`, ~0.03% del pico) que SNANA nunca ve.
+
+### El fix
+
+Copia local versionada de los 6 filtros reales (`lsst_passbands_local/LSST/{u,g,r,i,z,y}.dat`,
+idénticos a los que carga el preset por defecto salvo `u.dat`, truncado a `413.4nm`). `build_source_model()`
+no cambia -- el fix vive en el `table_dir=` que ya acepta `PassbandGroup.from_preset()` nativamente
+(`passbands.py:280`, "si la tabla existe en `table_dir`, se carga de ahí; si no, se descarga"), sin
+tocar la librería. Aplicado en los 3 llamadores (`run_simsed_poc.py`/`compare_brightness_truth.py`/
+`run_non1ased_poc.py`) -- a diferencia de Fase 53, este SÍ se aplica también a producción/`main()`: es
+una corrección de datos sin ambigüedad de diseño (la curva real que ve SNANA, no una elección de
+convención), con un efecto pequeño, acotado y de una sola dirección.
+
+Smoke test real antes de correr nada: `u` real carga con `wave_max=4133-4134 Å` (1134 filas), las
+otras 5 bandas sin cambio (`wave_max=11500 Å`, 8501 filas -- idéntico al preset por defecto).
+
+### Remedido: solo `u` se mueve, el resto bit-idéntico
+
+3 jobs reales en NLHPC: `12110011` (`SNIa-91bg`, 2m08s), `12110012` (`SNIax`, 15m02s), `12110013`
+(`CaRT`, 3m08s).
+
+| banda | `SNIa-91bg` (Fase 51→55) | `SNIax` (Fase 53→55) | `CaRT` (Fase 53→55) |
+|---|---:|---:|---:|
+| u | -0.537 → **-0.465** | -0.733 → **-0.710** | -0.621 → **-0.607** |
+| g | -0.245 (sin cambio) | -0.186 (sin cambio) | -0.266 (sin cambio) |
+| r-y | sin cambio | sin cambio | sin cambio |
+
+Mejora real en `u` en las 3 clases (`0.014` a `0.072` mag), más chica que la estimación de Fase 52
+(`0.07`-`0.10` mag -- esa estimación usaba la simulación real completa, con más objetos/ruido de
+muestreo que el smoke test de esta fase; el signo y la banda afectada son exactos). `g`-`y` bit-idénticos
+en las 3 clases -- confirma cero efecto colateral, tal como predecía el diagnóstico (la fuga de `u` no
+toca ninguna otra banda).
+
+### Conclusión Fase 55
+
+Corrección real y limpia, sin trade-offs -- a diferencia de los mecanismos 2 (Fase 54, revertido) y 4
+(Fase 53, efecto menor al esperado), este cerró exactamente como se predijo: pequeño, unidireccional,
+sin efecto colateral. Aplicado también a producción (`main()`) por ser una corrección de datos sin
+ambigüedad, no una decisión de diseño.
+
+### Archivos de esta fase
+
+`lsst_passbands_local/LSST/{u,g,r,i,z,y}.dat` (nuevo, versionado -- copias reales de
+`$SNDATA_ROOT`/cache, `u.dat` truncado a 413.4nm). `run_simsed_poc.py` (`LSST_PASSBAND_TABLE_DIR`
+nuevo). `compare_brightness_truth.py`/`run_non1ased_poc.py` (`table_dir=` agregado a
+`PassbandGroup.from_preset()`). 3 jobs reales en NLHPC: `12110011`/`12110012`/`12110013`. Outputs
+reales actualizados: `compare_brightness_truth_{snia91bg,sniax,cart}_output.parquet`.
+
+## Fase 56 -- RESUELTO: la causa raíz real del residuo era la definición de `Trest=0` -- SNANA shiftea cada template SIMSED a su propio pico bolométrico real, no a la fase nativa 0 del archivo. Las 6 bandas caen a `≤0.05` mag (`SNIa-91bg`), quedan agrupadas y chicas (`SNIax`/`CaRT`)
+
+Retoma la pregunta abierta que dejó Fase 54: ¿de dónde sale el `PEAKMJD`/`Trest=0` real que usa SNANA
+para un objeto SIMSED? Un agente Opus de solo lectura sigue la traza completa en el C real y encuentra
+la causa raíz de TODA la saga de residuos de brillo medida desde Fase 50.
+
+### Paso 1 -- el mecanismo real: `T0shiftPeak_SEDMODEL()`
+
+`genmag_SEDtools.c:2825-2884` -- comentario de cabecera literal: `"Shift TEMP_SEDMODEL.DAY so that peak
+bolometric flux is at DAY=0."`. El algoritmo real: para cada template, suma el flujo (`F_λ`, sin
+ponderar por `dλ`, sin filtro -- válido porque la grilla `λ` real es uniforme) sobre TODOS los bins de
+longitud de onda, para cada día; toma el día con la suma máxima (`IDAY_PEAK`); resta ese día a toda la
+grilla `DAY` del template. Se llama, un `Tshift` propio por template, desde `genmag_SIMSED.c:351-361`,
+condicionado a 3 cosas -- las 3 confirmadas reales para las 12 clases SIMSED de esta campaña:
+
+1. **Activo por defecto**: `SEDMODEL.OPTMASK = OPTMASK_DAYLIST_SEDMODEL + OPTMASK_T0SHIFT_PEAKMAG`
+   (`genmag_SIMSED.c:226-230`, comentario real: `"shift T=0 to peak (July 2018)"`).
+2. **No desactivado**: se apaga con `OPTFLAG_T0SHIFT_PEAKMAG: 0` en `SED.INFO` -- ningún `SED.INFO`
+   real de las 12 clases SIMSED de `~/run_SNANA/plasticc_models/` declara esa clave (grep exhaustivo).
+3. **Rama de texto, no binaria**: el shift solo corre leyendo el archivo de texto, no el binario
+   precompilado -- los 3 `.INPUT` reales (`CART-MOSFIT`/`SNIa-91bg`/`SNIax`) declaran
+   `SIMSED_USE_BINARY: 0`.
+
+`PEAKMJD` en sí sigue siendo un sorteo uniforme real (`gen_peakmjd()`, `snlc_sim.c:16887-16965`,
+`GENRANGE_PEAKMJD` real de la campaña) -- la calibración al pico real NO es por objeto, es **por
+template, una vez, en la inicialización del modelo**. Y las 6 bandas comparten el MISMO `Trest=0`:
+`gen_PEAKMAG()` (`snlc_sim.c:27090-27132`) fuerza `epoch_rest=0.0` y evalúa el modelo UNA vez por banda
+en ese instante único -- no hay pico independiente por banda en la referencia real de SNANA.
+
+### Paso 2 -- verificación numérica sobre los templates reales: confirma y cierra el caso de `CaRT`
+
+Calculando `argmax_day(Σ_λ flux)` -- exactamente la fórmula del C -- sobre los `.dat.gz`/`.SED.gz`
+reales: `SNIa-91bg` (35 templates) tiene el pico bolométrico en fase nativa **+1.0** (17 templates) o
+**+2.0** (18 templates), nunca 0. `CaRT` (muestra de 40 de 225 templates) tiene el pico bolométrico en
+fase nativa **+4.0 a +33.5**, mediana ~14 -- confirmado con un ejemplo real: `cart1_0.dat` pica en
+`+6.507`. Esto cierra exacto el caso de Fase 54: el máximo real de `CaRT` medido entonces caía en
+`rest_phase=5-8` mientras el primer punto "válido" bajo la fase nativa (`~1.0`) era 8-22x más tenue --
+Fase 54 estaba evaluando el template **6.5 días antes** del `Trest=0` real de SNANA.
+
+### Paso 3 -- explica también el trade-off azul-mejora/rojo-empeora de Fase 52/54
+
+Comparando, en los templates reales, la fase nativa del pico bolométrico contra el pico dentro de
+ventanas tipo LSST: el pico bolométrico está dominado por el óptico azul-verde, cae casi encima del
+pico de `u`/`g` y días (hasta 9-16 en `SNIax`) antes del pico de `i`/`z`/`y`. El código anterior (máximo
+por banda, Fase 50/53) sobreestimaba TODAS las bandas contra SNANA, mucho más las rojas (máximo lejos
+de `Trest=0`); Fase 54 (fase nativa 0) mejoraba `u`/`g` pero sobrepasaba a `i`/`z`/`y` hacia el lado
+contrario, porque fase nativa 0 caía DÍAS antes del `Trest=0` real. El pico bolométrico real queda
+*entre* ambos -- la primera métrica candidata a mejorar las 6 bandas a la vez.
+
+### Paso 4 -- la causa raíz real en LightCurveLynx
+
+`sed_template_model.py:592-597`, `SIMSEDModel._read_simsed_data_file()`: `SEDTemplate(data,
+sed_data_t0=0.0, ...)` -- usa la fase NATIVA del archivo como referencia de tiempo cero, sin verificar
+si coincide con el pico real. No es solo un problema de la métrica de comparación -- desalinea la curva
+de luz observada COMPLETA respecto de la de SNANA (`self.times = self.phases - sed_data_t0`,
+`sed_template_model.py:79`), con impacto directo en cualquier comparación de fase, no solo en
+`PEAKMAG`. Para `CaRT`, una desalineación mediana de ~14 días es enorme.
+
+### Paso 5 -- el fix: `load_simsed_templates_bolometric()` + `simsed_t0_mode` nuevo en `build_source_model()`
+
+Nueva función en `run_simsed_poc.py`: para cada template de una clase, lee los datos crudos, calcula
+`t0_bolo` con la MISMA fórmula real de `T0shiftPeak_SEDMODEL()` (suma simple de flujo por día, argmax),
+y construye el `SEDTemplate` con `sed_data_t0=t0_bolo` -- en el MISMO orden que `SED.INFO` lista los
+templates (confirmado: `selected_template`, el índice que sortea `MultiSEDTemplateModel`, indexa ese
+mismo orden). Verificado contra el ejemplo del Paso 2: `t0_bolo` de `91BG_ST0_C0.SED` calculado en
+Python da exacto `1.0`.
+
+`build_source_model()` gana `simsed_t0_mode: str = "raw"` (default, producción/`main()` -- construye
+igual que siempre, `SIMSEDModel.from_dir()`) vs. `"bolometric_peak"` (usado por
+`compare_brightness_truth.py` -- arma los templates con `load_simsed_templates_bolometric()`). Mismo
+criterio de Fase 53: no alterar en silencio producción -- extender `"bolometric_peak"` ahí cambiaría el
+eje temporal completo de la curva de luz (no solo el brillo pico) para las 12 clases SIMSED, con
+impacto directo en detección/trigger -- decisión separada, pendiente.
+
+Con `simsed_t0_mode="bolometric_peak"`, `rest_phase=0` YA ES el pico bolométrico real -- vuelve a ser
+seguro evaluar en un único punto (`rest_frame_phase_min=0.0, rest_frame_phase_max=0.5,
+rest_frame_phase_step=1.0`, la convención original de Fase 39/47) para las 3 clases: el pico bolométrico
+de cualquier template, por construcción, cae dentro de su propia cobertura real (`CaRT` incluido -- ya
+no hace falta el `trest_range` completo ni el máximo). Smoke test real antes de correr nada: `CaRT` con
+este modo ya NO devuelve flujo `0.0` en ningún objeto (el bug original de Fase 50, resuelto en la raíz).
+
+### Paso 6 -- remedido: las 6 bandas caen juntas, por primera vez en toda la investigación
+
+3 jobs reales en NLHPC: `12110321` (`SNIa-91bg`, 2m05s), `12110322` (`SNIax`, 16m00s), `12110323`
+(`CaRT`, 3m24s).
+
+| banda | `SNIa-91bg` (Fase 55→56) | `SNIax` (Fase 55→56) | `CaRT` (Fase 55→56) |
+|---|---:|---:|---:|
+| u | -0.465 → **-0.039** | -0.710 → **+0.166** | -0.607 → **-0.113** |
+| g | -0.245 → **-0.047** | -0.186 → **+0.155** | -0.266 → **-0.085** |
+| r | -0.088 → **-0.031** | +0.123 → **+0.148** | -0.119 → **-0.055** |
+| i | -0.032 → **-0.028** | +0.109 → **+0.139** | -0.087 → **-0.034** |
+| z | -0.016 → **-0.013** | +0.092 → **+0.160** | -0.066 → **-0.005** |
+| y | -0.020 → **-0.011** | +0.071 → **+0.154** | -0.078 → **-0.005** |
+| mediana global | | | |
+| SNANA | 24.648 (`r`) | 26.670 (`r`) | 28.850 (`r`) |
+| LCL | 24.642 (`r`) | 26.578 (`r`) | 28.695 (`r`) |
+
+**`SNIa-91bg`**: las 6 bandas caen a `≤0.05` mag -- por primera vez en toda la investigación (43+ fases
+desde Fase 7), un cierre simultáneo en las 6 bandas, no solo en `r`. Mediana global banda `r`: SNANA
+`24.648`, LCL `24.642` -- `Δ=0.006` mag, el cierre más limpio de todo el proyecto después de `MAG_OFFSET`
+(Fase 37, SALT2, `0.005` mag).
+
+**`SNIax`**: el patrón salvaje banda-a-banda (`-0.71` a `+0.12`, un rango de `0.83` mag) colapsa a un
+grupo apretado (`+0.14` a `+0.17`, rango `0.03` mag) -- el residuo cromático desaparece por completo.
+Queda un offset chico y sistemático (~`+0.15` mag, mismo signo/magnitud en las 6 bandas) -- candidato
+nuevo, acromático, para una fase futura (no es el mismo tipo de problema que se venía persiguiendo).
+
+**`CaRT`**: mismo patrón -- de un rango de `0.54` mag (`-0.61` a `-0.07`) a un rango de `0.11` mag
+(`-0.11` a `-0.005`), con `z`/`y` prácticamente cerrados (`-0.005`). Queda un residuo chico creciente
+hacia el azul (`u: -0.113`) -- mucho más chico que cualquier residuo medido para esta clase hasta ahora.
+
+### Conclusión Fase 56
+
+Cierra la saga completa iniciada en Fase 50 (primera medición de brillo fuera de `SNIa`/`SNIa-91bg`) y
+retomada en Fases 51-55: la causa raíz real detrás del residuo cromático que crecía sin explicación
+clase a clase no era ninguno de los mecanismos periféricos ya corregidos (extinción de host, fuga de
+filtro) sino la definición misma de `Trest=0` -- SNANA nunca usa la fase nativa del archivo SIMSED como
+referencia de tiempo, siempre la recalibra al pico bolométrico real de cada template, y esa
+recalibración es la que faltaba en LightCurveLynx. Con el fix, las 3 clases medidas muestran el
+comportamiento más consistente de toda la investigación: residuos chicos, agrupados por banda (ya no
+dispersos como antes), sin el patrón salvaje azul/rojo que motivó 4 fases de diagnóstico (52-55). Quedan
+dos residuos nuevos, mucho más chicos y de naturaleza distinta a los que se venían investigando: un
+offset acromático de `~0.15` mag en `SNIax`, y un residuo azul residual de `~0.11` mag en `CaRT` --
+candidatos genuinamente nuevos para una fase futura, no una continuación de la misma pregunta.
+
+### Archivos de esta fase
+
+`run_simsed_poc.py` (`SEDTemplate` importado; `load_simsed_templates_bolometric()` nueva;
+`build_source_model()` gana `simsed_t0_mode`, default `"raw"` -- `main()`/producción sin cambios de
+comportamiento). `compare_brightness_truth.py` (usa `simsed_t0_mode="bolometric_peak"`, vuelve a
+evaluar en un único punto `Trest=0`, ya no necesita `trest_range` ni el máximo). Agente Opus (solo
+lectura, diagnóstico del `PEAKMJD` real) para los Pasos 1-3. 3 jobs reales en NLHPC:
+`12110321`/`12110322`/`12110323`. Outputs reales actualizados:
+`compare_brightness_truth_{snia91bg,sniax,cart}_output.parquet`.
