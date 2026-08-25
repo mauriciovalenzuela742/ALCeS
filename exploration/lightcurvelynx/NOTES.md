@@ -6811,3 +6811,114 @@ en NLHPC borrados tras usarlos, sin `sbatch`, reutilizando los parquets ya gener
 comparaciones directas de filtros/SED/`.DUMP` reales). Ningún fix de los 4 propuestos fue aplicado --
 quedan documentados para una decisión explícita antes de implementarlos, dados los trade-offs reales
 del Paso 3 y el alcance de biblioteca de los Pasos 4/5.
+
+## Fase 53 — mecanismo 4 implementado (extinción de host como escalar de banda, no sobre el SED) -- el fix es correcto, pero explica mucho menos residuo del estimado en Fase 52
+
+Implementa el mecanismo 4 del diagnóstico de Fase 52: SNANA real aplica la extinción de host como un
+**escalar de magnitud por banda**, evaluado en la longitud de onda media REST-FRAME del filtro
+(`GALextinct(RV_host, AV_host, meanlam_rest, 94, ...)`, `genmag_SIMSED.c:1554-1567`) -- no como una
+extinción punto a punto sobre el SED completo antes de integrar, que es lo que hacía
+`ClippedExtinctionEffect` con `frame="rest"` desde Fase 47.
+
+### Paso 1 -- por qué no se puede injertar un efecto "por banda" en el grafo de LightCurveLynx
+
+Investigado el mecanismo real de aplicación de efectos de LightCurveLynx (`physical_model.py`) antes de
+tocar código: existe un tercer tipo de efecto, `band_pass_effects`/`apply_bandflux()`
+(`physical_model.py:1207-1211`), que SÍ recibe el nombre de filtro (`filters=`) -- exactamente lo que
+haría falta para replicar el escalar de SNANA de forma nativa. Pero ese mecanismo pertenece a la clase
+`BandfluxModel` (`physical_model.py:924`), no a `SEDModel` (`physical_model.py:368`) -- y
+`SIMSEDModel` hereda de `MultiSEDTemplateModel(SEDModel)` (`sed_template_model.py:380/460`), no de
+`BandfluxModel`. `band_pass_effects` no aplica a las clases de este proyecto.
+
+Alternativa evaluada y descartada: implementar un efecto `rest_frame`/`observer_frame` que identifique
+la banda por la forma del array `wavelengths` que recibe (`passband.waves`, confirmado en
+`SEDModel._evaluate_bandfluxes_single`, `physical_model.py:891-916`, que llama
+`self.evaluate_sed(times[filter_mask], passband.waves, state)` una vez por banda) -- funcionaría para
+efectos `frame="observer"` (reciben `wavelengths` sin dividir por `1+z`, matcheable contra una tabla
+precalculada), pero es frágil y agrega una capa de identificación innecesaria.
+
+**Solución adoptada: post-procesamiento, no efecto de grafo.** `compute_noise_free_lightcurves()`
+recibe un `graph_state` explícito (`compare_brightness_truth.py:132`, ya lo construye el propio
+script) -- alcanza con **no** agregar la extinción de host como efecto sobre el SED, registrar
+`host_av` como parámetro real del modelo (`source_model.add_parameter("host_av", av_func)`, API
+confirmada en `base_models.py:545`) y aplicar la corrección escalar real DESPUÉS de calcular
+`PEAKMAG_x_true`, exactamente donde SNANA la aplica en su propio pipeline (después de integrar banda,
+no antes).
+
+### Paso 2 -- el fix: `host_extinction_mode` nuevo en `build_source_model()`, sin tocar producción
+
+`build_source_model()` gana un parámetro `host_extinction_mode: str = "sed"` (default = comportamiento
+histórico sin cambios, usado por `main()` -- **cero cambio de comportamiento en producción**). Con
+`host_extinction_mode="scalar"` (usado solo por `compare_brightness_truth.py`), `host_av` se registra
+como parámetro real del modelo sin aplicar ningún efecto sobre el SED. Dos funciones nuevas,
+compartidas (en `run_simsed_poc.py`, importables por cualquier script):
+
+- `passband_mean_wavelengths(passband_group, bands)`: `meanlam_obs` por banda = `Σ(λ·T)/Σ(T)` sobre
+  la tabla real de transmisión (`Passband.transmission_table`) -- misma fórmula real que SNANA
+  (`genmag_SEDtools.c:335`, confirmada en Fase 52).
+- `host_extinction_mag_offset(z, host_av, r_v, meanlam_obs_band)`: replica
+  `GALextinct(RV_host, AV_host, meanlam_rest, 94, ...)` real -- `meanlam_rest = meanlam_obs_band/(1+z)`,
+  clampeado al rango válido de la ley O94 (mismo criterio que `ClippedExtinctionEffect`), `Δmag =
+  -2.5·log10(O94(Rv).extinguish(meanlam_rest, Ebv=host_av/r_v))`. Vectorizado sobre todos los objetos
+  de una banda a la vez (una llamada por banda, no por objeto).
+
+`compare_brightness_truth.py` recupera `host_av` real vía `source_model.get_param(graph_state,
+"host_av")` (mismo `graph_state` que generó las curvas de luz, mismo orden `id=0..N-1`), precalcula
+`Δmag` por banda una sola vez, y lo suma a `PEAKMAG_x_true` ya calculado (sumar magnitudes conmuta con
+tomar el máximo de flujo sobre la ventana de fase, así que aplicar la corrección antes o después de
+`.max()` da exactamente el mismo resultado).
+
+Verificado con un smoke test real (`CaRT`, `ModelNode` real, 8 muestras) antes de correr nada:
+`meanlam_obs` real por banda (`u: 3723.5, g: 4806.9, r: 6221.5, i: 7559.0, z: 8679.7, y: 9753.4` Å) y
+`Δmag` positivo (atenuación), creciente hacia el azul y escalando con `host_av` de cada objeto
+(`host_av=0.0307 → Δmag_u=0.077`; `host_av=1.7372 → Δmag_u=5.45`) -- signo y escala correctos antes de
+gastar cómputo real.
+
+### Paso 3 -- remedido: control positivo sin cambio, `SNIax`/`CaRT` con una mejora real pero chica
+
+3 jobs reales en NLHPC (`sbatch`, sondeados con `squeue`/`sacct`): `12104702` (`SNIa-91bg` control,
+2m18s), `12104703` (`SNIax`, 15m15s), `12104704` (`CaRT`, 3m12s).
+
+**Control positivo**: `SNIa-91bg` (sin `host_av`) sale **bit-idéntico** a Fase 51/50 (mismo hash `md5`
+del parquet). Confirma cero efecto colateral, tal como debía ser.
+
+| banda | `SNIax` Fase 51 (SED) | `SNIax` Fase 53 (escalar) | `CaRT` Fase 51 (SED) | `CaRT` Fase 53 (escalar) |
+|---|---:|---:|---:|---:|
+| u | -0.760 | **-0.733** | -0.623 | **-0.621** |
+| g | -0.208 | **-0.186** | -0.283 | **-0.266** |
+| r | +0.122 | +0.123 | -0.117 | -0.119 |
+| i | +0.111 | +0.109 | -0.087 | -0.087 |
+| z | +0.093 | +0.092 | -0.066 | -0.066 |
+| y | +0.073 | +0.071 | -0.078 | -0.078 |
+
+El fix mueve el residuo en la dirección correcta en `u`/`g` (las únicas bandas donde la ley de polvo
+tiene pendiente real dentro del rango de longitud de onda relevante) -- pero por una magnitud mucho
+más chica que la que había estimado el presupuesto ilustrativo de Fase 52 (`-0.09` a `-1.16` mag a
+`AV=1-2`, "creciendo con `z`"). `r`/`i`/`z`/`y` prácticamente no se mueven (diferencias de `0.001-0.02`
+mag, dentro de ruido de redondeo). La estimación de Fase 52 usó un solo objeto de prueba a `AV` fijo
+(1.0-2.0) -- la población real de `SNIax`/`CaRT` tiene una mediana de `host_av` mucho más baja (Fase 52
+ya lo había anotado: `AV` mediana `0.497` para `SNIax`, `0.149` para `CaRT`), así que el efecto
+poblacional promedio es real pero bastante menor que el caso ilustrativo.
+
+### Conclusión Fase 53
+
+El mecanismo 4 (extinción de host aplicada como escalar-en-longitud-de-onda-media, no sobre el SED
+completo) es real, se implementó correctamente (verificado con smoke test antes de correr, control
+positivo bit-idéntico después de correr) y mueve el residuo en la dirección correcta -- pero explica
+solo una fracción chica (`u`: `-0.027` mag en `SNIax`, `-0.002` en `CaRT`; `g`: `-0.022`/`-0.017` mag)
+del residuo total. Después del fix, `SNIax` (`u: -0.733`, `g: -0.186`) y `CaRT` (`u: -0.621`, `g:
+-0.266`) quedan con un residuo azul del MISMO orden que el de `SNIa-91bg` (`u: -0.537`, `g: -0.245`,
+sin extinción de host en absoluto) -- refuerza la lectura de Fase 52: los mecanismos 1-3 (fuga de
+filtro, definición de `PEAKMAG`, grilla SIMSED discreta -- todos universales, no relacionados con
+extinción de host) siguen siendo los candidatos dominantes para el residuo azul que queda, no la
+convención de aplicación de extinción de host. Resultado honesto, no forzado: se confirma el mecanismo
+y se implementa el fix, pero no cierra la brecha esperada.
+
+### Archivos de esta fase
+
+`run_simsed_poc.py` (`passband_mean_wavelengths()`, `host_extinction_mag_offset()` nuevas;
+`build_source_model()` gana `host_extinction_mode` con default `"sed"` -- `main()`/producción sin
+cambios). `compare_brightness_truth.py` (usa `host_extinction_mode="scalar"`, aplica la corrección
+sobre `PEAKMAG_x_true`). 3 jobs reales en NLHPC: `12104702`/`12104703`/`12104704`. Outputs reales
+actualizados (reemplazan los de Fase 51): `compare_brightness_truth_{snia91bg,sniax,cart}_
+output.parquet` (`snia91bg` bit-idéntico, confirmado por hash).

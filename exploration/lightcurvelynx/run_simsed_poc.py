@@ -352,7 +352,48 @@ def snana_noise_columns(df_ddf: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: float, wfd: bool = False):
+def passband_mean_wavelengths(passband_group, bands):
+    """Fase 53: meanlam_obs por banda = sum(lambda*T)/sum(T) sobre la tabla
+    real de transmision -- misma formula que usa SNANA real para el "central
+    wavelength of filter" que aplica en la extincion escalar de host
+    (genmag_SEDtools.c:335, confirmado en Fase 52)."""
+    out = {}
+    for b in bands:
+        pb = passband_group[b]
+        wave = pb.transmission_table[:, 0]
+        trans = pb.transmission_table[:, 1]
+        out[b] = float(np.trapezoid(wave * trans, wave) / np.trapezoid(trans, wave))
+    return out
+
+
+def host_extinction_mag_offset(z, host_av, r_v, meanlam_obs_band):
+    """Fase 53: replica `GALextinct(RV_host, AV_host, meanlam_rest, 94, ...)`
+    real de SNANA (`genmag_SIMSED.c:1554-1567`) -- un escalar de magnitud POR
+    BANDA, evaluado en la longitud de onda media REST-FRAME del filtro
+    (`meanlam_obs_band/(1+z)`), no una extincion aplicada punto a punto sobre
+    el SED completo (lo que hacia `ClippedExtinctionEffect` con frame="rest"
+    hasta Fase 52 -- ver `host_extinction_mode` en `build_source_model()`).
+    O94 = OPT=94 real (O'Donnell 1994), ver Fase 51.
+
+    z/host_av: arrays, uno por objeto. meanlam_obs_band: escalar (una banda
+    fija por llamada). Devuelve un array de Δmag, mismo largo que z."""
+    from dust_extinction.parameter_averages import O94
+    import astropy.units as u
+    ext = O94(Rv=r_v)
+    x_min, x_max = ext.x_range
+    lam_min_aa, lam_max_aa = 1e4 / x_max, 1e4 / x_min
+    z_arr = np.atleast_1d(np.asarray(z, dtype=float))
+    av_arr = np.atleast_1d(np.asarray(host_av, dtype=float))
+    meanlam_rest = np.clip(meanlam_obs_band / (1.0 + z_arr), lam_min_aa, lam_max_aa)
+    ebv_arr = av_arr / r_v
+    factor = np.array([
+        ext.extinguish(lam * u.angstrom, Ebv=e) for lam, e in zip(meanlam_rest, ebv_arr)
+    ])
+    return -2.5 * np.log10(factor)
+
+
+def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: float, wfd: bool = False,
+                        host_extinction_mode: str = "sed"):
     """Arma el SIMSEDModel real (pesos SIMSED_REDCOR o uniformes, dndz,
     radec/t0/distancia, extincion MW+host, fixes de semilla) para una clase
     de CLASS_CONFIGS -- bloque compartido entre main() (14 clases,
@@ -361,7 +402,25 @@ def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: flo
     duplicado que hizo que el fix de Fase 22 tardara 25 fases en llegar a
     ese archivo -- ver NOTES.md). Devuelve (source_model, radec_sampler);
     trest_range/restlambda_range se leen directo de cfg por el llamador,
-    no dependen de la construccion del modelo."""
+    no dependen de la construccion del modelo.
+
+    host_extinction_mode (Fase 53): "sed" (default, produccion -- main())
+    aplica la extincion de host punto a punto sobre el SED completo
+    (ClippedExtinctionEffect, frame="rest") -- comportamiento historico, sin
+    cambios de comportamiento desde Fase 51. "scalar" (usado por
+    compare_brightness_truth.py) NO aplica el efecto sobre el SED -- solo
+    registra `host_av` como parametro real del modelo (sampleado, mismo seed
+    de siempre), para que el llamador aplique la correccion escalar por banda
+    que replica el `GALextinct(...)` real de SNANA (ver
+    `host_extinction_mag_offset()` mas arriba en este archivo, y NOTES.md
+    Fase 52/53: SNANA aplica un escalar de magnitud evaluado en la longitud
+    de onda media REST-FRAME del filtro, no una extincion sobre el SED
+    completo -- Fase 52 midio que esa diferencia de convencion, no la ley de
+    polvo, es el mecanismo dominante detras del residuo que crece con z en
+    SNIax/CaRT). El default se deja en "sed" para no alterar en silencio los
+    resultados de produccion/deteccion ya reportados por main() -- extender
+    el modo "scalar" a produccion queda pendiente de una fase separada
+    (requiere resolver si FLUXCALERR debe re-escalarse junto con FLUXCAL)."""
     simsed_dir = cfg["simsed_dir"]
     file_names, _ = SIMSEDModel._read_simsed_info_file(simsed_dir)
     if "redcor_params" in cfg:
@@ -526,30 +585,42 @@ def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: flo
             av_desc = f"GENTAU_AV={hp['tau']}"
         av_func = SizeAwareFunctionNode(av_sampler_fn, node_label="host_av")
 
-        def _av_to_ebv(size=None, host_av=None, **_kwargs):
-            return np.asarray(host_av) / hp["r_v"]
+        if host_extinction_mode == "scalar":
+            # Fase 53: sin efecto sobre el SED -- solo se registra host_av
+            # como parametro real del modelo (sampleado, mismo seed de
+            # siempre) para que el llamador (compare_brightness_truth.py)
+            # aplique la correccion escalar por banda que replica el
+            # GALextinct(..., meanlam_rest, 94, ...) real de SNANA.
+            source_model.add_parameter("host_av", av_func)
+            assert "host_av" in source_model.setters, (
+                "host_av no se registro como parametro del modelo (Fase 53)"
+            )
+            print(f"[{time.time()-t_start:.1f}s] extincion de host: parametro host_av "
+                  f"registrado (kind={kind}, {av_desc}, R_V={hp['r_v']}) -- SIN aplicar al "
+                  f"SED, correccion escalar por banda a cargo del llamador (Fase 53)")
+        else:
+            def _av_to_ebv(size=None, host_av=None, **_kwargs):
+                return np.asarray(host_av) / hp["r_v"]
 
-        host_ebv_func = SizeAwareFunctionNode(_av_to_ebv, node_label="host_ebv", host_av=av_func)
-        # Fase 51: extinction_model="O94" (no "CCM89") -- GALextinct() real
-        # (genmag_SIMSED.c:1567) llama siempre con OPT=94 (O'Donnell 1994,
-        # MWgaldust.h:27) para host, ignorando INPUTS.OPT_SNXT/GENSNXT="CCM89"
-        # (esa variable solo se usa para modelos rest-frame tipo MLCS2K2, no
-        # para SIMSED -- confirmado, ver NOTES.md). ebv_param_name="host_ebv"
-        # evita la colision de nombre "ebv" con mw_extinction (ver docstring
-        # de ClippedExtinctionEffect) -- la causa real y dominante del residuo
-        # de Fase 50, no esta diferencia de ley de polvo (que por si sola mide
-        # <0.13 mag, ver NOTES.md).
-        host_extinction = ClippedExtinctionEffect(
-            extinction_model="O94", ebv=host_ebv_func, r_v=hp["r_v"], frame="rest", backend="dust_extinction",
-            ebv_param_name="host_ebv",
-        )
-        source_model.add_effect(host_extinction)
-        assert "host_ebv" in source_model.setters, (
-            "host_extinction no registro un setter propio -- colision de "
-            "nombre de parametro con mw_extinction sin resolver (Fase 51)"
-        )
-        print(f"[{time.time()-t_start:.1f}s] extincion de host real aplicada "
-              f"(kind={kind}, {av_desc}, R_V={hp['r_v']})")
+            host_ebv_func = SizeAwareFunctionNode(_av_to_ebv, node_label="host_ebv", host_av=av_func)
+            # Fase 51: extinction_model="O94" (no "CCM89") -- GALextinct() real
+            # (genmag_SIMSED.c:1567) llama siempre con OPT=94 (O'Donnell 1994,
+            # MWgaldust.h:27) para host, ignorando INPUTS.OPT_SNXT/GENSNXT="CCM89"
+            # (esa variable solo se usa para modelos rest-frame tipo MLCS2K2, no
+            # para SIMSED -- confirmado, ver NOTES.md). ebv_param_name="host_ebv"
+            # evita la colision de nombre "ebv" con mw_extinction (ver docstring
+            # de ClippedExtinctionEffect).
+            host_extinction = ClippedExtinctionEffect(
+                extinction_model="O94", ebv=host_ebv_func, r_v=hp["r_v"], frame="rest", backend="dust_extinction",
+                ebv_param_name="host_ebv",
+            )
+            source_model.add_effect(host_extinction)
+            assert "host_ebv" in source_model.setters, (
+                "host_extinction no registro un setter propio -- colision de "
+                "nombre de parametro con mw_extinction sin resolver (Fase 51)"
+            )
+            print(f"[{time.time()-t_start:.1f}s] extincion de host real aplicada "
+                  f"(kind={kind}, {av_desc}, R_V={hp['r_v']})")
 
     print(f"[{time.time()-t_start:.1f}s] SIMSEDModel cargado ({len(source_model)} templates)")
 

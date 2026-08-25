@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "52 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "53 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "52 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "53 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "52 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "53 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "52 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "53 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1521,7 +1521,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       objetos "nuevos" disparan a <code>|rest_phase|&gt;45</code> días (mediana <code>265</code> días),
       dentro del rango físico válido del propio modelo (<code>REBIN_DAY</code> hasta 2000 días) — ni
       artefacto de extrapolación ni resultado limpio, resultado genuinamente mixto. Ver pestaña
-      "52 fases" (Fases 38/42-46) para el detalle completo.</p>
+      "53 fases" (Fases 38/42-46) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1654,6 +1654,18 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <code>TDE-MOSFIT</code> (ambas SÍ tenían el bug de Fase 51 -- su primera medición de brillo real
       debería hacerse directamente con el fix puesto, no repetir el ciclo bug→fix dos veces) -- para
       saber si el residuo azul de Fase 52 aparece igual en clases nunca medidas.</p></div></li>
+      <li><span class="step-n">13</span><div class="step-body"><p><strong>✓ Hecho en Fase 53 —
+      mecanismo 4 (escalar de host) implementado, pero explica poco:</strong> el fix es correcto
+      (control positivo bit-idéntico, dirección correcta en <code>u</code>/<code>g</code>) pero mueve
+      mucho menos de lo estimado en Fase 52 (<code>SNIax u: -0.760→-0.733</code>,
+      <code>CaRT u: -0.623→-0.621</code>) -- la estimación usaba un objeto de prueba a
+      <code>AV=1-2</code>, la población real tiene mediana mucho más baja. Reprioriza los mecanismos
+      1-3 de Fase 52 (fuga de filtro, definición de <code>PEAKMAG</code>, grilla SIMSED discreta --
+      universales, no relacionados con extinción de host) como los candidatos dominantes reales para
+      el residuo azul que sigue sin explicación. El más barato de probar primero: el fix de
+      <code>PEAKMAG</code> (evaluar en <code>Trest=0</code> real en vez del máximo de la ventana), pero
+      requiere resolver primero su trade-off con <code>i</code>/<code>z</code>/<code>y</code> (ver
+      Fase 52, Paso 3).</p></div></li>
     </ol>
     </div>
 
@@ -3050,6 +3062,38 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           reales, 2 son cambios de diseño de biblioteca, no de una línea.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">53</span>
+        <div class="step-body">
+          <p><strong>Mecanismo 4 implementado (extinción de host como escalar de banda) — el fix es
+          correcto, pero explica mucho menos residuo del estimado en Fase 52.</strong>
+          <code>SIMSEDModel</code> hereda de <code>SEDModel</code>, no de <code>BandfluxModel</code>
+          (la única clase con un mecanismo nativo de efectos "por banda",
+          <code>band_pass_effects</code>/<code>apply_bandflux()</code>) — no se puede injertar un
+          efecto que reciba el nombre de filtro directamente. Solución adoptada:
+          post-procesamiento, no efecto de grafo. <code>build_source_model()</code> gana
+          <code>host_extinction_mode</code> (default <code>"sed"</code>, producción/<code>main()</code>
+          sin cambios) — con <code>"scalar"</code> (solo <code>compare_brightness_truth.py</code>),
+          <code>host_av</code> se registra como parámetro real del modelo sin aplicar ningún efecto
+          sobre el SED, y se recupera después vía <code>source_model.get_param(graph_state,
+          "host_av")</code> para aplicar la corrección escalar real
+          (<code>host_extinction_mag_offset()</code>: <code>Δmag = -2.5·log10(O94(Rv).extinguish(
+          meanlam_rest, Ebv=host_av/r_v))</code>, <code>meanlam_rest = meanlam_obs/(1+z)</code>) sobre
+          <code>PEAKMAG_x_true</code> ya calculado — exactamente donde SNANA la aplica.</p>
+          <p>Control positivo <code>SNIa-91bg</code> sale <strong>bit-idéntico</strong> a Fase 51 —
+          cero efecto colateral. Pero el fix mueve mucho menos de lo estimado: <code>SNIax</code>
+          <code>u: -0.760 → -0.733</code>, <code>g: -0.208 → -0.186</code>; <code>CaRT</code>
+          <code>u: -0.623 → -0.621</code>, <code>g: -0.283 → -0.266</code> — <code>r</code>/<code>i</code>/
+          <code>z</code>/<code>y</code> prácticamente sin cambio. La estimación de Fase 52 usó un solo
+          objeto de prueba a <code>AV=1-2</code>; la población real tiene mediana de <code>host_av</code>
+          mucho más baja (<code>0.497</code> <code>SNIax</code>, <code>0.149</code> <code>CaRT</code>).
+          Tras el fix, ambas clases quedan con un residuo azul del MISMO orden que
+          <code>SNIa-91bg</code> (sin extinción de host) — refuerza que los mecanismos 1-3 de Fase 52
+          (universales, no relacionados con extinción de host) siguen siendo los candidatos dominantes
+          para lo que queda. Resultado honesto: el mecanismo se confirma e implementa, pero no cierra
+          la brecha esperada.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3380,7 +3424,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "52 fases" },
+    { id: "fases", label: "53 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

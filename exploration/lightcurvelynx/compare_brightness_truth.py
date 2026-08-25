@@ -30,6 +30,17 @@ filter_ddf_field_contamination) desde el arranque, aplicado sobre la
 referencia SNANA en compare_brightness_truth_binned.py (este script solo
 produce el lado LCL).
 
+Fase 53: la extincion de host (clases con cfg["host_av"]) ya NO se aplica
+como ClippedExtinctionEffect punto a punto sobre el SED
+(host_extinction_mode="scalar" en build_source_model()) -- Fase 52 encontro
+que SNANA real la aplica como un escalar de magnitud POR BANDA, evaluado en
+la longitud de onda media REST-FRAME del filtro (GALextinct(RV_host,
+AV_host, meanlam_rest, 94, ...), genmag_SIMSED.c:1554-1567), no sobre el SED
+completo antes de integrar. Se recupera host_av real (sampleado, mismo seed)
+via source_model.get_param(graph_state, "host_av") y se aplica la
+correccion (host_extinction_mag_offset()) sobre PEAKMAG_x_true ya calculado.
+No se toca run_simsed_poc.py::main() (produccion) -- ver NOTES.md Fase 53.
+
 Reconstruye el MISMO source_model real que run_simsed_poc.py para la clase
 pedida (mismos parametros reales de CLASS_CONFIGS, mismo H0=70, misma
 extincion MW/host).
@@ -53,7 +64,10 @@ from lightcurvelynx.obstable.opsim import OpSim
 from lightcurvelynx.simulate import compute_noise_free_lightcurves
 
 sys.path.insert(0, "/home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx")
-from run_simsed_poc import CLASS_CONFIGS, build_source_model, snana_noise_columns, restlambda_gate  # noqa: E402
+from run_simsed_poc import (  # noqa: E402
+    CLASS_CONFIGS, build_source_model, snana_noise_columns, restlambda_gate,
+    passband_mean_wavelengths, host_extinction_mag_offset,
+)
 
 HERE = Path("/home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx")
 OPSIM_DB = Path("/home/mvalenzuela/AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db")
@@ -87,7 +101,9 @@ def main(class_key: str):
     # Fase 50: bloque real de armado de modelo REUSADO de run_simsed_poc.py
     # (extincion host segun cfg["host_av"]["kind"], dndz, redcor si la clase
     # los declara, seeds) -- no se duplica a mano.
-    source_model, _radec_sampler = build_source_model(cfg, obs_table, seed_base, t_start, wfd=False)
+    source_model, _radec_sampler = build_source_model(
+        cfg, obs_table, seed_base, t_start, wfd=False, host_extinction_mode="scalar",
+    )
 
     # Fase 47: `flux_perfect.max()` sobre la cadencia real es la metrica que la propia
     # Fase 22 declaro invalida para SNIa/SALT2 (subestima el brillo real para ~33.6% de
@@ -123,6 +139,24 @@ def main(class_key: str):
     print(f"[{time.time()-t_start:.1f}s] evaluacion sin ruido terminada: {len(lc)} objetos, "
           f"trest_range={trest_range}, {time.time()-t_sim0:.1f}s")
 
+    # Fase 53: correccion escalar de extincion de host, precalculada una vez
+    # por banda (no por objeto -- host_extinction_mag_offset() ya vectoriza
+    # sobre todos los objetos a la vez). host_av_arr/z_arr vienen del MISMO
+    # graph_state que genero `lc`, mismo orden (id=0..N-1) -- indexables
+    # directo por row["id"] en el loop de abajo.
+    delta_mag_by_band = None
+    if "host_av" in cfg:
+        host_av_arr = np.atleast_1d(np.asarray(source_model.get_param(graph_state, "host_av")))
+        meanlam_obs = passband_mean_wavelengths(passband_group, BANDS)
+        r_v = cfg["host_av"]["r_v"]
+        z_arr = lc["z"].to_numpy()
+        delta_mag_by_band = {
+            band: host_extinction_mag_offset(z_arr, host_av_arr, r_v, meanlam_obs[band])
+            for band in BANDS
+        }
+        print(f"[{time.time()-t_start:.1f}s] Fase 53: extincion de host como escalar por banda "
+              f"(meanlam_rest real via GALextinct, no sobre el SED completo)")
+
     # Fase 13: si la clase declara restlambda_range, replicar el "bail if any
     # part of filter trans is outside model range" real de SNANA -- una banda
     # cuyo rango observado no cabe COMPLETO en marco de reposo dentro de
@@ -150,7 +184,12 @@ def main(class_key: str):
             if peak_flux_true <= 0:
                 rec[f"PEAKMAG_{band}_true"] = np.nan
                 continue
-            rec[f"PEAKMAG_{band}_true"] = MAG_AB_ZP_NJY - 2.5 * np.log10(peak_flux_true)
+            mag_true = MAG_AB_ZP_NJY - 2.5 * np.log10(peak_flux_true)
+            if delta_mag_by_band is not None:
+                # row["id"] es el indice real (0..N-1) del mismo graph_state
+                # que uso host_extinction_mag_offset() -- ver bloque de arriba.
+                mag_true += delta_mag_by_band[band][int(row["id"])]
+            rec[f"PEAKMAG_{band}_true"] = mag_true
         rows.append(rec)
 
     if restlambda_range is not None:
