@@ -432,8 +432,16 @@ def load_simsed_templates_bolometric(simsed_dir):
         if not path.exists() and path.suffix != ".gz":
             path = path.with_suffix(path.suffix + ".gz")
         data = np.loadtxt(path, comments="#")
-        phases = np.unique(data[:, 0])
-        fluxsum = np.array([data[data[:, 0] == p, 2].sum() for p in phases])
+        # Fase 58: suma de flujo por fase vectorizada (sort + np.add.reduceat)
+        # -- el loop original (mascara booleana por cada fase unica) es
+        # O(N_fases x N_filas); para templates con grilla de fase muy fina
+        # (p.ej. KN-K17, kilonovas con cientos de fases) tardaba minutos por
+        # archivo. Mismo resultado, mismo orden de magnitud mas rapido.
+        order = np.argsort(data[:, 0], kind="stable")
+        phase_sorted = data[order, 0]
+        flux_sorted = data[order, 2]
+        phases, start_idx = np.unique(phase_sorted, return_index=True)
+        fluxsum = np.add.reduceat(flux_sorted, start_idx)
         t0_bolo = float(phases[np.argmax(fluxsum)])
         templates.append(SEDTemplate(
             data, sed_data_t0=t0_bolo, interpolation_type="linear", periodic=False,

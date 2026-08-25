@@ -7271,3 +7271,98 @@ decisión.
 `12113819`/`12115306`), scripts exploratorios borrados tras usarlos -- outputs de producción reales
 conservados (`poc_output_cart`, `poc_output_cart_bolopeak`, `poc_output_snia91bg`, no versionados por
 `.gitignore`, mismo criterio que el resto de las corridas de producción).
+
+## Fase 58 -- re-barrido formal de 5 semillas × 13 clases SIMSED con `simsed_t0_mode="bolometric_peak"`: la mayoría cambia poco, 3 clases cambian sustancialmente (`SNIax -28%`, `TDE-MOSFIT -18%`, `PISN-STELLA-HYDROGENIC +21%`)
+
+Cierra el trabajo futuro que dejó pendiente Fase 57: actualizar con confianza estadística completa
+(5 semillas, no 1) las tablas de referencia de detección para las 13 clases SIMSED reales del catálogo
+(las 14 menos `SNIa`, que usa SALT2 y no pasa por este fix), bajo el nuevo default de producción.
+
+### Paso 0 -- gestión de riesgo de disco antes de lanzar nada
+
+Un incidente real de cuota de disco ya había interrumpido un barrido de 5 semillas antes (Fase 8,
+`exploration/lightcurvelynx/` llegó a 18GB, la cuenta completa a ~200GB, con `phot_df.parquet`
+individuales de hasta 1.4GB). Verificado antes de lanzar: la cuenta ya estaba en 189GB de uso real
+(headroom real confirmado con una escritura de prueba de 500MB, sin problema). Mitigación real
+aplicada esta vez: cada uno de los 65 jobs borra su propio `phot_df.parquet` (la tabla cruda de
+fotometría, reproducible desde el script sembrado si hiciera falta) inmediatamente después de generar
+`summary.json`/`head_df.parquet`/QC -- mantiene el uso de disco acotado sin importar cuántos jobs
+corran en paralelo. Verificado: `exploration/lightcurvelynx/` se mantuvo en `5.3-5.4GB` durante y
+después de las 65 corridas (vs. 113MB que había ocupado un solo `phot_df.parquet` de `CaRT` sin
+limpiar, en el piloto de Fase 57).
+
+### Paso 1 -- dos fallas reales durante el barrido, ambas diagnosticadas y corregidas antes de re-lanzar
+
+**`PISN-STELLA-HYDROGENIC` (las 5 semillas), `OUT_OF_MEMORY`** -- única clase del catálogo con
+`NGENTOT_LC=20000` (10x las demás, `pipeline/models.yaml`) -- 16GB no alcanzó. Corregido subiendo a
+48GB, sin tocar código.
+
+**`KN-K17`, lento (40-45 min vs. 2-15 min de las demás, 1 semilla llegó a `TIMEOUT`)** -- diagnosticado
+antes de solo subir el límite de tiempo: `load_simsed_templates_bolometric()` (Fase 56) calculaba la
+suma de flujo por fase con un loop Python + máscara booleana por cada fase única -- `O(N_fases ×
+N_filas)`. Para templates con grilla de fase fina (kilonovas como `KN-K17`, muchas fases), esto tardaba
+~39 minutos SOLO en cargar los templates. Vectorizado con `np.argsort` + `np.add.reduceat` (`O(N log
+N)`) -- mismo resultado exacto (verificado: `t0_bolo` de `91BG_ST0_C0.SED` sigue dando `1.0`), mucho
+más rápido. Beneficia a cualquier clase con grilla de fase fina, no solo `KN-K17`.
+
+### Paso 2 -- resultado: 65/65 corridas reales completas, comparado contra la referencia SNANA de Fase 48
+
+Detección media ± desviación estándar sobre 5 semillas, contra `SNANA%` DDF-only real (Fase 48, fijo,
+no afectado por este fix). Para `SLSN-I`/`ILOT-MOSFIT`, la comparación usa el resultado de Fase 49 (con
+`GENRANGE_TREST` real ya extendido, código sin cambios desde entonces) en vez del ratio de Fase 48 --
+ese quedó obsoleto antes de Fase 43, no es la referencia correcta para estas 2 clases.
+
+| clase | detección media (5 semillas) | SNANA% real (Fase 48) | ratio antes | ratio nuevo | Δ |
+|---|---:|---:|---:|---:|---:|
+| `SNIa-91bg` | `51.90%±1.82` | 41.69% | 1.231 | **1.245** | +1.1% |
+| `PISN-STELLA-HYDROGENIC` | `37.00%±0.46` | 24.45% | 1.255 | **1.513** | **+20.6%** |
+| `SNII-NMF` | `26.67%±0.86` | 20.75% | 1.319 | **1.285** | -2.6% |
+| `PISN-STELLA-HECORE` | `32.88%±1.11` | 21.88% | 1.377 | **1.503** | +9.1% |
+| `TDE-MOSFIT` | `55.54%±0.98` | 46.58% | 1.462 | **1.192** | **-18.4%** |
+| `SLSN-I` | `69.36%±1.41` | 46.64% | 1.544 (Fase 49) | **1.487** | -3.7% |
+| `PISN-MOSFIT` | `37.39%±1.25` | 23.41% | 1.602 | **1.597** | -0.3% |
+| `KN-BULLA19` | `11.88%±0.77` | 6.07% | 2.128 | **1.957** | -8.0% |
+| `KN-K17` | `9.73%±0.85` | 4.83% | 2.238 | **2.014** | -10.0% |
+| `SNIax` | `17.69%±1.36` | 10.08% | 2.444 | **1.755** | **-28.2%** |
+| `SNIIn-MOSFIT` | `9.78%±0.40` | 2.12% | 4.885 | **4.613** | -5.6% |
+| `ILOT-MOSFIT` | `30.49%±0.90` | 4.30% | 7.216 (Fase 49) | **7.091** | -1.7% |
+| `CaRT` | `8.29%±0.49` | 0.94% | 9.180 | **8.819** | -3.9% |
+| **promedio catálogo** | | | **2.914** | **2.775** | **-4.8%** |
+
+**La mayoría de las clases cambia poco** (`±10%`, dentro o cerca de la variación semilla-a-semilla ya
+esperada) -- consistente con el piloto de Fase 57 (`CaRT`, `-3.9%` aquí, coincide con el orden de
+magnitud medido con 1 semilla). **3 clases cambian sustancialmente**:
+
+- **`SNIax` (`-28.2%`)**: la mayor mejora del catálogo. Consistente con Fase 56 -- `SNIax` fue la clase
+  con el segundo mayor shift de pico bolométrico medido (después de `CaRT`), y ya había mostrado la
+  mejora más grande en brillo verdadero (Fase 56, residuo `u` de `-0.73` a `-0.03` mag).
+- **`TDE-MOSFIT` (`-18.4%`)**: mejora real, clase nunca antes remedida con este fix -- candidata para
+  una futura medición de brillo verdadero (ver líneas futuras).
+- **`PISN-STELLA-HYDROGENIC` (`+20.6%`)**: la única clase que EMPEORA (ratio más alto, más lejos de
+  SNANA) -- candidato nuevo. Es la clase de mayor escala del catálogo (`GENRANGE_TREST` hasta 1000+
+  días, transitorio de pair-instability extremadamente largo) -- el shift al pico bolométrico real
+  podría estar corriendo la ventana de observación hacia una fase con más flujo detectable de lo que
+  SNANA realmente genera. No investigado a fondo en esta fase -- candidato concreto para retomar.
+
+### Conclusión Fase 58
+
+El re-barrido formal confirma, con 5 semillas por clase (no 1), lo que ya sugería el piloto de Fase 57:
+el fix del pico bolométrico NO invalida de forma generalizada las tablas de referencia de detección del
+catálogo -- el promedio se mueve solo `-4.8%`. Pero revela 2 clases (`SNIax`, `TDE-MOSFIT`) con mejoras
+reales y sustanciales que SÍ vale la pena registrar como el resultado correcto y actualizado, y descubre
+una clase (`PISN-STELLA-HYDROGENIC`) que empeora, un candidato nuevo y no esperado para investigar.
+Además, corrigiendo dos problemas reales de infraestructura en el camino (cuota de disco gestionada
+proactivamente esta vez, y un cuello de botella real de rendimiento en el propio código de Fase 56
+vectorizado) -- ninguno de los dos bloqueó el resultado final, ambos quedan corregidos para cualquier
+corrida futura.
+
+### Archivos de esta fase
+
+`run_simsed_poc.py` (`load_simsed_templates_bolometric()`: suma de flujo por fase vectorizada,
+`np.argsort`+`np.add.reduceat` en vez de loop con máscara booleana -- mismo resultado, sin cambio de
+comportamiento). 65 jobs reales en NLHPC (`sbatch`, sondeados con `squeue`/`sacct`; 6 fallaron la
+primera vez por memoria/tiempo, re-lanzados con recursos ajustados tras diagnosticar la causa real de
+cada uno -- 0 fallas sin explicar). Scripts de sweep generados y borrados tras usarlos. Outputs de
+producción reales conservados en NLHPC (`poc_output_*_bolopeak[_seedN]`, sin `phot_df.parquet` por
+diseño -- limpieza automática por job), no versionados por `.gitignore`, mismo criterio que el resto
+de las corridas de producción.

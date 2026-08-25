@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "57 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "58 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "57 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "58 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "57 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "58 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "57 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "58 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1521,7 +1521,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       objetos "nuevos" disparan a <code>|rest_phase|&gt;45</code> días (mediana <code>265</code> días),
       dentro del rango físico válido del propio modelo (<code>REBIN_DAY</code> hasta 2000 días) — ni
       artefacto de extrapolación ni resultado limpio, resultado genuinamente mixto. Ver pestaña
-      "57 fases" (Fases 38/42-46) para el detalle completo.</p>
+      "58 fases" (Fases 38/42-46) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1710,6 +1710,14 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       formal de 5 semillas × 12 clases SIMSED con el nuevo default, para actualizar con confianza
       estadística completa las tablas de referencia de detección que siguen publicadas bajo el modo
       <code>"raw"</code> anterior.</p></div></li>
+      <li><span class="step-n">19</span><div class="step-body"><p><strong>✓ Hecho en Fase 58 —
+      re-barrido formal completo:</strong> 65 corridas reales (13 clases × 5 semillas). Confirma que
+      el promedio del catálogo cambia poco (<code>-4.8%</code>), pero revela 3 clases con cambios
+      reales: <code>SNIax</code> (<code>-28.2%</code>) y <code>TDE-MOSFIT</code> (<code>-18.4%</code>)
+      mejoran sustancialmente; <code>PISN-STELLA-HYDROGENIC</code> (<code>+20.6%</code>) empeora — la
+      única clase que se aleja de SNANA, la de mayor escala del catálogo. Candidato nuevo y concreto
+      para la próxima fase: investigar por qué el shift al pico bolométrico empeora específicamente a
+      esta clase de duración extrema (<code>GENRANGE_TREST</code> &gt;1000 días).</p></div></li>
     </ol>
     </div>
 
@@ -3246,6 +3254,33 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           decisión.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">58</span>
+        <div class="step-body">
+          <p><strong>Re-barrido formal de 5 semillas × 13 clases SIMSED — la mayoría cambia poco, 3
+          clases cambian sustancialmente.</strong> 65 corridas reales en NLHPC, gestionando
+          proactivamente el riesgo de cuota de disco que ya había interrumpido un barrido similar en
+          Fase 8 (cada job borra su propio <code>phot_df.parquet</code> apenas termina — disco se
+          mantuvo en <code>5.3-5.4GB</code> durante las 65 corridas). Dos fallas reales diagnosticadas
+          y corregidas en el camino: <code>PISN-STELLA-HYDROGENIC</code> (10x <code>NGENTOT</code> del
+          resto) necesitaba más memoria; <code>KN-K17</code> reveló un cuello de botella real en
+          <code>load_simsed_templates_bolometric()</code> (Fase 56) — un loop con máscara booleana
+          O(N_fases×N_filas), tardaba ~39 min solo en cargar templates de grilla de fase fina.
+          Vectorizado con <code>np.argsort</code>+<code>np.add.reduceat</code>, mismo resultado exacto,
+          mucho más rápido.</p>
+          <p>Resultado (detección media ± std, 5 semillas, contra <code>SNANA%</code> real de Fase
+          48/49): el promedio del catálogo se mueve solo <code>-4.8%</code>
+          (<code>2.914x→2.775x</code>) — confirma con rigor estadístico lo que ya sugería el piloto de
+          Fase 57. Pero 3 clases cambian sustancialmente: <code>SNIax</code> mejora
+          <strong><code>-28.2%</code></strong> (<code>2.444x→1.755x</code>, la mayor mejora del
+          catálogo, consistente con ser la segunda clase con mayor shift bolométrico medido en Fase
+          56); <code>TDE-MOSFIT</code> mejora <strong><code>-18.4%</code></strong>
+          (<code>1.462x→1.192x</code>); <code>PISN-STELLA-HYDROGENIC</code> empeora
+          <strong><code>+20.6%</code></strong> (<code>1.255x→1.513x</code>) — la única clase que se
+          aleja de SNANA, la de mayor escala del catálogo (transitorio pair-instability de más de 1000
+          días) — candidato nuevo, no investigado a fondo todavía.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3576,7 +3611,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "57 fases" },
+    { id: "fases", label: "58 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
