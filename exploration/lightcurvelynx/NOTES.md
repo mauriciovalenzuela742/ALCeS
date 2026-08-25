@@ -7209,3 +7209,65 @@ evaluar en un único punto `Trest=0`, ya no necesita `trest_range` ni el máximo
 lectura, diagnóstico del `PEAKMJD` real) para los Pasos 1-3. 3 jobs reales en NLHPC:
 `12110321`/`12110322`/`12110323`. Outputs reales actualizados:
 `compare_brightness_truth_{snia91bg,sniax,cart}_output.parquet`.
+
+## Fase 57 -- decisión: `simsed_t0_mode="bolometric_peak"` (Fase 56) pasa a ser el default de producción -- piloto real mide impacto mínimo en detección
+
+Retoma la decisión que dejó pendiente Fase 56: extender el fix del pico bolométrico real a `main()`
+(producción, las 14 clases) cambia el eje temporal completo de la curva de luz, no solo el brillo pico
+-- con impacto potencial en `SEARCHEFF`/ratio de detección para las 12 clases SIMSED del catálogo.
+Antes de decidir a ciegas, se corrió un piloto real.
+
+### Paso 1 -- piloto real: `CaRT` (la clase de mayor riesgo), 1 semilla, pipeline de producción completo
+
+`CaRT` es la clase con el shift más grande del catálogo (mediana ~14 días, hasta 33 según el template
+-- Fase 56). Job real en NLHPC (`12113819`, 17m20s): `main("CaRT", seed_index=0)` corrido dos veces,
+una con `simsed_t0_mode="raw"` y otra con `"bolometric_peak"`, mismo seed, pipeline completo
+(`simulate_lightcurves` + ruido real + `SEARCHEFF`, no solo brillo pico sin ruido).
+
+| | `raw` | `bolometric_peak` |
+|---|---:|---:|
+| SNR mediana (todas las obs) | `0.682` | `0.682` |
+| detectados (`SEARCHEFF`, ≥2 épocas) | 167/1998 (8.36%) | 164/1998 (8.21%) |
+| eficiencia `z=[0.28,0.56)` | 22.8% | 20.5% |
+| eficiencia otros 4 bins de `z` | ±≤0.4pp | ±≤0.4pp |
+
+**Impacto mínimo, dentro de ruido de una sola semilla** (3 objetos de diferencia sobre 1998, un solo
+bin de `z` con una diferencia algo mayor -2.3pp, el resto prácticamente idéntico). La razón física: la
+ventana de generación real (`trest_range=(-30,100)`, 130 días) es mucho más ancha que el shift típico
+(1-33 días) -- el survey ya observaba el pico real del objeto en ambos modos, el shift solo corrige
+CUÁL punto de la curva se etiqueta como `t0`/pico, no si el survey lo captura. El fix corrige fidelidad
+de brillo/alineación temporal sin invalidar de forma importante los ratios de detección ya medidos.
+
+### Paso 2 -- el cambio: default de `main()`, no de `build_source_model()`
+
+`build_source_model()` mantiene su propio default `"raw"` (compatibilidad hacia atrás, mismo criterio
+que Fase 53/56 -- cualquier llamador futuro que no lo especifique sigue con el comportamiento
+histórico). `main()` (producción real, `run_simsed_poc.py <clase>` vía CLI) pasa `simsed_t0_mode=
+"bolometric_peak"` como su PROPIO default -- afecta a las 12 clases SIMSED reales del catálogo (no a
+`SNII-NMF`/`SNIa`, que no usan `host_av`/SIMSED en el mismo sentido -- en realidad todas las 12 clases
+`CLASS_CONFIGS` con `simsed_dir` real se benefician, incluidas las que no declaran `host_av`).
+
+Verificado con un smoke test real usando el entrypoint CLI real (sin flags nuevos, exactamente como se
+invoca en producción): `python3 run_simsed_poc.py SNIa-91bg` corre de punta a punta con el nuevo
+default, `997/1995` objetos detectados (49.97%), QC generado sin errores.
+
+### Conclusión Fase 57
+
+Se decide extender el fix a producción, respaldado por evidencia real (no una suposición): el piloto en
+la clase de mayor riesgo del catálogo mide un impacto de detección despreciable, y el fix corrige una
+causa raíz real y confirmada (Fase 56) en la construcción del modelo, no una elección de diseño
+ambigua. **Nota honesta para el registro**: los ratios de detección históricos de las 14 clases
+(reportados en fases muy anteriores, Fase 4/5 en adelante) siguen siendo los que están publicados --
+técnicamente corresponden al modo `"raw"` (el único que existió hasta ahora). El piloto de esta fase
+sugiere fuertemente que la diferencia es chica, pero fue medido con 1 semilla en 1 clase -- un
+re-barrido formal de 5 semillas × 12 clases con el nuevo default, para actualizar esas tablas de
+referencia con confianza estadística completa, queda como trabajo futuro, no bloqueante para esta
+decisión.
+
+### Archivos de esta fase
+
+`run_simsed_poc.py` (`main()` gana `simsed_t0_mode: str = "bolometric_peak"` como su propio default;
+`build_source_model()` sin cambios de default). Piloto y smoke test corridos en NLHPC (`sbatch`,
+`12113819`/`12115306`), scripts exploratorios borrados tras usarlos -- outputs de producción reales
+conservados (`poc_output_cart`, `poc_output_cart_bolopeak`, `poc_output_snia91bg`, no versionados por
+`.gitignore`, mismo criterio que el resto de las corridas de producción).

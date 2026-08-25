@@ -471,18 +471,18 @@ def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: flo
     el modo "scalar" a produccion queda pendiente de una fase separada
     (requiere resolver si FLUXCALERR debe re-escalarse junto con FLUXCAL).
 
-    simsed_t0_mode (Fase 56): "raw" (default, produccion -- main()) arma los
+    simsed_t0_mode (Fase 56/57): "raw" (default de esta funcion) arma los
     templates con `SIMSEDModel.from_dir()`, que fija `sed_data_t0=0.0` -- la
     fase nativa 0 del archivo `.SED`, sin verificar si coincide con el pico
-    real. "bolometric_peak" (usado por compare_brightness_truth.py) arma los
-    templates con `load_simsed_templates_bolometric()` -- cada uno shifteado
-    a su propio pico bolometrico real, replicando el `T0shiftPeak_SEDMODEL()`
-    real de SNANA (ver docstring de esa funcion y NOTES.md Fase 56). El
-    default se deja en "raw" por el mismo criterio que `host_extinction_mode`
-    -- no alterar en silencio produccion; extender "bolometric_peak" a
-    produccion cambiaria el eje temporal completo de la curva de luz (no solo
-    el brillo pico) para las 12 clases SIMSED, con impacto directo en
-    deteccion/trigger -- decision separada, pendiente."""
+    real. "bolometric_peak" arma los templates con
+    `load_simsed_templates_bolometric()` -- cada uno shifteado a su propio
+    pico bolometrico real, replicando el `T0shiftPeak_SEDMODEL()` real de
+    SNANA (ver docstring de esa funcion y NOTES.md Fase 56). El default de
+    ESTA funcion se deja en "raw" (compatibilidad hacia atras para cualquier
+    llamador que no lo especifique) -- pero `main()` (produccion, Fase 57) ya
+    lo pasa como "bolometric_peak" por defecto: un piloto real (`CaRT`, la
+    clase con mayor shift del catalogo) midio impacto minimo en deteccion, ver
+    NOTES.md Fase 57."""
     simsed_dir = cfg["simsed_dir"]
     file_names, _ = SIMSEDModel._read_simsed_info_file(simsed_dir)
     if "redcor_params" in cfg:
@@ -697,7 +697,18 @@ def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: flo
     return source_model, radec_sampler
 
 
-def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 0, wfd: bool = False):
+def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 0, wfd: bool = False,
+         simsed_t0_mode: str = "bolometric_peak"):
+    # Fase 57: default de PRODUCCION cambia a "bolometric_peak" (Fase 56) --
+    # piloto real (CaRT, 1 semilla, la clase con mayor shift del catalogo)
+    # midio impacto minimo en deteccion (167->164 de 1998 objetos, SNR
+    # mediana identica 0.682->0.682) porque la ventana de generacion real
+    # (-30/100 dias) ya era mas ancha que el shift tipico (1-33 dias) y
+    # seguia cubriendo el pico real en ambos modos -- el fix corrige la
+    # fidelidad de brillo/alineacion temporal sin invalidar de forma
+    # importante los ratios de deteccion ya medidos. build_source_model()
+    # mantiene su propio default "raw" (sin cambios) -- este override es
+    # especifico de main()/produccion, ver NOTES.md Fase 57.
     cfg = CLASS_CONFIGS[class_key]
     # la mayoria de las clases DDF usan NGENTOT_LC=2000 (pipeline/models.yaml:
     # ngen_ddf), pero PISN-STELLA-HYDROGENIC es la excepcion real (ngen_ddf:
@@ -716,7 +727,11 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     seed_base = SEED_BASE + seed_index * 1_000_000
     seed_suffix = f"_seed{seed_index}" if seed_index else ""
     wfd_suffix = "_wfd" if wfd else ""
-    out_dir = HERE / f"poc_output_{class_key.lower().replace('-', '')}{seed_suffix}{wfd_suffix}"
+    # Fase 57: sufijo separado cuando se prueba simsed_t0_mode="bolometric_peak"
+    # (Fase 56) en produccion -- no pisa los directorios "raw" ya reportados,
+    # para poder comparar antes de decidir si cambiar el default.
+    t0_suffix = "_bolopeak" if simsed_t0_mode != "raw" else ""
+    out_dir = HERE / f"poc_output_{class_key.lower().replace('-', '')}{seed_suffix}{wfd_suffix}{t0_suffix}"
     out_dir.mkdir(exist_ok=True)
     t_start = time.time()
 
@@ -741,7 +756,9 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     passband_group = PassbandGroup.from_preset(preset="LSST", table_dir=str(LSST_PASSBAND_TABLE_DIR))
     print(f"[{time.time()-t_start:.1f}s] passbands cargados (Fase 55: u truncado a 4134A real)")
 
-    source_model, radec_sampler = build_source_model(cfg, obs_table, seed_base, t_start, wfd=wfd)
+    source_model, radec_sampler = build_source_model(
+        cfg, obs_table, seed_base, t_start, wfd=wfd, simsed_t0_mode=simsed_t0_mode,
+    )
 
     t_sim0 = time.time()
     # Fase 5: rng= explicito -- simulate_lightcurves() acepta un

@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "56 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "57 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "56 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "57 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "56 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "57 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "56 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "57 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1521,7 +1521,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       objetos "nuevos" disparan a <code>|rest_phase|&gt;45</code> días (mediana <code>265</code> días),
       dentro del rango físico válido del propio modelo (<code>REBIN_DAY</code> hasta 2000 días) — ni
       artefacto de extrapolación ni resultado limpio, resultado genuinamente mixto. Ver pestaña
-      "56 fases" (Fases 38/42-46) para el detalle completo.</p>
+      "57 fases" (Fases 38/42-46) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1703,6 +1703,13 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       decisión separada y de mayor impacto — cambiaría el eje temporal completo de la curva de luz
       para las 12 clases SIMSED, con efecto directo en detección/trigger, no solo en brillo pico.</p>
       </div></li>
+      <li><span class="step-n">18</span><div class="step-body"><p><strong>✓ Decidido en Fase 57:</strong>
+      <code>simsed_t0_mode="bolometric_peak"</code> ya es el default de producción — piloto real
+      (<code>CaRT</code>, 1 semilla, pipeline completo) midió impacto de detección despreciable
+      (<code>167/1998</code> vs <code>164/1998</code>). Trabajo futuro no bloqueante: un re-barrido
+      formal de 5 semillas × 12 clases SIMSED con el nuevo default, para actualizar con confianza
+      estadística completa las tablas de referencia de detección que siguen publicadas bajo el modo
+      <code>"raw"</code> anterior.</p></div></li>
     </ol>
     </div>
 
@@ -3214,6 +3221,31 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           prácticamente cerrados.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">57</span>
+        <div class="step-body">
+          <p><strong>Decisión: <code>simsed_t0_mode="bolometric_peak"</code> pasa a ser el default de
+          producción — piloto real mide impacto mínimo en detección.</strong> Antes de decidir a
+          ciegas si extender el fix de Fase 56 a las 12 clases SIMSED reales del catálogo, se corrió un
+          piloto real: <code>CaRT</code> (la clase de mayor riesgo, shift mediano ~14 días), pipeline de
+          producción completo (ruido real + <code>SEARCHEFF</code>), mismo seed, <code>raw</code> vs
+          <code>bolometric_peak</code>. Resultado: SNR mediana idéntica (<code>0.682</code>), detección
+          casi idéntica (<code>167/1998</code> vs <code>164/1998</code>, dentro de ruido de una sola
+          semilla). La razón física: la ventana de generación real (130 días) es mucho más ancha que el
+          shift típico (1-33 días) — el survey ya observaba el pico real en ambos modos, el shift solo
+          corrige cuál punto de la curva se etiqueta como pico, no si el survey lo captura.</p>
+          <p>Cambio aplicado: <code>main()</code> (producción real, invocada vía CLI) pasa
+          <code>simsed_t0_mode="bolometric_peak"</code> como su PROPIO default —
+          <code>build_source_model()</code> mantiene <code>"raw"</code> como el suyo, para cualquier
+          llamador futuro que no lo especifique. Verificado con el entrypoint CLI real
+          (<code>python3 run_simsed_poc.py SNIa-91bg</code>, sin flags nuevos): corre de punta a punta,
+          QC generado sin errores. Nota honesta: los ratios de detección históricos de las 14 clases
+          siguen siendo los publicados con el modo <code>"raw"</code> — el piloto sugiere fuerte que la
+          diferencia es chica, pero un re-barrido formal de 5 semillas × 12 clases para actualizar esas
+          tablas con confianza estadística completa queda como trabajo futuro, no bloqueante para esta
+          decisión.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3544,7 +3576,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "56 fases" },
+    { id: "fases", label: "57 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
