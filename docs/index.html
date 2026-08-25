@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "51 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "52 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "51 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "52 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "51 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "52 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "51 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "52 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1521,7 +1521,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       objetos "nuevos" disparan a <code>|rest_phase|&gt;45</code> días (mediana <code>265</code> días),
       dentro del rango físico válido del propio modelo (<code>REBIN_DAY</code> hasta 2000 días) — ni
       artefacto de extrapolación ni resultado limpio, resultado genuinamente mixto. Ver pestaña
-      "51 fases" (Fases 38/42-46) para el detalle completo.</p>
+      "52 fases" (Fases 38/42-46) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1625,24 +1625,35 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       parámetro propio + <code>assert</code> de regresión. Control positivo bit-idéntico;
       <code>SNIax</code> queda prácticamente cerrado en 4/6 bandas, <code>CaRT</code> mejora 2-5x.</p>
       </div></li>
-      <li><span class="step-n">10</span><div class="step-body"><p><strong>Candidato nuevo: el residuo
-      azul universal que sobrevive al fix de Fase 51</strong> -- <code>SNIa-91bg</code> (sin extinción
-      de host), <code>SNIax</code> y <code>CaRT</code> (ya con extinción de host correcta) comparten la
-      misma forma y escala de residuo en <code>u</code>/<code>g</code> (<code>-0.5</code> a
-      <code>-0.8</code> mag en <code>u</code>, casi cerrado hacia <code>y</code>) -- no puede ser del
-      paso de host (91bg no lo tiene). Candidatos a probar: la mitad de la corrección F99-vs-O94 que
-      Fase 24 ya midió como pequeña para MW podría no serlo tanto en el UV profundo a alto <code>z</code>;
-      integración de banda vs. evaluación en <code>meanlam_rest</code> (SNANA real usa un único
-      wavelength efectivo, no integra sobre el ancho del filtro); o algo en el paso de K-corrección
-      específico del extremo azul, nunca auditado con esta metodología.</p></div></li>
-      <li><span class="step-n">11</span><div class="step-body"><p><strong>Extender la medición de
+      <li><span class="step-n">10</span><div class="step-body"><p><strong>✓ Hecho en Fase 52 —
+      diagnosticado, no cerrado:</strong> el residuo azul no tiene una causa única. 4 mecanismos
+      reales, cada uno verificado línea por línea contra el C real de SNANA: fuga fuera de banda del
+      filtro <code>u</code> (<code>-0.07</code> a <code>-0.10</code> mag, solo <code>u</code>);
+      <code>PEAKMAG</code> real de SNANA = magnitud en <code>Trest=0</code>, no el máximo de la ventana
+      que usa el script desde Fase 50 (<code>-0.14</code> mag en <code>u</code>, pero empeora
+      <code>i</code>/<code>z</code>/<code>y</code>); SNANA interpola CONTINUO la grilla SIMSED de 91bg
+      en vez de snapear (invalida la premisa de Fases 44/45 — confirmado 1696/1696 valores únicos de
+      <code>color</code> en el <code>.DUMP</code> real, explica en retrospectiva el KS catastrófico de
+      Fase 41); y, solo en clases con extinción de host, SNANA la aplica como escalar en longitud de
+      onda media en vez de sobre el SED completo (crece con <code>z</code>, coincide con por qué
+      <code>SNIa-91bg</code> es plano en <code>z</code> y <code>SNIax</code>/<code>CaRT</code> no).
+      Sumando los 4 no cierra las 6 bandas — queda <code>≈-0.20</code> mag en <code>u</code> sin
+      explicar. 2 de los 4 fixes tienen trade-offs reales, 2 son cambios de diseño de biblioteca —
+      ninguno aplicado todavía, pendiente de decisión.</p></div></li>
+      <li><span class="step-n">11</span><div class="step-body"><p><strong>Revisar si Fases 44/45 deben
+      corregirse</strong> (mismo criterio de transparencia que Fase 49) — su premisa de que SNANA
+      "snapea cada parámetro a la grilla" es falsa para la campaña real (Fase 52, Paso 4): esta
+      campaña usa <code>SIMSED_PARAM</code> sin <code>SIMSED_GRIDONLY</code>, interpolación continua.
+      Decidir si vale la pena retomar <code>SIMSED_REDCOR</code> con un modelo que interpole el SED en
+      <code>(stretch, color)</code> en vez de sortear templates discretos.</p></div></li>
+      <li><span class="step-n">12</span><div class="step-body"><p><strong>Extender la medición de
       brillo verdadero a más clases, ahora con el fix de host aplicado</strong> -- <code>SNII-NMF</code>
       (única otra clase con <code>SIMSED_REDCOR</code> además de <code>SNIa-91bg</code>, sin extinción
       de host, comparación limpia -- no afectada por Fase 51, sigue siendo el mejor test de si
       <code>SIMSED_REDCOR</code> deja residuo en una segunda clase), <code>KN-K17</code>/
       <code>TDE-MOSFIT</code> (ambas SÍ tenían el bug de Fase 51 -- su primera medición de brillo real
       debería hacerse directamente con el fix puesto, no repetir el ciclo bug→fix dos veces) -- para
-      saber si el residuo azul universal (item 10) aparece igual en clases nunca medidas.</p></div></li>
+      saber si el residuo azul de Fase 52 aparece igual en clases nunca medidas.</p></div></li>
     </ol>
     </div>
 
@@ -3000,6 +3011,45 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           se midió con la extinción de host efectivamente apagada.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">52</span>
+        <div class="step-body">
+          <p><strong>Diagnóstico del residuo azul que sobrevive a Fase 51: no hay una causa única —
+          4 mecanismos reales identificados, ~0.20 mag en <code>u</code> sigue sin explicación.</strong>
+          Un agente Opus de solo lectura compara línea por línea el filtro <code>u</code> real, la
+          convención de integración fotométrica, la extinción y la métrica de pico entre
+          LightCurveLynx y el C real de SNANA. Dos hipótesis descartadas con evidencia directa:
+          convención de integración (idéntica, ambos fotón-contadores exactos) y ley F99-vs-O94 de MW
+          en UV profundo a alto <code>z</code> (≤0.007 mag, confirma Fase 24 en el régimen que
+          faltaba).</p>
+          <p><strong>4 mecanismos reales, cada uno con su propio tamaño:</strong> (1) el filtro
+          <code>u</code> que carga LightCurveLynx (<code>total_u.dat</code>) es
+          <strong>byte-idéntico</strong> al que usa el <code>kcor</code> real de SNANA salvo por una
+          fuga fuera de banda en el rojo (SNANA usa <code>LSST_u.dat</code>, la misma curva truncada en
+          4134 Å) — vale <code>-0.07</code> a <code>-0.10</code> mag en <code>u</code>, exactamente
+          <code>0.000</code> en las otras 5 bandas; (2) <code>PEAKMAG</code> real de SNANA es la
+          magnitud en <code>Trest=0</code> exacto, no el máximo sobre la ventana de fase que usa
+          <code>compare_brightness_truth.py</code> desde Fase 50 (para resolver el caso <code>CaRT</code>)
+          — mueve <code>-0.144</code> mag en <code>u</code> pero <strong>empeora</strong>
+          <code>i</code>/<code>z</code>/<code>y</code> (de ~0 a +0.05/+0.08/+0.07); (3) hallazgo
+          estructural que invalida una premisa de Fases 44/45: el <code>.INPUT</code> real de
+          <code>SNIa-91bg</code> declara <code>SIMSED_PARAM</code> sin <code>SIMSED_GRIDONLY</code> —
+          SNANA interpola CONTINUO la grilla de 35 templates (confirmado: 1696/1696 valores únicos de
+          <code>color</code> en el <code>.DUMP</code> real, nunca los snapea), mientras LightCurveLynx
+          sortea 1 template discreto — vale <code>~-0.10</code> mag en <code>u</code>, explica en
+          retrospectiva el KS catastrófico de Fase 41; (4) SNANA aplica la extinción de host como un
+          escalar evaluado en la longitud de onda media del filtro, no sobre el SED completo — a
+          <code>AV=1-2</code> difiere <code>-0.09</code> a <code>-1.16</code> mag en <code>u</code>,
+          CRECIENDO con <code>z</code> — coincide exacto con por qué <code>SNIa-91bg</code> (sin
+          extinción de host) tiene el residuo <code>u</code> plano en <code>z</code> mientras
+          <code>SNIax</code>/<code>CaRT</code> (con extinción de host) lo tienen creciente.</p>
+          <p>Sumando los 4 mecanismos no se cierran las 6 bandas a la vez: <code>u</code>/<code>g</code>
+          mejoran pero quedan con un remanente real (<code>≈-0.20</code>/<code>≈-0.11</code> mag), e
+          <code>i</code>/<code>z</code>/<code>y</code> — ya casi cerradas hoy — empeoran por el fix de
+          métrica. Ninguno de los 4 fixes propuestos fue aplicado — 2 son baratos pero con trade-offs
+          reales, 2 son cambios de diseño de biblioteca, no de una línea.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3330,7 +3380,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "51 fases" },
+    { id: "fases", label: "52 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },

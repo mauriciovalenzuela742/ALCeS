@@ -6685,3 +6685,129 @@ explícita del usuario antes de publicar, mismo criterio que el resto del proyec
 (`sbatch`, sondeados con `squeue`/`sacct`): `12101078`/`12101079`/`12101080`. Outputs reales
 actualizados (reemplazan los de Fase 50): `compare_brightness_truth_{snia91bg,sniax,cart}_
 output.parquet` (`snia91bg` bit-idéntico, confirmado por hash).
+
+## Fase 52 — diagnóstico del residuo azul que sobrevive a Fase 51: 4 mecanismos reales identificados, ~0.20 mag en `u` sigue sin explicación
+
+Sigue la línea abierta por Fase 51 (ítem 10 del dashboard): `SNIa-91bg` (sin extinción de host en
+absoluto), `SNIax` y `CaRT` comparten un residuo azul (`u`/`g`) del mismo orden aun con el fix de
+host aplicado. Un agente Opus de solo lectura (sin tocar código, sin `sbatch`) compara línea por
+línea el filtro `u` real, la convención de integración fotométrica, la aplicación de extinción y la
+métrica `PEAKMAG` entre LightCurveLynx y el C real de SNANA. Resultado: **no hay una causa única** --
+4 mecanismos reales y verificados, cada uno con su propio tamaño, y un remanente sin explicar.
+
+### Paso 1 — dos hipótesis descartadas con evidencia directa
+
+**Convención de integración fotométrica**: idéntica en ambos lados -- ambos son fotón-contadores
+exactos (`LCL: F_b = ∫f_ν(λ)φ_b(λ)dλ` con `φ_b(λ)=S_b(λ)λ⁻¹`, `passbands.py:1220/1249/1267`; `SNANA:
+genmag_SEDtools.c:1153/1183`, `SEDMODELNORM = FLUXSCALE·LAMOBS_STEP/hc`, algebraicamente la misma
+integral). `ZPoff=0.0` en las 6 bandas del `kcor` real, primaria AB idéntica (4.354e-9
+erg/s/cm²/Å @ 5000Å = 3631 Jy). Descartado.
+
+**Ley F99-vs-O94 de MW en UV profundo a alto z** (la duda que dejó abierta Fase 24, nunca verificada
+fuera del régimen de bajo `E(B-V)`/óptico): medido con un SED 91bg real, `E(B-V)` DDF real
+(0.006-0.025), `z` de 0.15 a 0.55 -- diferencia ≤0.007 mag en las 6 bandas. Descartado también en
+este régimen.
+
+### Paso 2 — mecanismo 1: fuga roja del filtro `u` de LightCurveLynx
+
+`PassbandGroup.from_preset("LSST")` descarga `total_u.dat` (repo real `lsst/throughputs`, cacheado en
+`~/.cache/lightcurvelynx/passbands/LSST/u.dat`) -- **byte-idéntico** al archivo real que usa el `kcor`
+de SNANA (`$SNDATA_ROOT/filters/LSST/baseline_1.9/total_u.dat`, mismo hash `sha1`, misma versión
+`1.9`) hasta el corte azul/rojo al 50% (coinciden a `0.02 Å`). La diferencia real: el `kcor.input` de
+esta campaña usa `LSST_u.dat`, la MISMA curva **truncada en 4134 Å**; `total_u.dat` (lo que carga
+LightCurveLynx) sigue hasta 11000 Å con una fuga fuera de banda de `T≈4e-5` (~0.03% del pico) que
+`trim_quantile=1e-3` (default de LCL) no elimina del todo (retiene 0.176% de la normalización tras el
+trim). Medido en la simulación real (91bg, 2000 objetos, filtro `kcor` real vs. preset sin truncar):
+**-0.068 a -0.103 mag en `u`, exactamente 0.000 en las otras 5 bandas** (el trim ya las limpia del
+todo). La hipótesis original ("filtro más ancho hacia el azul") es **falsa** -- el sesgo viene de la
+cola roja, no del corte azul.
+
+### Paso 3 — mecanismo 2: `PEAKMAG` real de SNANA es la magnitud en `Trest=0`, no el máximo de la ventana de fase
+
+`snlc_sim.c:8455-8456/27104-27107`: SNANA guarda `peakmag_obs` en la época con `epoch_rest=0.0`
+exacto, no el máximo de la curva. `compare_brightness_truth.py` (desde el fix de Fase 50, para
+resolver el caso `CaRT` cuya grilla real arranca en fase `+0.501`) evalúa sobre TODA la ventana
+`trest_range` y toma `.max()` -- una métrica distinta a la real de SNANA. Medido (91bg, misma
+corrida): pasar de "máximo sobre la ventana" a "magnitud en `Trest=0`" mueve **-0.144 mag en `u`,
+-0.033 en `g`, -0.020 en `r`** -- pero **empeora** `i`/`z`/`y` (de -0.032/-0.016/-0.020 a
++0.021/+0.063/+0.061, cambian de signo). El fix de Fase 50 resolvía un problema real (`CaRT` con
+`rest_phase=0` fuera de grilla, ver Fase 50) pero introdujo este sesgo sistemático en el resto de las
+clases y bandas -- corregirlo bien requiere evaluar en `Trest=0` para todas las clases Y extrapolar al
+borde de grilla (como hace SNANA) para las que, como `CaRT`, no cubren fase 0, en vez de cambiar la
+métrica entera a "máximo".
+
+### Paso 4 — mecanismo 3 (invalida una premisa ya documentada en Fases 41/44/45): SNANA interpola continuo la grilla SIMSED, no snapea
+
+Hallazgo estructural, no sospechado: `SIMGEN_INCLUDE_SNIa-91bg.INPUT` declara `SIMSED_PARAM: stretch`/
+`SIMSED_PARAM: color` **sin** `SIMSED_GRIDONLY` -- `snlc_sim.c:6066` activa
+`OPTMASK_GEN_SIMSED_PARAM`, la rama de interpolación CONTINUA (`interp_flux_SIMSED()`,
+`genmag_SIMSED.c:1595`), no la rama de snap a grilla (`nearest_gridval_SIMSED()`, que solo se llama
+bajo `SIMSED_GRIDONLY`). Confirmado directo contra el `.DUMP` real: **1696/1696 valores únicos de
+`color`** sobre 1696 objetos (no 35 valores discretos) -- SNANA nunca snapea para esta campaña.
+LightCurveLynx (`SIMSEDModel.from_dir(weights=...)`, `run_simsed_poc.py:486`) sí sortea 1 de 35
+templates discretos -- no puede reproducir la interpolación continua real. **Esto invalida la premisa
+que documentaron Fases 44/45** (`snana_params.py:512-560`, comentario real: "SNANA snapea cada
+parámetro a la grilla más cercana") -- cierta solo bajo `SIMSED_GRIDONLY`, que esta campaña no usa;
+también explica en retrospectiva por qué Fase 41 midió un KS catastrófico (`p=1e-77`) contra
+`stretch`/`color` reales -- SNANA nunca snapeó, así que ninguna reimplementación de snap (Fase 44) podía
+acercarse. Medido: **~-0.10 mag en `u`, -0.08 a -0.11 en `g`, -0.03 a -0.09 en `r`** (200k draws sobre
+los 35 SEDs reales + interpolación bilineal del flujo, 3 redshifts de prueba). Fix real: no es de una
+línea -- requiere una clase de modelo que interpole el SED en `(stretch, color)`, cambio de biblioteca,
+no de script. Queda documentado, no implementado.
+
+### Paso 5 — mecanismo 4 (solo clases con extinción de host, explica el componente que crece con `z`): SNANA aplica extinción de host como escalar en longitud de onda media, no sobre el SED completo
+
+`genmag_SIMSED.c:1554-1567`: SNANA calcula `meanlam_obs`/`meanlam_rest` (longitud de onda media del
+filtro, `genmag_SEDtools.c:335`) UNA vez por banda y aplica `GALextinct()` como un **offset escalar de
+magnitud** a la banda ya integrada -- no extingue el SED punto a punto antes de integrar.
+`run_simsed_poc.py:533-536` (`ClippedExtinctionEffect`, `frame="rest"`) hace lo opuesto: extingue el
+SED longitud de onda por longitud de onda, luego integra. A `z` bajo con `AV` chico ambos métodos casi
+coinciden (la curva de polvo es casi lineal en la ventana de la banda); a `z` alto, `meanlam_rest` cae
+en una zona más empinada de la curva de extinción y las dos formas divergen más. Medido con un SED
+91bg real: a `AV=1.0`, `z=0.15→0.55`, la extinción escalar-vs-por-λ difiere **-0.086 a -0.467 mag en
+`u`** (crece con `z`); a `AV=2.0`, **-0.176 a -1.157 mag**. Consistente con el patrón medido en el
+Paso 6: `SNIa-91bg` (sin extinción de host) tiene el residuo `u` PLANO en `z` (bins 2-7: -0.43 a
+-0.67, sin tendencia), mientras `SNIax`/`CaRT` (con extinción de host) lo tienen CRECIENTE (`SNIax`:
++0.57 en el bin 2 a -1.10 en el bin 7; `CaRT`: +0.01 a -0.84) -- dos poblaciones con causas distintas
+superpuestas, no un patrón único como sugería Fase 51. Fix real: aplicar la extinción de host como
+offset escalar por banda en vez de efecto sobre el SED -- cambio de diseño, no de una línea. Queda
+documentado, no implementado.
+
+### Paso 6 — presupuesto final: lo que explica y lo que no, banda por banda (`SNIa-91bg`, control sin host)
+
+| mecanismo | u | g | r | i | z | y |
+|---|---:|---:|---:|---:|---:|---:|
+| fuga roja filtro `u` (Paso 2) | -0.07 a -0.10 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
+| métrica `PEAKMAG` (Paso 3) | -0.144 | -0.033 | -0.020 | +0.053 | +0.079 | +0.081 |
+| grilla SIMSED discreta (Paso 4) | ~-0.10 | -0.08 a -0.11 | -0.03 a -0.09 | ~-0.01 a -0.05 | ~-0.02 | ~-0.01 |
+| ley MW F99-vs-O94 (Paso 1) | -0.003 | -0.004 | -0.001 | ~0 | ~0 | ~0 |
+| **residuo total medido (Fase 51)** | **-0.537** | **-0.245** | **-0.088** | **-0.032** | **-0.016** | **-0.020** |
+| **sin explicar** | **≈-0.20** | **≈-0.11** | **≈-0.01** | +0.05 | +0.08 | +0.07 |
+
+(Para `SNIax`/`CaRT` sumar además el mecanismo 4 del Paso 5, dominante y creciente con `z` en esas 2
+clases.) Aplicar TODOS los fixes medibles no cierra `SNIa-91bg` de forma limpia: `u`/`g` mejoran pero
+quedan con un remanente real (~-0.20/-0.11 mag), e `i`/`z`/`y` -- ya casi cerradas en la medición
+actual -- **empeoran** (pasan de ~0 a +0.05/+0.08/+0.07) porque el fix de la métrica `PEAKMAG` (Paso
+3) las mueve en la dirección contraria. No hay combinación de estos 4 fixes que cierre las 6 bandas a
+la vez -- documentado honestamente, sin forzar una conclusión limpia.
+
+### Conclusión Fase 52
+
+El residuo azul de Fase 50/51 no tiene una causa única: son al menos 4 mecanismos reales y
+verificados (fuga de filtro, definición de métrica de pico, discretización de la grilla SIMSED,
+convención de aplicación de extinción de host), cada uno con un tamaño y una firma distinta, más un
+remanente de ~0.20 mag en `u` y ~0.11 en `g` que sigue sin explicación después de sumarlos todos. Dos
+de los 4 (Pasos 2/3) son baratos de corregir pero con trade-offs reales (el fix de métrica mejora
+`u`/`g`/`r` y empeora `i`/`z`/`y`); los otros dos (Pasos 4/5) son cambios de diseño, no de una línea.
+Hallazgo colateral importante: el Paso 4 invalida la premisa de snap-a-grilla que documentaron Fases
+44/45 para esta campaña real -- vale la pena revisar si esa lectura debe corregirse en el dashboard
+(mismo criterio de transparencia que Fase 49) antes de decidir si se retoma `SIMSED_REDCOR` con la
+interpolación continua real.
+
+### Archivos de esta fase
+
+Sin cambios de código -- fase de diagnóstico puro (agente Opus de solo lectura, scripts descartables
+en NLHPC borrados tras usarlos, sin `sbatch`, reutilizando los parquets ya generados en Fase 51 más
+comparaciones directas de filtros/SED/`.DUMP` reales). Ningún fix de los 4 propuestos fue aplicado --
+quedan documentados para una decisión explícita antes de implementarlos, dados los trade-offs reales
+del Paso 3 y el alcance de biblioteca de los Pasos 4/5.
