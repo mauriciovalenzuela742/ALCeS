@@ -6922,3 +6922,96 @@ cambios). `compare_brightness_truth.py` (usa `host_extinction_mode="scalar"`, ap
 sobre `PEAKMAG_x_true`). 3 jobs reales en NLHPC: `12104702`/`12104703`/`12104704`. Outputs reales
 actualizados (reemplazan los de Fase 51): `compare_brightness_truth_{snia91bg,sniax,cart}_
 output.parquet` (`snia91bg` bit-idéntico, confirmado por hash).
+
+## Fase 54 -- investigado y REVERTIDO: el fix de PEAKMAG (mecanismo 2 de Fase 52) reproduce exacto la predicción para `SNIa-91bg`, pero rompe `CaRT` (+2 a +4 mag) -- de dónde sale el `PEAKMJD` real de SNANA para clases explosion-referenced queda como pregunta abierta
+
+Sigue el mecanismo 2 del diagnóstico de Fase 52: `PEAKMAG_x` real de SNANA es la magnitud exacta en
+`Trest=0` (`snlc_sim.c:8455-8456/27104-27107`), no el máximo de la curva sobre toda la ventana de fase
+que usa `compare_brightness_truth.py` desde Fase 50. Implementado, medido con jobs reales, y revertido
+tras encontrar una regresión real -- no se deja el código roto en la versión activa.
+
+### Paso 1 -- el fix: flujo en el punto de grilla válido más cercano a `Trest=0`
+
+En vez de re-evaluar en un solo punto (que reproduciría el bug de `CaRT` de Fase 50: `rest_phase=0`
+cae fuera de la grilla real del template y devuelve flujo `0.0`), se reusa la misma grilla ya evaluada
+(`sub["rest_phase"]`/`sub[band]`, paso de 1 día sobre `trest_range`) y se selecciona el flujo del punto
+**válido** (`>0`) más cercano a `Trest=0` -- reproduce `Trest=0` exacto cuando está cubierto por la
+grilla, y "cae" al borde de cobertura más cercano cuando no lo está (la lectura que había propuesto
+Fase 52 para el caso `CaRT`: replicar la extrapolación real de SNANA, que mantiene el flujo del borde
+constante más allá del rango calibrado, en vez de devolver `0`).
+
+Smoke test real antes de correr nada (`SNIa-91bg`, 20 objetos): confirma que la grilla SÍ incluye
+`rest_phase=0.0` exacto (paso de 1 día desde `-30`, entero), con un flujo (`333.005`) apenas distinto
+del máximo real de la curva (`333.355`, en `rest_phase=-1.0`) -- confirma en código real, antes de medir
+nada a escala, el mecanismo físico que predijo Fase 52: el pico real de cada banda no cae exacto en
+`Trest=0`.
+
+### Paso 2 -- remedido: `SNIa-91bg` reproduce EXACTO la predicción de Fase 52; `SNIax` mejora en azul
+pero empeora en rojo; `CaRT` se rompe
+
+3 jobs reales en NLHPC (`sbatch`, sondeados con `squeue`/`sacct`): `12109513` (`SNIa-91bg`, 2m16s),
+`12109514` (`SNIax`, 15m47s), `12109515` (`CaRT`, 3m15s).
+
+| banda | `SNIa-91bg` (Fase 53→54) | `SNIax` (Fase 53→54) | `CaRT` (Fase 53→54) |
+|---|---:|---:|---:|
+| u | -0.537 → **-0.393** | -0.733 → **-0.031** | -0.621 → **+2.274** |
+| g | -0.245 → **-0.212** | -0.186 → **+0.100** | -0.266 → **+2.897** |
+| r | -0.088 → **-0.068** | +0.123 → **+0.143** | -0.119 → **+3.355** |
+| i | -0.032 → **+0.021** | +0.109 → **+0.163** | -0.087 → **+3.654** |
+| z | -0.016 → **+0.063** | +0.092 → **+0.199** | -0.066 → **+3.886** |
+| y | -0.020 → **+0.061** | +0.071 → **+0.191** | -0.078 → **+4.009** |
+
+`SNIa-91bg` reproduce **exacto** la "variante C" que ya había medido Fase 52 (`u: -0.393`, `g: -0.212`,
+`r: -0.068`, `i: +0.021`, `z: +0.063`, `y: +0.061`) -- confirma que el mecanismo está bien implementado.
+`SNIax` mejora sustancialmente en `u`/`g` (`u` casi cerrado, `-0.031` mag) pero empeora en
+`r`/`i`/`z`/`y` -- mismo trade-off azul-mejora/rojo-empeora que ya había medido Fase 52 para `91bg`, ahora
+confirmado en una segunda clase real. `CaRT` se rompe por completo: `+2.27` a `+4.01` mag, la escala
+completa del catálogo, no un ajuste fino.
+
+### Paso 3 -- por qué se rompe `CaRT`: su pico real está lejos del primer punto válido de la grilla
+
+Diagnosticado antes de revertir (no se dejó como caja negra): para 3 objetos de prueba, el primer punto
+válido de la grilla (`rest_phase=1.0`, justo después de `SED.INFO` real de `SIMSED.CART-MOSFIT`
+arrancando en `0.501`) tiene un flujo **~8-22x más tenue** que el máximo real de la curva, que ocurre
+recién 4-7 días después (`rest_phase=5` a `8`):
+
+| objeto | flujo en `rest_phase=1.0` (primer punto válido) | flujo en el máximo (`rest_phase`) | razón |
+|---|---:|---:|---:|
+| 0 | 0.0385 | 0.6919 (`rest_phase=8`) | 18.0x |
+| 1 | 0.7361 | 6.2022 (`rest_phase=5`) | 8.4x |
+| 2 | 2.5762 | 57.0070 (`rest_phase=8`) | 22.1x |
+
+`CaRT` no es solo "explosion-referenced" (fase 0 = explosión, no pico) -- su curva de luz sube MUY
+empinada después de la explosión, con el pico real varios días después del primer punto cubierto por
+el template. Extrapolar sosteniendo el flujo del borde constante (la lectura que Fase 52 propuso para
+este caso) da un valor casi arbitrariamente tenue, muy lejos del `PEAKMAG` real de SNANA -- lo que
+implica que el `PEAKMJD`/`Trest=0` real que usa SNANA internamente para esta clase **no es** literalmente
+"fase 0 del archivo `SIMSED.CART-MOSFIT`" tal como LightCurveLynx lo interpreta. De dónde sale ese
+`PEAKMJD` real (¿SNANA recalibra internamente su grilla a la fase del pico real, en vez de usar la
+convención "días desde la explosión" del archivo tal cual?) queda como pregunta abierta -- requiere
+leer más código C real (`gen_PEAKMJD()`/la función que arma `GENLC.epoch_rest` para modelos SIMSED con
+convención de fase no estándar) antes de poder intentar este fix de nuevo con confianza.
+
+### Conclusión Fase 54
+
+Resultado genuinamente mixto, documentado sin forzar una historia limpia: el mecanismo (`Trest=0` real,
+no el máximo) es correcto y se confirma con precisión de magnitud contra la predicción ya hecha en
+Fase 52 (`SNIa-91bg` exacto). Pero expone dos problemas reales, no solo uno: (1) incluso en la clase
+donde el mecanismo se aplica sin ambigüedad, el fix mejora las bandas azules y empeora las rojas --
+mismo trade-off ya anotado en Fase 52, ahora confirmado en una segunda clase (`SNIax`); (2) para clases
+explosion-referenced con una subida post-explosión empinada como `CaRT`, la extrapolación al borde de
+cobertura NO es una aproximación razonable al `PEAKMJD` real de SNANA -- produce un error de magnitud
+completa (`+2` a `+4` mag), peor que el sesgo original que se quería corregir. **Revertido**: se
+mantiene el máximo sobre la ventana completa (comportamiento de Fase 50/53) en el código versionado --
+no se deja una regresión conocida en un script de producción solo por haber medido honestamente el
+intento. El trade-off azul/rojo (Paso 2) y el origen real de `PEAKMJD` para clases explosion-referenced
+(Paso 3) quedan como las dos preguntas abiertas más concretas para retomar este mecanismo.
+
+### Archivos de esta fase
+
+`compare_brightness_truth.py`: cambio de lógica probado, medido con 3 jobs reales, y revertido a la
+lógica de Fase 53 (`diff` contra el commit anterior confirma que solo cambiaron comentarios, ninguna
+línea de código activa). Sin cambios netos en el repositorio -- los parquets ya publicados en Fase 53
+siguen siendo los vigentes (no se sobrescribieron con los resultados rotos de esta fase). 3 jobs reales
+en NLHPC (`sbatch`, sondeados con `squeue`/`sacct`, borrados tras usarlos): `12109513`/`12109514`/
+`12109515`.

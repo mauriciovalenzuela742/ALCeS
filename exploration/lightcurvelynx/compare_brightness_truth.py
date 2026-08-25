@@ -120,13 +120,24 @@ def main(class_key: str):
     # SIMSED.CART-MOSFIT (`SED.INFO`) arranca en phase=**0.501**, no en phase negativo
     # (convencion "dias desde la explosion", no "dias desde el pico", verificado
     # inspeccionando los `.dat.gz` reales). `rest_phase=0` cae fuera de la grilla
-    # definida y el modelo no extrapola -- devuelve 0, no NaN. Corregido para evaluar
+    # definida y el modelo no extrapola -- devuelve 0, no NaN. Fase 50 corrigio evaluando
     # sobre el `trest_range` real de la clase (mismo `cfg.get("trest_range", (-30, 100))`
-    # que ya usa `run_simsed_poc.py` para su ventana de generacion real, Fase 40/43 --
-    # no se inventa un rango nuevo) y tomar el maximo de flujo por banda sobre esa
-    # grilla completa. Para las clases tipo SNIa esto reproduce el mismo resultado que
-    # evaluar solo en phase=0 (el pico YA esta en phase=0 por construccion) -- confirmado
-    # con el control positivo de `SNIa-91bg` re-corrido despues de este cambio.
+    # que ya usa `run_simsed_poc.py`) y tomando el MAXIMO de flujo por banda sobre esa
+    # grilla completa -- valido para reproducir Fase 47/39 en `r`, pero Fase 52 encontro
+    # que `PEAKMAG_x` real de SNANA es la magnitud exacta en `Trest=0`
+    # (`snlc_sim.c:8455-8456/27104-27107`, `GENLC.peakmag_obs` se fija en la epoca con
+    # `OBSFLAG_PEAK`, `epoch_rest=0.0`), no el maximo de la curva completa -- el pico
+    # fisico real de cada banda NO cae exacto en `Trest=0` (bandas azules tipicamente
+    # pican antes que las rojas, fisica real de SNe), asi que tomar el maximo por banda
+    # sobreestima el brillo real en las bandas cuyo pico fisico esta lejos de `Trest=0`.
+    # Fase 54 (investigado, revertido -- ver NOTES.md): probar "flujo en el punto de
+    # grilla valido mas cercano a Trest=0" en vez del maximo reproduce EXACTO la
+    # prediccion de Fase 52 para `SNIa-91bg` (confirma el mecanismo), pero rompe
+    # clases explosion-referenced como `CaRT` (+2 a +4 mag -- su primer punto valido,
+    # dias antes del pico real, es ~20x mas tenue). La nocion de `Trest=0` real de
+    # SNANA para esas clases no es literalmente "fase 0 del archivo SIMSED"; de donde
+    # sale su PEAKMJD real queda como pregunta abierta. Se mantiene el maximo sobre la
+    # grilla completa hasta resolverla -- ver mas abajo.
     trest_range = cfg.get("trest_range", (-30.0, 100.0))
     t_sim0 = time.time()
     graph_state = source_model.sample_parameters(
@@ -180,6 +191,17 @@ def main(class_key: str):
                 rec[f"PEAKMAG_{band}_true"] = np.nan
                 n_gated[band] += 1
                 continue
+            # Fase 54: se investigo evaluar en el punto de grilla valido mas
+            # cercano a Trest=0 (en vez del maximo) -- revertido, ver
+            # NOTES.md Fase 54: funciona exacto para clases peak-referenced
+            # (SNIa-91bg reproduce la prediccion de Fase 52 al mag) pero
+            # rompe clases explosion-referenced como CaRT (+2 a +4 mag,
+            # el primer punto valido de su grilla es ~20x mas tenue que el
+            # pico real, pocos dias despues) -- la nocion "Trest=0 real de
+            # SNANA" no es literalmente "fase 0 del archivo SIMSED" para
+            # esas clases, y de donde sale su PEAKMJD real queda sin
+            # resolver. Se mantiene el maximo sobre la grilla completa
+            # (Fase 50) hasta investigar esa referencia real.
             peak_flux_true = sub[band].to_numpy().max()
             if peak_flux_true <= 0:
                 rec[f"PEAKMAG_{band}_true"] = np.nan

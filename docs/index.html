@@ -1351,7 +1351,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
       (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
       ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "53 fases" (Fases 22-32) para el detalle
+      de Fase 23 sigue sin causa identificada. Ver pestaña "54 fases" (Fases 22-32) para el detalle
       completo.</p>
       <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
       auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
@@ -1384,7 +1384,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
       fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
       ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "53 fases" (Fase 32) para el detalle completo.</p>
+      sustancialmente. Ver pestaña "54 fases" (Fase 32) para el detalle completo.</p>
       <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
       referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
       campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
@@ -1439,7 +1439,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
       sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
       fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "53 fases" (Fase 36) para el detalle
+      ningún patrón cromático claro que perseguir. Ver pestaña "54 fases" (Fase 36) para el detalle
       completo.</p>
       <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
       del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
@@ -1463,7 +1463,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
       <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
       cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "53 fases" (Fase 37) para el detalle completo.</p>
+      cerrado.</strong> Ver pestaña "54 fases" (Fase 37) para el detalle completo.</p>
     </div>
     </div>
 
@@ -1521,7 +1521,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       objetos "nuevos" disparan a <code>|rest_phase|&gt;45</code> días (mediana <code>265</code> días),
       dentro del rango físico válido del propio modelo (<code>REBIN_DAY</code> hasta 2000 días) — ni
       artefacto de extrapolación ni resultado limpio, resultado genuinamente mixto. Ver pestaña
-      "53 fases" (Fases 38/42-46) para el detalle completo.</p>
+      "54 fases" (Fases 38/42-46) para el detalle completo.</p>
     </div>
 
     <h3 style="margin:28px 0 12px; font-size:1rem;">El camino: de 0.52 a 0.005 mag</h3>
@@ -1666,6 +1666,19 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <code>PEAKMAG</code> (evaluar en <code>Trest=0</code> real en vez del máximo de la ventana), pero
       requiere resolver primero su trade-off con <code>i</code>/<code>z</code>/<code>y</code> (ver
       Fase 52, Paso 3).</p></div></li>
+      <li><span class="step-n">14</span><div class="step-body"><p><strong>✗ Investigado y revertido
+      en Fase 54:</strong> el fix de <code>PEAKMAG</code> reproduce exacto la predicción de Fase 52
+      para <code>SNIa-91bg</code> (confirma el mecanismo) y mejora <code>u</code>/<code>g</code> de
+      <code>SNIax</code> sustancialmente, pero (a) confirma el trade-off con
+      <code>i</code>/<code>z</code>/<code>y</code> en una segunda clase, y (b) rompe <code>CaRT</code>
+      por completo (<code>+2</code> a <code>+4</code> mag) -- su curva sube muy empinada tras la
+      explosión, el primer punto válido de su grilla es 8-22x más tenue que el pico real. Revertido,
+      sin dejar la regresión en el código versionado. Dos preguntas abiertas concretas para retomarlo:
+      de dónde sale el <code>PEAKMJD</code> real de SNANA para clases explosion-referenced como
+      <code>CaRT</code> (no es literalmente "fase 0 del archivo SIMSED"), y qué explica el trade-off
+      azul-mejora/rojo-empeora incluso en clases donde el mecanismo aplica sin ambigüedad. Quedan sin
+      probar los mecanismos 1 (fuga de filtro <code>u</code>) y 3 (grilla SIMSED discreta) de Fase 52.</p>
+      </div></li>
     </ol>
     </div>
 
@@ -3094,6 +3107,35 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           la brecha esperada.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">54</span>
+        <div class="step-body">
+          <p><strong>Investigado y REVERTIDO — el fix de <code>PEAKMAG</code> (mecanismo 2 de Fase 52)
+          reproduce exacto la predicción para <code>SNIa-91bg</code>, pero rompe <code>CaRT</code>
+          (<code>+2</code> a <code>+4</code> mag).</strong> Se implementó evaluar el flujo en el punto
+          de grilla válido más cercano a <code>Trest=0</code> (en vez del máximo sobre la ventana
+          completa) — reproduce <code>Trest=0</code> exacto cuando la grilla lo cubre, cae al borde de
+          cobertura más cercano cuando no. Medido con 3 jobs reales: <code>SNIa-91bg</code> reproduce
+          <strong>exacto</strong> la predicción ya hecha en Fase 52 (<code>u: -0.537→-0.393</code>,
+          ..., <code>y: -0.020→+0.061</code>) — confirma que el mecanismo está bien implementado.
+          <code>SNIax</code> mejora sustancialmente en <code>u</code>/<code>g</code>
+          (<code>u: -0.733→-0.031</code>, casi cerrado) pero empeora en <code>r</code>/<code>i</code>/
+          <code>z</code>/<code>y</code> — mismo trade-off azul-mejora/rojo-empeora que Fase 52 ya había
+          medido para <code>91bg</code>, ahora confirmado en una segunda clase.</p>
+          <p><code>CaRT</code> se rompe por completo: <code>+2.27</code> a <code>+4.01</code> mag.
+          Diagnosticado antes de revertir: su primer punto de grilla válido
+          (<code>rest_phase=1.0</code>, justo después de que <code>SED.INFO</code> real arranca en
+          <code>0.501</code>) tiene un flujo <strong>8-22x más tenue</strong> que el máximo real, que
+          ocurre 4-7 días después — <code>CaRT</code> no solo es explosion-referenced, su curva sube
+          muy empinada tras la explosión. Extrapolar sosteniendo el flujo del borde (la lectura que
+          Fase 52 había propuesto) da un valor casi arbitrariamente tenue, muy lejos del
+          <code>PEAKMAG</code> real de SNANA — el <code>PEAKMJD</code> real que usa SNANA para esta
+          clase no es literalmente "fase 0 del archivo SIMSED"; de dónde sale queda como pregunta
+          abierta. <strong>Revertido</strong>: se mantiene el máximo sobre la ventana completa en el
+          código versionado — no se deja una regresión conocida en producción solo por haber medido
+          honestamente el intento.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3424,7 +3466,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "53 fases" },
+    { id: "fases", label: "54 fases" },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
