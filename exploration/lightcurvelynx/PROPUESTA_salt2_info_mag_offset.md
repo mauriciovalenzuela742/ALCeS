@@ -112,3 +112,14 @@ vez de leída del `.INPUT` real, sampler bifurcado con la probabilidad de rama i
 asumido en vez del default real de SNANA) llevado a su forma más pura. Esto queda como sugerencia,
 no como texto redactado — a definir con el profesor si tiene sentido como post aparte o como parte
 del mismo hilo del issue.
+
+## Nota aparte 2 — SALT2.INFO tiene más claves ignoradas que MAG_OFFSET
+
+`sncosmo.SALT2Source` no lee `SALT2.INFO` en absoluto (ver cuerpo del issue arriba) — además de
+`MAG_OFFSET`, también se ignoran en silencio `COLOR_OFFSET`, `SEDFLUX_INTERP_OPT`, `MAGERR_*` y
+`RESTLAMBDA_RANGE` si el modelo real las declara. De estas, solo `SEDFLUX_INTERP_OPT` se puso a
+prueba (Fase 39 de `NOTES.md`): se descartó como causa de un artefacto que crece con la distancia al
+pico, pero no se probó como posible offset constante pequeño (queda un residuo real de -0.01 a -0.03
+mag sin explicar, documentado como cabo suelto en esa misma fase). `COLOR_OFFSET` y `MAGERR_*` nunca
+se testearon. Se documenta como extensión del mismo hallazgo, no como un bug nuevo — el fix sugerido
+arriba (parsear `SALT2.INFO` completo, no solo `MAG_OFFSET`) ya lo cubre.

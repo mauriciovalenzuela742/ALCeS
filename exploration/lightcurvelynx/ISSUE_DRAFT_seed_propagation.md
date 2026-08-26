@@ -7,7 +7,7 @@ para publicarlo más adelante si se decide. No correr `gh issue create` sin conf
 ## Título
 
 seed= passed to samplers is silently dropped by internal child nodes (ObsTableRADECSampler,
-TableSampler, SIMSEDModel)
+TableSampler, SIMSEDModel, MultiSEDTemplateModel)
 
 ## Cuerpo
 
@@ -41,8 +41,13 @@ today; reproduced with two independent processes using the same seed.
    GivenValueSampler(all_inds, weights=weights)` — same pattern, template selection isn't reproducible.
    Workaround: `model._sampler_node.set_seed(my_seed)`.
 
+4. `MultiSEDTemplateModel.__init__` (same module, used by NON1ASED-style multi-template classes):
+   same pattern — its internal template-selection sampler is built without forwarding `seed=`.
+   Confirmed with the same two-separate-processes test as the other three (byte-identical output
+   after seeding it manually, divergent before).
+
 **Reproduction**: run the same script twice as separate processes with an identical seed; resulting
-photometry (row counts, SNR, detections) differs. Seeding the three sites above manually makes results
+photometry (row counts, SNR, detections) differs. Seeding the four sites above manually makes results
 byte-identical between runs.
 
 **Suggested fix**: forward the parent's `seed=`/`rng_info` into these internally-constructed nodes at

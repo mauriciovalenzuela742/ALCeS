@@ -1179,7 +1179,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <p class="section-sub">Los 9 puntos de una conversación real con el profesor sobre por qué LightCurveLynx
     difiere de SNANA (Fase 18-20 de <code>NOTES.md</code>), cruzados contra toda la evidencia acumulada.
     Pensado para escanearse rápido — el detalle completo de cada uno está en las pestañas
-    "47&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
+    "<span id="n-fases-label">…</span>&nbsp;fases"/"Causas investigadas" y en <code>NOTES.md</code>.</p>
 
     <div class="callout accent">
       <span class="verdict-badge">9 / 9 puntos cerrados</span>
@@ -1268,202 +1268,86 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Actualización Fases 22-37</span>
-      <p>El residuo real es <strong>más grande de lo reportado arriba</strong>: la métrica de "brillo
-      pico" usada hasta Fase 21 (<code>flux_perfect.max()</code> sobre la cadencia real observada)
-      subestimaba el brillo verdadero — para el 33.6% de los objetos, la cadencia real de DDF nunca
-      cae cerca de su pico real. Corregido (evaluando en el pico verdadero, misma convención que usa
-      <code>PEAKMAG_r</code> real de SNANA), el residuo en banda <code>r</code> pasa de
-      <strong>-0.235 a -0.519 mag</strong> de media. Los descartes de M_abs/color law/interpolación 2D
-      arriba siguen siendo válidos (comparaban contra la misma métrica de forma consistente) — pero la
-      magnitud real a explicar es más del doble.</p>
-      <p><strong>Fase 23:</strong> extendido a las 6 bandas LSST, el residuo corregido
-      <strong>no es plano en longitud de onda</strong> — máximo en <code>g</code> (-0.593 mag), decrece
-      monótonamente hacia el rojo hasta <code>y</code> (-0.382 mag). Patrón cualitativamente igual al de
-      la extinción (más fuerte en azul).</p>
-      <p><strong>Fase 24 (candidato accionado):</strong> el <code>.INPUT</code> real usa
-      <code>OPT_MWCOLORLAW=99</code> — <strong>Fitzpatrick99 exacto</strong>, no O94/CCM89 como se
-      asumió desde Fase 1 sin verificar el valor numérico. Corregido en los 5 scripts que aplican
-      extinción MW. Pero verificado numéricamente que la diferencia O94-vs-F99 es
-      <strong>&lt;0.005 mag</strong> a los <code>E(B-V)</code> reales de DDF — <strong>descartado</strong>
-      como causa del patrón cromático, aunque la corrección es real e importante igual. El patrón de
-      Fase 23 sigue sin explicarse — candidato que quedaba: la convención de integración de flujo en
-      banda (photon-counting vs. energy-flux) entre SNANA y <code>sncosmo</code>.</p>
-      <p><strong>Fase 26 (candidato cerrado — código real vs. código real):</strong> corriendo el binario
-      real <code>snlc_sim.exe</code> con un objeto SALT2 exacto y comparándolo directo contra
-      <code>compute_noise_free_lightcurves()</code> real de LightCurveLynx para el mismo objeto (sin
-      ninguna fórmula reconstruida a mano), la diferencia banda-a-banda es de solo
-      <strong>0.0002-0.002 mag</strong> — dos a tres órdenes de magnitud más chica que el patrón de
-      Fase 23. <strong>Descartado</strong>, con la evidencia más fuerte de toda la investigación. Con
-      esto se agotan los 5 candidatos concretos de la cadena SALT2 (color law, M_abs, interpolación 2D,
-      extinción MW, integración de banda) — el patrón cromático de Fase 23 queda sin causa identificada
-      dentro de esta cadena.</p>
-      <p><strong>Fase 27 (matiz importante — Fase 26 no generalizaba):</strong> Fase 26 solo probó
-      <code>z=0.15</code>. Extendiendo la misma prueba código-real-contra-código-real a
-      <code>z=0.6</code> y <code>z=0.9</code>, la diferencia de integración de banda
-      <strong>crece a 0.09-0.20 mag</strong> — dos órdenes de magnitud más que en <code>z=0.15</code>, ya
-      comparable al propio patrón de Fase 23. Pero el signo es el <strong>opuesto</strong>: el patrón de
-      Fase 23 crece positivo hacia el rojo (relativo a <code>r</code>), mientras que el efecto medido acá
-      crece negativo hacia el rojo — no puede ser la explicación aislada, aunque sí "cancela" parte de la
-      señal real a <code>z</code> alto. También descartados por lectura de código real: extinción de host
-      (<code>SNIa</code> no usa <code>GENTAU_AV</code> en esta campaña) y el modelo de dispersión
-      cromática <code>GENMAG_SMEAR_MODELNAME: G10</code> (activo, pero de media cero por construcción —
-      no puede sesgar una mediana poblacional). El patrón de Fase 23 sigue sin causa identificada.</p>
-      <p><strong>Fase 28 (la cadena SALT2 llega a su límite de aislamiento no invasivo):</strong>
-      reabriendo la interpolación 2D (Fase 21) en las λ_rest reales que <code>g/i/z/y</code> muestrean a
-      <code>z=0.6-0.9</code> (Fase 21 solo había cubierto B/r cerca de <code>z</code> bajo): el efecto es
-      de <strong>0.0000-0.0001 mag</strong> — más chico todavía que el máximo ya despreciable de Fase 21,
-      3-4 órdenes de magnitud menor que el residuo real. <strong>Descartada de nuevo</strong>, ya sin el
-      cabo suelto que dejó Fase 23. De paso, el template <code>M1</code> (nunca antes chequeado, solo
-      <code>M0</code> lo estaba) se confirma <strong>byte-idéntico</strong>. Con esto, los 8 factores
-      multiplicativos aislables de la fórmula real de SNANA quedan verificados uno por uno — descartados
-      todos. Queda un único factor sin aislar con éxito: la convención de integración de banda —
-      intentarlo de nuevo dentro del pipeline de LightCurveLynx reproduciría el mismo artefacto ya
-      documentado dos veces (Fase 25, higiene de Fase 26: hasta un control de espectro plano dio un
-      resultado implausible, la firma de un problema del método, no de física real), así que se
-      documenta como un <strong>límite metodológico real</strong> (cerrarlo requeriría instrumentar y
-      recompilar el binario C de SNANA). El patrón cromático de Fase 23 sigue sin causa identificada — la
-      cadena SALT2 queda agotada dentro de los métodos no invasivos disponibles.</p>
-      <p><strong>Fase 29 (se instrumenta y recompila SNANA real — el límite de Fase 28 se cruza):</strong>
-      a pedido explícito del usuario, se parchea <code>INTEG_zSED_SALT2()</code> (clon propio y privado de
-      SNANA del usuario en NLHPC, cero impacto en el pipeline de producción) para volcar el
-      <code>FTMP</code>/<code>TRANS</code> reales por bin de longitud de onda, sin ninguna reconstrucción
-      de por medio. Comparando las dos convenciones de pesado (<code>λ</code> vs. <code>1/λ</code>)
-      correctamente normalizadas (el primer intento sin normalizar reprodujo el mismo tipo de resultado
-      implausible de Fase 25 — diagnosticado esta vez con precisión: cada convención necesita dividirse
-      por su propia integral de peso) sobre esos mismos valores reales: el signo coincide con el
-      <code>diff</code> real de Fase 27 en las <strong>7 combinaciones banda/<code>z</code></strong>
-      probadas, y explica entre <strong>~25% y ~45%</strong> de su magnitud. La integración de banda
-      queda así <strong>confirmada</strong> (no descartada) como un componente real del mecanismo,
-      insuficiente por sí sola — el resto de la magnitud (definición exacta de punto cero de cada código,
-      más allá del exponente de peso) queda sin aislar. El patrón cromático de Fase 23 sigue sin causa
-      identificada.</p>
-      <p><strong>Fase 30 (el punto cero real añade una fracción, pero no cierra el resto):</strong>
-      segundo parche real (mismo patrón, esta vez en <code>genmag_SEDtools.c</code>) para volcar el
-      espectro de referencia real (<code>PrimarySED</code> de <code>kcor_LSST.fits</code>) que SNANA usa
-      para calibrar el punto cero por banda, en vez de asumirlo plano (como hacía implícitamente Fase
-      29). Recalculando el punto cero bajo <code>1/λ</code> con la forma real del espectro de
-      referencia y combinándolo con el flujo real ya volcado por Fase 29: la magnitud explicada en
-      <code>i/z/y</code> (las bandas peor cubiertas por Fase 29) sube de <strong>~9%-31% a
-      ~29%-39%</strong> — mejora real, más marcada en <code>z@z=0.6</code> (9.4%→28.9%). En conjunto,
-      los dos mecanismos de la integración de banda (forma del peso + punto cero real) explican
-      <strong>~29%-39%</strong> del <code>diff</code> de Fase 27 en las bandas más difíciles, dejando
-      <strong>~60%-70% sin identificar</strong>. Con la cadena SALT2 descompuesta término a término
-      (Fase 28) y la integración de banda descompuesta en sus dos sub-mecanismos (Fases 29-30), el resto
-      ya no tiene un candidato concreto dentro de la fórmula de integración de SNANA. El patrón cromático
-      de Fase 23 sigue sin causa identificada. Ver pestaña "58 fases" (Fases 22-32) para el detalle
-      completo.</p>
-      <p><strong>Fase 31 (dos aristas nuevas — ninguna cierra el resto; calibración de LightCurveLynx
-      auditada y verificada sólida):</strong> arista 1, releer si <code>CCOR</code> (ley de color) había
-      quedado excluido del cálculo de Fases 29-30 — resultó ser una premisa errónea: el cálculo
-      <em>final</em> de Fase 30 ya lo incluía desde el principio, esta ronda solo lo replica con un
-      objeto independiente (mismo resultado a <code>0.001-0.01</code> mag, confirma reproducibilidad, no
-      aporta magnitud nueva). Arista 2, auditar de punta a punta la calibración de LightCurveLynx —
-      resultado limpio: la normalización de <code>Passband</code> es autoconsistente
-      <strong>por construcción matemática</strong> (verificado con una fuente plana, <code>Δmag~10⁻¹³</code>),
-      y la conversión de unidades <code>f_λ→f_ν</code> (<code>unit_utils.py</code>, real, basada en
-      álgebra de unidades de <code>astropy</code>) es dimensionalmente correcta — sin bug. Único detalle
-      real encontrado: el recorte <code>trim_quantile=1e-3</code> que usa producción por defecto (nunca
-      antes auditado contra la tabla real, Fase 12 solo comparó la cruda) tiene un efecto medido pero
-      <strong>despreciable en <code>g/i/z/y</code></strong> (≤0.006 mag), solo relevante en <code>u</code>
-      a <code>z</code> alto (banda ya excluida del análisis por <code>PEAKMAG_u</code> indefinido). Sin
-      corrección de código esta vez — ambas auditorías dieron negativo, con evidencia numérica directa.
-      El espacio de candidatos concretos y verificables está prácticamente agotado; el ~60-70% restante
-      probablemente requiere la síntesis final, todavía diferida a pedido del usuario.</p>
-      <p><strong>Fase 32 (el hallazgo más significativo de la investigación — un bug real de
-      muestreo):</strong> nueva arista, distinta de toda la cadena de Fases 26-31 — se audita la
-      <strong>fidelidad del muestreo poblacional</strong> en vez de la fórmula fotométrica de un objeto
-      controlado. Leyendo <code>sntools.c::getRan_GaussAsym()</code> real: SNANA pesa cada lado de la
-      Gaussiana bifurcada de <code>SALT2c</code>/<code>SALT2x1</code> <strong>proporcional a su
-      sigma</strong> (<code>P(lado alto)=σ_hi/(σ_lo+σ_hi)</code>), no 50/50. El proyecto usaba 50/50 fijo
-      — para <code>SALT2c</code> la asimetría real es <code>70.1%/29.9%</code>, sub-muestreando
-      sistemáticamente el lado rojo. Corregido y verificado (2M draws, asimetría empírica exacta a 4
-      decimales). <strong>Impacto medido con la población completa (2000 objetos, sampler corregido)</strong>:
-      el nivel acromático se reduce <strong>28-42%</strong> en todas las bandas
-      (<code>r</code>: <code>-0.519→-0.314</code> mag), y el <strong>spread cromático <code>g−y</code> se
-      reduce 58%</strong> (<code>-0.211→-0.089</code> mag). Con esto, el bug de muestreo explica una
-      fracción sustancial de ambos residuos perseguidos desde Fase 16 — el resto (~58-72% del nivel,
-      ~42% del spread) sigue sin causa identificada, pero el espacio de búsqueda se redujo
-      sustancialmente. Ver pestaña "58 fases" (Fase 32) para el detalle completo.</p>
-      <p><strong>Fase 33 (candidato marginal, pero aparece contaminación real en el <code>.DUMP</code> de
-      referencia):</strong> mismo criterio que Fase 32 -- se audita si el <code>E(B-V)</code> fijo por
-      campo (<code>DDF_FIELD_EBV</code>) explica parte del resto, frente al mapa real SFD98 por objeto
-      que usa SNANA. El desajuste real, medido directo contra el <code>MWEBV</code> real del
-      <code>.DUMP</code>, es chico (<code>-0.002</code> a <code>+0.006</code> en <code>E(B-V)</code> por
-      campo) y su impacto propagado con <code>F99</code> es marginal (<code>+0.002</code> a
-      <code>+0.006</code> mag de media ponderada, <code>u→y</code>) -- del mismo orden que el hallazgo ya
-      descartado de Fase 24. No se implementa el lookup SFD98 completo. Dos candidatos de reserva (sampler
-      DNDZ, asignación de campo) tampoco revelaron ningún bug adicional. Hallazgo lateral real, no
-      buscado: <strong>~15% del <code>.DUMP</code> de referencia usado desde Fase 16 no son miembros
-      reales de ningún campo DDF</strong> (contaminación con objetos de otras regiones del cielo, incluido
-      el centro galáctico) -- no invalida los hallazgos previos (todos basados en medianas, robustas a esa
-      fracción), pero queda documentado como cabo suelto real. El residuo post-Fase-32 sigue sin causa
-      identificada.</p>
-      <p><strong>Fase 34 (corrección real y precisa, pero de magnitud pequeña y de signo
-      contraintuitivo):</strong> se audita el módulo de distancia propio de LightCurveLynx
-      (<code>DistModFromRedshift</code>) contra el <code>MU</code> real de SNANA -- nunca antes validado
-      de forma independiente. El desajuste real crece suavemente con <code>z</code> (<code>0.002</code>
-      a <code>0.020</code> mag) -- firma de un parámetro de cosmología mal matcheado. Ajustando
-      <code>Om0</code> contra el <code>MU</code> real: el óptimo es <code>0.31435</code>, coincidiendo a
-      4 decimales con <code>OMEGA_MATTER_DEFAULT=0.315</code> real de <code>sntools.h</code> -- el
-      proyecto usaba <code>Om0=0.3</code>, un valor redondo nunca verificado. Corregido y medido con la
-      población completa: el residuo acromático <strong>no se reduce, se hace ligeramente más
-      negativo</strong> (<code>~0.01-0.018</code> mag) -- el error de <code>Om0</code> enmascaraba
-      parcialmente, no causaba, parte del exceso de brillo real; corregirlo revela un residuo algo mayor
-      pero más honesto (<code>~0.33</code> mag). El spread cromático <code>g−y</code> mejora un poco
-      (<code>-0.089→-0.081</code> mag). <code>Om0=0.3</code> sigue hardcodeado en otros 6 scripts del
-      proyecto (otras clases) -- identificado, no corregido en esta ronda. El residuo post-Fase-32 sigue
-      sin causa identificada.</p>
-      <p><strong>Fase 35:</strong> a pedido explícito del usuario, el fix de <code>Om0=0.315</code> se
-      extiende a los otros 6 scripts del proyecto que lo tenían hardcodeado en <code>0.3</code> (otras
-      clases -- <code>SNIa-91bg</code>, <code>NON1ASED</code>, <code>SIMSED</code>), verificado contra
-      los 34 <code>.INPUT</code> reales de la campaña antes de aplicarlo. No toca el residuo
-      <code>SNIa</code>/SALT2.</p>
-      <p><strong>Fase 36 (el hallazgo más grande después de Fase 32 -- gran parte del patrón cromático
-      de Fase 23 era un artefacto de calidad de datos):</strong> Fase 33 había razonado, sin verificarlo
-      directamente, que la contaminación real del 15% en el <code>.DUMP</code> de referencia (objetos que
-      no son miembros reales de ningún campo DDF, algunos con <code>MWEBV</code> hasta <code>72.68</code>
-      sobre el centro galáctico) "es poco probable que invalide los hallazgos" porque toda la metodología
-      usa la mediana. Ese argumento nunca se puso a prueba -- y una contaminación
-      <strong>unidireccional</strong> (los contaminantes son siempre más tenues, nunca más brillantes)
-      desplaza la mediana reportada hacia valores sistemáticamente más tenues, inflando artificialmente
-      el residuo perseguido desde Fase 16. Reconstruyendo la comparación de siempre con y sin el filtro
-      de Fase 33 (población completa, Fase 32+34 ya aplicados): el nivel acromático baja de
-      <code>-0.3255</code> a <code>-0.2642</code> mag (<strong>19% de reducción</strong>), y el spread
-      cromático <code>g−y</code> pasa de <code>-0.0762</code> a <code>+0.0164</code> mag —
-      <strong>cambia de signo, prácticamente desaparece</strong>. El patrón de mejora es asimétrico y
-      consistente con la física (<code>g</code>, la banda más sensible a extinción, mejora
-      <code>0.125</code> mag; <code>y</code> casi no cambia) -- no un ajuste ad-hoc. Aplicado como
-      corrección permanente (<code>filter_ddf_field_contamination()</code> en <code>snana_params.py</code>).
-      <strong>El patrón cromático que motivó 8 fases completas de investigación de la cadena SALT2
-      (Fases 23-31) resulta, en gran medida, un problema de datos, no de física</strong> -- ese trabajo
-      sigue siendo válido y real, pero ya no hace falta para explicar un patrón que en gran parte nunca
-      fue tal cosa. Queda un residuo acromático real de <code>~0.26</code> mag sin causa identificada, sin
-      ningún patrón cromático claro que perseguir. Ver pestaña "58 fases" (Fase 36) para el detalle
-      completo.</p>
-      <p><strong>Fase 37 — RESUELTO. El residuo acromático era <code>MAG_OFFSET: 0.27</code>, una clave
-      del <code>SALT2.INFO</code> real del modelo que <code>sncosmo</code> no lee en absoluto.</strong>
-      Lo que lo destrabó fue un cambio de método, no otro candidato: hasta acá toda comparación era
-      mediana-contra-mediana de dos poblaciones muestreadas <em>independientemente</em>, lo que mezcla
-      diferencias de fotometría con diferencias de muestreo. El <code>_HEAD.FITS</code> real de
-      producción — nunca antes usado — trae <code>SIM_SALT2x0/x1/c/mB</code>, <code>SIM_DLMU</code>,
-      <code>SIM_MWEBV</code> y <code>SIM_PEAKMAG_u..Y</code> <strong>por objeto</strong>; alimentando a
-      LightCurveLynx los parámetros EXACTOS de SNANA, el residuo pareado sale
-      <strong><code>-0.272</code> mag, plano en las 6 bandas y en los 7 bins de <code>z</code>, con
-      <code>std</code> de sólo <code>0.022-0.033</code> mag</strong> — un offset constante, 100%
-      fotométrico. Verificado que ambas fotometrías son correctas por separado (LightCurveLynx coincide
-      con <code>sncosmo.bandmag("ab")</code> a <code>0.002</code> mag y con una integral AB hecha a mano
-      a <code>0.0000</code>; el <code>PrimarySED</code> de <code>kcor_LSST.fits</code> es exactamente AB
-      con <code>ZPoff=0</code>). La causa: <code>SALT2.INFO</code> del modelo
-      <code>SALT2.WFIRST-H17</code> declara <code>MAG_OFFSET: 0.27</code>, que SNANA aplica a toda
-      magnitud (<code>genmag_SALT2.c:2257</code>) y que <code>sncosmo.SALT2Source</code> ignora
-      silenciosamente — ni <code>"SALT2.INFO"</code> ni <code>"MAG_OFFSET"</code> aparecen en su fuente.
-      <strong>Declarado <code>0.27</code>, medido <code>-0.2722</code>.</strong> Corregido
-      (<code>read_salt2_info()</code> en <code>snana_params.py</code>, que parsea el archivo real) y
-      medido sobre la población completa de 2000 objetos: el nivel acromático pasa de
-      <strong><code>-0.2646</code> a <code>+0.0054</code> mag — 98% de reducción</strong>, sin patrón
-      cromático residual. <strong>El residuo que esta investigación persigue desde Fase 16 queda
-      cerrado.</strong> Ver pestaña "58 fases" (Fase 37) para el detalle completo.</p>
+      <span class="verdict-badge critical">Actualización Fases 22-58 — el residuo SNIa/SALT2 se cerró, pero se abrió una brecha más grande</span>
+      <p>El residuo acromático de SNIa/SALT2 perseguido desde Fase 16 (-0.52 mag en brillo pico, tras
+      corregir la métrica de "pico" en Fase 22) se cerró en <strong>Fase 37</strong>: una clave real
+      del <code>SALT2.INFO</code> del modelo (<code>MAG_OFFSET: 0.27</code>) que <code>sncosmo</code>
+      ignora en silencio. El camino pasó por 3 correcciones intermedias antes de llegar ahí — el
+      sampler bifurcado de <code>SALT2c</code>/<code>SALT2x1</code> pesaba 50/50 en vez de por sigma
+      real (Fase 32, <strong>-0.52→-0.33 mag</strong>), ~15% del archivo de referencia real no eran
+      miembros DDF válidos e inflaban la mediana artificialmente (Fase 36,
+      <strong>→-0.26 mag</strong>), y recién ahí <code>MAG_OFFSET</code> cerró el resto
+      (<strong>→+0.005 mag</strong>). En el medio, 8 fases completas (23-31) agotaron toda la cadena
+      física de candidatos SALT2 (color law, M_abs, interpolación 2D, extinción MW, integración de
+      banda — hasta instrumentando y recompilando el binario C real de SNANA) sin encontrar la causa
+      — trabajo válido y real, pero que en retrospectiva perseguía un patrón que resultó ser en gran
+      parte un problema de calidad de datos, no de física. Detalle completo de cada fase en
+      "Conclusiones" y en la pestaña de fases.</p>
+      <p><strong>Pero el problema de detección (no de brillo) no se cerró — empeoró.</strong> El ratio
+      de sobre-detección LCL/SNANA para las clases SIMSED (13 clases, 5 semillas c/u) pasó de
+      <code>2.9x</code> (Fase 58) a <code>5.1x</code> (Fase 59) al corregir una configuración de
+      ventana temporal (<code>GENRANGE_TREST</code>) que llevaba 19 fases sin remedirse para 12 de
+      las 14 clases. Ninguna clase mejoró — todas empeoraron, de +12% a +211%. Ver el callout de
+      Fase 59 más abajo.</p>
+    </div>
+
+    <h3 style="margin:28px 0 12px; font-size:1rem;">4 bugs reales de LightCurveLynx/sncosmo — candidatos a reportar</h3>
+    <div class="causes">
+      <div class="cause-card confirmed">
+        <p class="cause-label">Bug A · Fase 13 · Borrador listo</p>
+        <h3>Flujo fuera de rango de longitud de onda no se suprime</h3>
+        <p><code>SEDTemplate.evaluate_sed()</code> clampea al borde en vez de devolver cero o
+        suprimir la observación (SNANA sí la suprime, <code>genmag_SEDtools.c</code>). Afecta al 46%
+        de la población de <code>SLSN-I</code> (z≥2.2). Impacto medido: ratio 1.604x→1.577x al
+        corregirlo para esa clase (nunca extendido a las otras 13).
+        <a href="https://github.com/mauriciovalenzuela742/ALCeS/blob/main/exploration/lightcurvelynx/ISSUE_DRAFT_sed_wavelength_range.md" target="_blank" rel="noopener">Ver borrador →</a></p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Bug B · Fases 19-20 · Borrador listo (sin publicar)</p>
+        <h3>Propagación de semilla incompleta en 4 nodos internos</h3>
+        <p><code>ObsTableRADECSampler</code>, <code>TableSampler</code>,
+        <code>SIMSEDModel.from_dir()</code> y <code>MultiSEDTemplateModel</code> arman generadores
+        aleatorios propios sin heredar el <code>seed=</code> externo. Rompe reproducibilidad exacta,
+        no precisión.
+        <a href="https://github.com/mauriciovalenzuela742/ALCeS/blob/main/exploration/lightcurvelynx/ISSUE_DRAFT_seed_propagation.md" target="_blank" rel="noopener">Ver borrador →</a></p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Bug C · Fase 37 · Borrador listo (sin publicar) — cerrado localmente</p>
+        <h3><code>MAG_OFFSET</code> de <code>SALT2.INFO</code> nunca se lee</h3>
+        <p><code>sncosmo.SALT2Source</code> no abre <code>SALT2.INFO</code> en absoluto — se pierden
+        <code>MAG_OFFSET</code> (0.27 mag para <code>SALT2.WFIRST-H17</code>) y otras 4 claves más
+        (<code>COLOR_OFFSET</code>/<code>SEDFLUX_INTERP_OPT</code>/<code>MAGERR_*</code>/
+        <code>RESTLAMBDA_RANGE</code>). Corregirlo redujo el residuo poblacional de -0.2646 a
+        +0.0054 mag (98%).
+        <a href="https://github.com/mauriciovalenzuela742/ALCeS/blob/main/exploration/lightcurvelynx/PROPUESTA_salt2_info_mag_offset.md" target="_blank" rel="noopener">Ver borrador →</a></p>
+      </div>
+      <div class="cause-card confirmed">
+        <p class="cause-label">Bug D · Fase 51 · Borrador listo</p>
+        <h3>Colisión de nombre de parámetro en <code>add_effect()</code></h3>
+        <p>Dos efectos con el mismo nombre de parámetro (<code>"ebv"</code>) hacen que el segundo
+        pierda su setter en silencio — apagaba la extinción de host al 2-8% de lo nominal en 12
+        clases. Corregido localmente; redujo el residuo azul de <code>SNIax</code>/<code>CaRT</code>
+        de -2.0 a -0.76 mag en <code>u</code>.
+        <a href="https://github.com/mauriciovalenzuela742/ALCeS/blob/main/exploration/lightcurvelynx/ISSUE_DRAFT_add_effect_param_collision.md" target="_blank" rel="noopener">Ver borrador →</a></p>
+      </div>
+    </div>
+    <p class="section-sub" style="margin-top:12px;">Los 4 son bugs reales, verificados con evidencia
+    de código de ambos lados y con impacto medido — pero ninguno, ni solo ni combinado, explica la
+    brecha de sobre-detección que sigue abierta (ver Fase 59 abajo). Detalle completo en
+    <code>exploration/lightcurvelynx/SINTESIS_hallazgos_y_brecha_abierta.md</code>.</p>
+
+    <div class="callout accent" style="margin-top:20px;">
+      <span class="verdict-badge critical">Fase 59 (en curso) — pregunta abierta, no resuelta</span>
+      <p>Al corregir <code>GENRANGE_TREST</code> real (en vez del hardcode <code>-30/100</code>) para
+      las 11 clases SIMSED que quedaban pendientes desde Fase 40/43, el ratio promedio de
+      sobre-detección de 13 clases pasa de <strong>2.895x a 5.113x</strong> — casi el doble. Ninguna
+      clase mejora; todas empeoran, de <code>+12.3%</code> (<code>SNIa-91bg</code>) a
+      <code>+211%</code> (<code>CaRT</code>, de 8.8x a 27.5x). El hardcode angosto no era una
+      aproximación neutral: contenía artificialmente la sobre-detección real. <strong>Ninguno de los
+      4 bugs de arriba explica este salto</strong> — es una brecha nueva, sin mecanismo identificado
+      todavía. Pendiente: confirmar la 5ta semilla de <code>PISN-STELLA-HYDROGENIC</code> (valor
+      provisional <code>1.884x</code>, n=4) y decidir si esto cambia la conclusión de cualquier
+      propuesta enviada hacia LightCurveLynx/sncosmo.</p>
     </div>
     </div>
 
@@ -1482,8 +1366,10 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       "de fábrica"); <strong>solo se verificó 1 clase de 19</strong> (LightCurveLynx cubre 19 clases
       de la campaña, no 40 — las `LCLIB` nunca se portaron; SIMSED/NON1ASED tienen su propio
       historial, Fases 2-9, nunca auditado con este rigor); <strong>solo brillo pico</strong>,
-      no la curva completa; <strong>solo DDF</strong>, no WFD; y los <strong>bugs de reproducibilidad
-      (seed propagation)</strong> siguen abiertos (afectan reproducibilidad exacta, no precisión).</p>
+      no la curva completa; <strong>solo DDF</strong>, no WFD; los <strong>bugs de reproducibilidad
+      (seed propagation)</strong> siguen abiertos (afectan reproducibilidad exacta, no precisión); y,
+      más importante, la <strong>sobre-detección agregada del catálogo SIMSED (13 clases) resultó ser
+      mayor de lo reportado</strong> — ver Fase 59 abajo, todavía sin explicación.</p>
     </div>
 
     <div class="callout accent" style="margin-top:20px;">
@@ -1718,6 +1604,16 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       única clase que se aleja de SNANA, la de mayor escala del catálogo. Candidato nuevo y concreto
       para la próxima fase: investigar por qué el shift al pico bolométrico empeora específicamente a
       esta clase de duración extrema (<code>GENRANGE_TREST</code> &gt;1000 días).</p></div></li>
+      <li><span class="step-n">20</span><div class="step-body"><p><strong>⚠ Fase 59 (en curso) —
+      contradice la conclusión de cierre de Fase 58:</strong> la conclusión "el promedio se mueve solo
+      -4.8%" se apoyaba en un <code>rest_time_window_offset</code> hardcodeado idéntico para 12/14
+      clases. Corregido a su <code>GENRANGE_TREST</code> real por clase, el ratio promedio pasa de
+      2.9x a 5.1x — empeora en las 11 clases remedidas, de +12% a +211%. No es un bug puntual con fix
+      concreto: es evidencia de que la brecha de sobre-detección es mayor de lo pensado y sigue sin
+      causa identificada. Ver <code>SINTESIS_hallazgos_y_brecha_abierta.md</code> para el análisis de
+      por qué los 4 bugs ya conocidos no la explican combinados. (Fase 59-perf, en paralelo, optimizó
+      el rendimiento del aplanado ~360x — mejora de infraestructura, sin efecto en ningún resultado,
+      verificado byte-idéntico.)</p></div></li>
     </ol>
     </div>
 
@@ -3281,6 +3177,39 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           días) — candidato nuevo, no investigado a fondo todavía.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">59</span>
+        <div class="step-body">
+          <p><strong>EN CURSO — GENRANGE_TREST real por clase, no el hardcode global: el hueco de
+          Fase 40/43 nunca remedido para 12/14 clases resulta mucho más grande de lo que sugería el
+          promedio del catálogo en Fase 58.</strong> Motivado por <code>PISN-STELLA-HYDROGENIC</code>,
+          la única clase que empeoró en Fase 58 (+20.6%) — resultó que <code>main()</code> seguía
+          usando <code>rest_time_window_offset=(-30, 100)</code> hardcodeado e idéntico para 12 de las
+          14 clases, pese a que el <code>GENRANGE_TREST</code> real de cada una (leído de su
+          <code>SIMGEN_INCLUDE_*.INPUT</code> real) varía de <code>-50/300</code> a
+          <code>-100/1000</code> — un hueco de auditoría abierto desde Fase 40 y nunca cerrado salvo
+          para 2 clases (Fase 43). Completado ahora para las 11 restantes.</p>
+          <p>Resultado (10 clases con 5 semillas, <code>PISN-STELLA-HYDROGENIC</code> con 4/5 —
+          semilla 5 en curso, valor provisional): el ratio de sobre-detección <strong>no mejora,
+          empeora</strong> en las 13 clases medidas — el promedio del catálogo pasa de <strong><code>2.895x a
+          5.113x</code></strong>, casi el doble. <code>CaRT</code> es el caso extremo:
+          <strong><code>8.8x → 27.5x</code></strong> (+211%). Ninguna clase mejora. Lectura: el
+          hardcode angosto no era una aproximación neutral — estaba conteniendo artificialmente la
+          sobre-detección real de LightCurveLynx frente a SNANA para la mayoría del catálogo, lo que
+          deja obsoleta la conclusión de cierre de Fase 58 ("el promedio se mueve solo -4.8%"). Ver
+          <code>SINTESIS_hallazgos_y_brecha_abierta.md</code> para el análisis de por qué los 4 bugs
+          reales ya identificados en esta investigación (Fases 13/19-20/37/51) no explican este
+          salto. Incidente real de cuota de disco en una de las semillas de
+          <code>PISN-STELLA-HYDROGENIC</code> (119M filas de fotometría por semilla, la única clase
+          con <code>NGENTOT_LC=20000</code>) — relanzada sola tras verificar headroom.</p>
+          <p><em>Fase 59-perf (en paralelo, no es un hallazgo científico):</em> el paso de "aplanado"
+          (doble <code>iterrows()</code> anidado) dominaba el tiempo de ejecución — hasta ~1h54min en
+          la clase más grande, más que la simulación misma. Vectorizado con un único
+          <code>pd.concat()</code>, ~360x más rápido en benchmark, verificado byte-idéntico contra la
+          versión anterior (fila por fila, en NLHPC real, con y sin el gate de
+          <code>RESTLAMBDA_RANGE</code>).</p>
+        </div>
+      </li>
     </ol>
     </div>
 
@@ -3606,12 +3535,18 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
   // sub-navegación de la pestaña LightCurveLynx (06) -- mismo mecanismo que
   // TABS/activateTab arriba, un nivel más adentro, con hash compuesto
   // "lcl:<subtab>" para que cada sub-pestaña siga siendo enlazable.
+  // contador de fases: calculado en runtime a partir del propio DOM (conteo real de
+  // <span class="step-n"> dentro de #lcl-sub-fases), no hardcodeado -- el hardcode manual
+  // se desincronizo dos veces (label del boton de sub-tab vs. el parrafo de "resumen",
+  // ver commit c4914a1 y el desincronismo real encontrado en Fase 59) por tener el mismo
+  // numero copiado a mano en mas de un lugar. Fuente unica de verdad: el DOM real.
+  const nFases = document.querySelectorAll("#lcl-sub-fases .step-n").length;
   const LCL_SUBTABS = [
     { id: "resumen", label: "Resumen" },
     { id: "conclusiones", label: "Conclusiones" },
     { id: "howto", label: "Cómo correrlo" },
     { id: "evaluacion", label: "Evaluación y glosario" },
-    { id: "fases", label: "58 fases" },
+    { id: "fases", label: `${nFases} fases` },
     { id: "tabla", label: "Tabla de clases" },
     { id: "causas", label: "Causas investigadas" },
     { id: "qc", label: "QC" },
@@ -3620,6 +3555,8 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
   lclSubnav.innerHTML = LCL_SUBTABS.map(t =>
     `<button class="lcl-subnav-btn" data-subtab="${t.id}" type="button">${t.label}</button>`
   ).join("");
+  const nFasesLabel = document.getElementById("n-fases-label");
+  if (nFasesLabel) nFasesLabel.textContent = nFases;
 
   let currentTab = TABS[0].id;
   let currentLclSubtab = LCL_SUBTABS[0].id;
