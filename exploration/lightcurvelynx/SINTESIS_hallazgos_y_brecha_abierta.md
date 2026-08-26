@@ -126,14 +126,20 @@ real que queda abierto — no una falla en el trabajo ya hecho.
 - Correr el catálogo completo de 14 clases con **todos** los fixes reales apilados a la vez (Fases
   32, 34, 36, 37, 42, 48, 49, 51, 53, 55, 56/57, 59) — hasta ahora cada fase midió su propio delta de
   forma aislada; nunca se hizo una corrida que combine todo el conocimiento acumulado en una sola
-  medición.
-- Decidir si vale la pena testear el impacto de `COLOR_OFFSET`/`MAGERR_*` (sección 6).
-- Actualizar `docs/lcl_qc/lcl_qc_index.json` (la tabla comparativa del dashboard) con los ratios
-  reales de Fase 59 — tarea de pipeline de datos, separada de este documento.
-- Revisar y eventualmente actualizar el callout final de la sub-tab "Causas investigadas" del
-  dashboard (`docs/index.html`), que todavía cita la brecha de Fase 16 (1.42x-10.83x), hoy obsoleta.
+  medición. **Pendiente** — decisión explícita del usuario de no lanzar cómputo nuevo en NLHPC en esta
+  sesión, solo actualizar dashboard/docs con lo ya medido.
+- Decidir si vale la pena testear el impacto de `COLOR_OFFSET`/`MAGERR_*` (sección 6). **Pendiente.**
+- **Hecho (2026-08-26)** — `docs/lcl_qc/lcl_qc_index.json` actualizado con los ratios reales de Fase
+  48/59 para las 13 clases SIMSED, leyendo los `summary.json` reales de las 65 corridas en NLHPC (no
+  derivado de las tablas de esta síntesis) — conteos absolutos, medias/std/min/max de 5 semillas,
+  filas reordenadas por `ratio_mean_5seeds` (el dashboard asume la primera fila = mejor caso, la
+  última = peor caso).
+- **Hecho (2026-08-26)** — el callout final de la sub-tab "Causas investigadas" del dashboard
+  (`docs/index.html`) ya no presenta la brecha de Fase 16 (1.42x-10.83x) como vigente; se agregó un
+  callout nuevo (`Estado vigente — Fase 48/58/59`) con el promedio real del catálogo (5.113x) y el
+  peor caso real (`CaRT`, 27.45x), con link a este documento.
 - Decidir con el profesor si publicar los issues A-D ya (son válidos independientemente del resultado
-  de esta brecha) o esperar a tener una explicación más completa.
+  de esta brecha) o esperar a tener una explicación más completa. **Pendiente.**
 
 ## 9. Referencias
 

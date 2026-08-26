@@ -790,6 +790,7 @@
   td.model { white-space: normal; }
 
   .callout.accent { border-left-color: var(--accent); }
+  .callout.critical { border-left-color: var(--critical); }
 
   .verdict-badge {
     display: inline-flex;
@@ -3459,9 +3460,9 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     </div>
 
     <div class="callout accent" style="margin-top:30px;">
-      <p><strong>No reemplazar SNANA todavía.</strong> La brecha cuantitativa (1.42x–10.83x, ahora con
-      incertidumbre real de 5 semillas por clase) es demasiado grande y variable por clase para usar
-      LightCurveLynx como fuente de verdad científica en su estado actual.</p>
+      <p><strong>No reemplazar SNANA todavía.</strong> La brecha cuantitativa citada abajo (histórica,
+      Fase 5-9) quedó <strong>obsoleta</strong> desde Fase 48/58/59 — ver el callout crítico justo
+      después de este para el estado real y actual.</p>
       <p><strong>Sí vale la pena seguir invirtiendo — pero la causa raíz sigue sin identificarse.</strong> Dos
       hipótesis concretas y bien fundamentadas (extinción omitida en Fase 3, sobre-conteo de épocas en Fase 4) se
       investigaron con rigor real — fórmulas y algoritmos verificados línea por línea contra el código fuente,
@@ -3469,7 +3470,8 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
       reproducibilidad (4 bugs de semilla en la librería, corregidos y verificados) y reveló que el promedio real
       del catálogo es más alto de lo reportado (2.83x, no 2.56x) — un ajuste honesto, no una regresión: la
       corrida única de Fase 4 heredaba un sesgo de emparejamiento de posición ya corregido. <code>CaRT</code>
-      queda confirmado como el peor caso real (10.83x ± 0.69), no un artefacto de semilla. Descartar causas
+      quedó confirmado entonces como el peor caso real (10.83x ± 0.69, cifra histórica de Fase 5 — ver más abajo
+      por qué ya no es la vigente), no un artefacto de semilla. Descartar causas
       reales con evidencia real, y ahora con bandas de incertidumbre reales en vez de corridas únicas, es
       progreso científico genuino. Fase 6-7 verificó SEARCHEFF contra los archivos reales de NLHPC (descartado
       de nuevo, ahora contra el dato de producción), investigó la hipótesis de "detecciones basura" a alto z del
@@ -3480,6 +3482,27 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
       la curva de luz como los candidatos más probables que quedan sin investigar. La causa raíz del residuo
       sistémico multiplicativo sigue siendo la prioridad para cualquier trabajo futuro, ahora con una hipótesis
       menos en la lista y una dirección más concreta hacia dónde mirar.</p>
+    </div>
+
+    <div class="callout critical" style="margin-top:20px;">
+      <span class="verdict-badge critical">Estado vigente — Fase 48/58/59, no Fase 5-9</span>
+      <p style="margin-top:10px;"><strong>La brecha real es mayor, no menor, y sigue sin
+      explicación.</strong> Dos correcciones metodológicas posteriores invalidaron los números de arriba: (1)
+      Fase 48 encontró la causa raíz de la contaminación de campo de Fase 33/36 — un bug de Capa 1 clasifica el
+      campo <code>RGES</code> como DDF por compartir el prefijo <code>"DD:"</code> — y recalculó la referencia
+      SNANA DDF-only para las 13 clases SIMSED del catálogo (~15% de objetos removidos por clase); (2) Fase 59
+      cerró un hueco de auditoría abierto desde Fase 40 — 11 de 13 clases SIMSED seguían comparándose con un
+      <code>rest_time_window_offset=(-30,100)</code> hardcodeado en vez del <code>GENRANGE_TREST</code> real de
+      cada una (hasta <code>-100/1000</code> según la clase). Con ambas correcciones aplicadas (5 semillas por
+      clase, 13/13 clases SIMSED completas), el promedio del catálogo pasa de <code>2.895x</code> a
+      <strong><code>5.113x</code></strong> — casi el doble, y ninguna de las 13 clases mejora.
+      <code>CaRT</code> pasa de <code>10.83x</code> (Fase 5, cifra de arriba) a <strong><code>27.45x</code></strong>
+      — el peor caso del catálogo por lejos. Los 4 bugs reales de LightCurveLynx/<code>sncosmo</code>
+      identificados y corregidos en esta investigación (rango de longitud de onda, propagación de semilla,
+      <code>MAG_OFFSET</code> de <code>SALT2.INFO</code>, colisión de nombre en <code>add_effect()</code>) siguen
+      siendo válidos de forma independiente, pero ninguno —solo o combinado— explica este salto: nunca se midieron
+      contra la métrica agregada de detección de 13 clases que usan Fase 58/59. Detalle completo en la sub-tab
+      "Fases" (Fase 59) y en <code>exploration/lightcurvelynx/SINTESIS_hallazgos_y_brecha_abierta.md</code>.</p>
     </div>
     </div>
 
