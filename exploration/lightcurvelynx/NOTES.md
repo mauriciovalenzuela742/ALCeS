@@ -7367,9 +7367,9 @@ producción reales conservados en NLHPC (`poc_output_*_bolopeak[_seedN]`, sin `p
 diseño -- limpieza automática por job), no versionados por `.gitignore`, mismo criterio que el resto
 de las corridas de producción.
 
-## Fase 59 (EN CURSO) -- `GENRANGE_TREST` real por clase (no el hardcode global `-30/100`): el
-"hueco" nunca remedido para 12/14 clases desde Fase 40/43 resulta ser mucho más grande de lo que
-sugería el promedio del catálogo en Fase 58
+## Fase 59 (barrido completo, brecha sigue sin explicación) -- `GENRANGE_TREST` real por clase (no
+el hardcode global `-30/100`): el "hueco" nunca remedido para 12/14 clases desde Fase 40/43 resulta
+ser mucho más grande de lo que sugería el promedio del catálogo en Fase 58
 
 ### Motivación
 
@@ -7395,7 +7395,7 @@ cada `SIMGEN_INCLUDE_*.INPUT` real, mismo método que Fase 40/43 para las 2 orig
 (`trest_range = cfg.get("trest_range", (-30.0, 100.0))`, línea ~823) ya existía desde Fase 43 -- no se
 tocó código de ejecución, solo se completó la tabla de configuración que quedó a medio llenar.
 
-### Resultado (10/11 clases completas, 5 semillas c/u -- `PISN-STELLA-HYDROGENIC` aún corriendo)
+### Resultado (11/11 clases completas, 5 semillas c/u)
 
 Mismo método que Fase 58 (detección media ± desviación estándar sobre 5 semillas, contra `SNANA%`
 DDF-only real de Fase 48, fijo):
@@ -7414,7 +7414,7 @@ DDF-only real de Fase 48, fijo):
 | `PISN-STELLA-HECORE` | `41.72%±1.25` | 21.88% | 1.503 | **1.907** | +26.9% |
 | `SLSN-I` (sin cambio, ya corregida en Fase 43) | -- | -- | 1.487 | 1.487 | 0% |
 | `ILOT-MOSFIT` (sin cambio, ya corregida en Fase 43) | -- | -- | 7.091 | 7.091 | 0% |
-| `PISN-STELLA-HYDROGENIC` | `46.07%±0.36` (4/5 semillas -- ver nota) | 24.45% | 1.513 | **1.884** | +24.5% |
+| `PISN-STELLA-HYDROGENIC` | `46.15%±0.36` (5/5 semillas -- ver nota) | 24.45% | 1.513 | **1.888** | +24.8% |
 | **promedio (13 clases)** | | | **2.895*** | **5.113** | |
 
 \* recalculado sobre las mismas 13 filas para comparar manzanas con manzanas (Fase 58 original
@@ -7436,8 +7436,10 @@ valor de una corrida vieja (`37.03%`, `mtime` 11:41am, anterior al lanzamiento d
 3:48pm) -- si no se hubiera verificado el `mtime` contra la hora real de lanzamiento del job, ese
 número stale se habría usado por error como si fuera el resultado de Fase 59. Headroom verificado
 (escritura de prueba de 1GB, éxito) y semilla 1 re-lanzada sola (`12152052`, sin las otras 3 compitiendo
-por I/O/cuota al mismo tiempo) -- resultado pendiente, la tabla de arriba usa el promedio de las 4
-semillas ya válidas (`n=4`, no `n=5`) como valor provisional.
+por I/O/cuota al mismo tiempo) -- **confirmado**: `46.475%` (`SEARCHEFF aplicado: 9295/19998`,
+`mtime` posterior al relanzamiento, sin ambigüedad de corrida vieja esta vez), consistente con las
+otras 4 semillas. Las 5 semillas quedan: `46.29%`, `46.475%`, `46.03%`, `46.46%`, `45.50%` --
+media `46.15%±0.36` (`n=5`, cifra final, ya no provisional).
 
 ### Lectura -- IMPORTANTE, contradice la conclusión de cierre de Fase 58
 
@@ -7461,18 +7463,21 @@ El hardcode angosto no era una aproximación neutral -- estaba **artificialmente
 sobre-detección real de LightCurveLynx frente a SNANA para la mayoría del catálogo, haciendo que el
 desacuerdo pareciera mucho menor de lo que es con la configuración real.
 
-### Consecuencia real (pendiente de decisión, no tomada aún)
+### Consecuencia real
 
 Las tablas de referencia de detección "finales" de Fase 58 (y todo lo que se apoyó en ellas para las
 11 clases remedidas) quedan **obsoletas** -- no por el pico bolométrico, sino por este hueco de
-configuración distinto y anterior. Falta: (1) confirmar `PISN-STELLA-HYDROGENIC` con las 5 semillas
-(semilla 1 relanzada sola, job `12152052`, resultado provisional `n=4` ya estable -- `std=0.36` entre
-las 4 semillas válidas, cambio de 5ta semilla no debería mover el promedio de forma significativa),
-(2) decidir si el salto de `2.9x` a `5.1x` de sobre-detección promedio cambia la conclusión de la
-propuesta para sncosmo/LightCurveLynx (borrador ya existente, ver commit `c82abc4`) -- un desacuerdo
-de este tamaño es mucho más difícil de explicar solo por diferencias de implementación menores. Nada
-de esto se ha commiteado a git todavía (`run_simsed_poc.py` sigue con cambios sin commitear al cierre
-de esta entrada).
+configuración distinto y anterior. `PISN-STELLA-HYDROGENIC` ya está confirmada con las 5 semillas
+(`46.15%±0.36`, ratio `1.888`, ver tabla arriba) -- el promedio del catálogo (13 clases) cierra en
+`5.113x`, sin cambios respecto al valor provisional. La pregunta de si esto cambia la conclusión de
+la propuesta para sncosmo/LightCurveLynx se resolvió con un documento de síntesis nuevo,
+`exploration/lightcurvelynx/SINTESIS_hallazgos_y_brecha_abierta.md` -- explica por qué los 4 bugs
+reales ya identificados en el proyecto (Fases 13/19-20/37/51) no explican este salto (ninguno se
+midió nunca contra la métrica agregada de detección de 13 clases), y completa el catálogo de
+borradores de issue a 4 (2 nuevos: Fase 13 y Fase 51; 2 amend: Fase 37 con las claves adicionales de
+`SALT2.INFO`, seed propagation con el 4to nodo faltante). Todo esto ya está commiteado y pusheado
+(`5861fb2` para Fase 59/59-perf, `e6a1574` para la síntesis y el dashboard actualizado) -- ninguno de
+los 4 borradores de issue se publicó, mismo criterio de siempre.
 
 ### Fase 59-perf -- aplanado vectorizado (`main()`, líneas ~841-898): elimina el doble `iterrows()`
 anidado que dominaba el tiempo de ejecución, sin cambiar ningún resultado

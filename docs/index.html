@@ -1337,7 +1337,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <code>exploration/lightcurvelynx/SINTESIS_hallazgos_y_brecha_abierta.md</code>.</p>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Fase 59 (en curso) — pregunta abierta, no resuelta</span>
+      <span class="verdict-badge critical">Fase 59 — pregunta abierta, no resuelta</span>
       <p>Al corregir <code>GENRANGE_TREST</code> real (en vez del hardcode <code>-30/100</code>) para
       las 11 clases SIMSED que quedaban pendientes desde Fase 40/43, el ratio promedio de
       sobre-detección de 13 clases pasa de <strong>2.895x a 5.113x</strong> — casi el doble. Ninguna
@@ -1345,9 +1345,10 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <code>+211%</code> (<code>CaRT</code>, de 8.8x a 27.5x). El hardcode angosto no era una
       aproximación neutral: contenía artificialmente la sobre-detección real. <strong>Ninguno de los
       4 bugs de arriba explica este salto</strong> — es una brecha nueva, sin mecanismo identificado
-      todavía. Pendiente: confirmar la 5ta semilla de <code>PISN-STELLA-HYDROGENIC</code> (valor
-      provisional <code>1.884x</code>, n=4) y decidir si esto cambia la conclusión de cualquier
-      propuesta enviada hacia LightCurveLynx/sncosmo.</p>
+      todavía. Las 13 clases ya están confirmadas con 5 semillas cada una
+      (<code>PISN-STELLA-HYDROGENIC</code>: <code>1.888x</code>, cifra final) — queda pendiente
+      decidir si esto cambia la conclusión de cualquier propuesta enviada hacia
+      LightCurveLynx/sncosmo.</p>
     </div>
     </div>
 
@@ -1604,7 +1605,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       única clase que se aleja de SNANA, la de mayor escala del catálogo. Candidato nuevo y concreto
       para la próxima fase: investigar por qué el shift al pico bolométrico empeora específicamente a
       esta clase de duración extrema (<code>GENRANGE_TREST</code> &gt;1000 días).</p></div></li>
-      <li><span class="step-n">20</span><div class="step-body"><p><strong>⚠ Fase 59 (en curso) —
+      <li><span class="step-n">20</span><div class="step-body"><p><strong>⚠ Fase 59 —
       contradice la conclusión de cierre de Fase 58:</strong> la conclusión "el promedio se mueve solo
       -4.8%" se apoyaba en un <code>rest_time_window_offset</code> hardcodeado idéntico para 12/14
       clases. Corregido a su <code>GENRANGE_TREST</code> real por clase, el ratio promedio pasa de
@@ -3180,17 +3181,17 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
       <li>
         <span class="step-n">59</span>
         <div class="step-body">
-          <p><strong>EN CURSO — GENRANGE_TREST real por clase, no el hardcode global: el hueco de
-          Fase 40/43 nunca remedido para 12/14 clases resulta mucho más grande de lo que sugería el
-          promedio del catálogo en Fase 58.</strong> Motivado por <code>PISN-STELLA-HYDROGENIC</code>,
-          la única clase que empeoró en Fase 58 (+20.6%) — resultó que <code>main()</code> seguía
-          usando <code>rest_time_window_offset=(-30, 100)</code> hardcodeado e idéntico para 12 de las
+          <p><strong>GENRANGE_TREST real por clase, no el hardcode global: el hueco de Fase 40/43
+          nunca remedido para 12/14 clases resulta mucho más grande de lo que sugería el promedio del
+          catálogo en Fase 58.</strong> Motivado por <code>PISN-STELLA-HYDROGENIC</code>, la única
+          clase que empeoró en Fase 58 (+20.6%) — resultó que <code>main()</code> seguía usando
+          <code>rest_time_window_offset=(-30, 100)</code> hardcodeado e idéntico para 12 de las
           14 clases, pese a que el <code>GENRANGE_TREST</code> real de cada una (leído de su
           <code>SIMGEN_INCLUDE_*.INPUT</code> real) varía de <code>-50/300</code> a
           <code>-100/1000</code> — un hueco de auditoría abierto desde Fase 40 y nunca cerrado salvo
           para 2 clases (Fase 43). Completado ahora para las 11 restantes.</p>
-          <p>Resultado (10 clases con 5 semillas, <code>PISN-STELLA-HYDROGENIC</code> con 4/5 —
-          semilla 5 en curso, valor provisional): el ratio de sobre-detección <strong>no mejora,
+          <p>Resultado (13/13 clases, 5 semillas c/u — <code>PISN-STELLA-HYDROGENIC</code> confirmada
+          con las 5, <code>1.888x</code>): el ratio de sobre-detección <strong>no mejora,
           empeora</strong> en las 13 clases medidas — el promedio del catálogo pasa de <strong><code>2.895x a
           5.113x</code></strong>, casi el doble. <code>CaRT</code> es el caso extremo:
           <strong><code>8.8x → 27.5x</code></strong> (+211%). Ninguna clase mejora. Lectura: el

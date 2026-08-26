@@ -1,11 +1,14 @@
 # Síntesis — 4 bugs reales de LightCurveLynx/sncosmo corregidos, pero una brecha de sobre-detección sin explicar
 
-**Estado: EN CURSO.** No publicar ni citar como conclusión cerrada sin confirmación explícita nueva
+**Estado: datos completos (13/13 clases, 5/5 semillas c/u), brecha todavía sin explicación.** No
+publicar ni citar los 4 borradores de issue como conclusión cerrada sin confirmación explícita nueva
 del usuario — mismo criterio que rige en el resto del proyecto (ningún `.md` de este catálogo se
 publica como issue de GitHub, post de foro, etc. sin esa confirmación).
 
-**Depende de**: la 5ª semilla de `PISN-STELLA-HYDROGENIC` (job NLHPC `12152052`, en curso al momento
-de escribir esto). El valor usado abajo para esa clase (`1.884x`) es provisional, con 4 de 5 semillas.
+La 5ª semilla de `PISN-STELLA-HYDROGENIC` (job NLHPC `12152052`) ya terminó: `46.475%`, consistente
+con las otras 4 (`46.29%`, `46.03%`, `46.46%`, `45.50%`). El valor usado abajo para esa clase
+(`1.888x`) es la cifra final con `n=5`, no provisional — el cambio respecto al valor con `n=4`
+(`1.884x`) fue de +0.2%, no movió el promedio del catálogo.
 
 Este documento es el que conviene leer primero, antes de los 4 borradores de issue individuales
 (`ISSUE_DRAFT_seed_propagation.md`, `PROPUESTA_salt2_info_mag_offset.md`,
@@ -57,7 +60,7 @@ las 13 clases del catálogo:
 | `PISN-STELLA-HECORE` | 1.503 | 1.907 | +26.9% |
 | `SLSN-I` (sin cambio, ya corregida en Fase 43) | 1.487 | 1.487 | 0% |
 | `ILOT-MOSFIT` (sin cambio, ya corregida en Fase 43) | 7.091 | 7.091 | 0% |
-| `PISN-STELLA-HYDROGENIC` (provisional, n=4) | 1.513 | 1.884 | +24.5% |
+| `PISN-STELLA-HYDROGENIC` (5/5 semillas) | 1.513 | 1.888 | +24.8% |
 | **promedio catálogo (13 clases)** | **2.895** | **5.113** | — |
 
 Ninguna clase mejora. El hardcode angosto no era una aproximación neutral — estaba, sin que nadie lo
@@ -120,7 +123,6 @@ real que queda abierto — no una falla en el trabajo ya hecho.
 
 ## 8. Próximos pasos concretos (no bloqueantes para publicar los issues A-D)
 
-- Terminar y confirmar la 5ª semilla de `PISN-STELLA-HYDROGENIC` (job `12152052`).
 - Correr el catálogo completo de 14 clases con **todos** los fixes reales apilados a la vez (Fases
   32, 34, 36, 37, 42, 48, 49, 51, 53, 55, 56/57, 59) — hasta ahora cada fase midió su propio delta de
   forma aislada; nunca se hizo una corrida que combine todo el conocimiento acumulado en una sola
