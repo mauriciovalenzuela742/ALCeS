@@ -135,6 +135,18 @@ def restlambda_gate(z: float, filt: str, restlambda_range: tuple[float, float]) 
     return True
 
 
+def restlambda_gate_vec(z: np.ndarray, filt: np.ndarray, restlambda_range: tuple[float, float]) -> np.ndarray:
+    """Version vectorizada de restlambda_gate() -- mismo resultado exacto fila
+    a fila (keep = lam_lo/z1 >= rlo AND lam_hi/z1 <= rhi, algebraicamente
+    identico a las 2 condiciones de rechazo de arriba), sin loop de Python.
+    Usada por main() en el paso de aplanado (Fase 59-perf, ver NOTES.md)."""
+    rlo, rhi = restlambda_range
+    z1 = 1.0 + np.asarray(z, dtype=float)
+    lam_lo = np.array([BAND_RANGES_OBS[f][0] for f in filt])
+    lam_hi = np.array([BAND_RANGES_OBS[f][1] for f in filt])
+    return (lam_lo / z1 >= rlo) & (lam_hi / z1 <= rhi)
+
+
 # --- config por clase, parametros reales de cada SIMGEN_INCLUDE_*.INPUT ---
 CLASS_CONFIGS = {
     # Fase 3: modelo de host extinction real ESSENCE-WV07 (Wood-Vasey+2007),
@@ -157,6 +169,14 @@ CLASS_CONFIGS = {
             sigmas=dict(stretch=0.096, color=0.175),
             redcor={("stretch", "color"): -0.656},
         ),
+        # Fase 59: GENRANGE_TREST real (~run_SNANA/model_config/
+        # SIMGEN_INCLUDE_SNIa-91bg.INPUT) es -100/400, no el hardcode global
+        # (-30,100) -- mismo hueco que encontro Fase 40/43 para SLSN-I/
+        # ILOT-MOSFIT, nunca remedido para las otras 12 clases (ver NOTES.md).
+        # No afecta las comparaciones de brillo verdadero (Fase 56 en
+        # adelante evalua un unico punto Trest=0, no depende de trest_range)
+        # -- si afecta la ventana real de generacion/deteccion de main().
+        trest_range=(-100.0, 400.0),
     ),
     # Fase 6: mismos 35 templates fisicos que "SNIa-91bg" de arriba
     # (simsed_91bg_local -- confirmado por diff de listado de directorio
@@ -188,6 +208,9 @@ CLASS_CONFIGS = {
         dndz=("powerlaw", [(320e-9, 0.0, 0.011, 0.28)]),
         sntype=51,
         host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=0.5, r_v=3.1),
+        # Fase 59: GENRANGE_TREST real -100/300 (ver NOTES.md, mismo hueco
+        # de Fase 40/43 nunca remedido para esta clase).
+        trest_range=(-100.0, 300.0),
     ),
     "CaRT": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.CART-MOSFIT",
@@ -195,6 +218,9 @@ CLASS_CONFIGS = {
         dndz=("md14", 2.3e-6),
         sntype=87,
         host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
+        # Fase 59: GENRANGE_TREST real -100/500 (ver NOTES.md, mismo hueco
+        # de Fase 40/43 nunca remedido para esta clase).
+        trest_range=(-100.0, 500.0),
     ),
     "SLSN-I": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SLSN-I-MOSFIT",
@@ -227,6 +253,9 @@ CLASS_CONFIGS = {
         # SNIax no lo declara). GENRANGE_AV real: 0.001-3.0.
         host_av=dict(kind="exp_halfgauss", tau=1.7, sig=0.6, ratio=4.0,
                       av_range=(0.001, 3.0), r_v=3.1),
+        # Fase 59: GENRANGE_TREST real -100/400 (ver NOTES.md, mismo hueco
+        # de Fase 40/43 nunca remedido para esta clase).
+        trest_range=(-100.0, 400.0),
     ),
     # Fase 7: bake-off de codificacion en clase de peso uniforme
     # (SIMSED_GRIDONLY), contraparte diagnostica de "SNIax" al rango de z
@@ -259,6 +288,9 @@ CLASS_CONFIGS = {
         # esta clase -- usa GENTAU_AV=0.4 puro (comentario real: "expon
         # component only, no Gauss core"), no el modelo WV07 mixto.
         host_av=dict(kind="exp", tau=0.4, av_max=3.0, r_v=3.1),
+        # Fase 59: GENRANGE_TREST real -100/500 (ver NOTES.md, mismo hueco
+        # de Fase 40/43 nunca remedido para esta clase).
+        trest_range=(-100.0, 500.0),
     ),
     "SNII-NMF": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SNII-NMF",
@@ -272,6 +304,9 @@ CLASS_CONFIGS = {
             sigmas=dict(pc1=0.075, pc2=0.021, pc3=0.017),
             redcor={("pc1", "pc2"): 0.241, ("pc1", "pc3"): 0.052, ("pc2", "pc3"): -0.074},
         ),
+        # Fase 59: GENRANGE_TREST real -100/400 (ver NOTES.md, mismo hueco
+        # de Fase 40/43 nunca remedido para esta clase).
+        trest_range=(-100.0, 400.0),
     ),
     # Fase 2B ronda 3: 3 clases SIMSED que declaran WV07 real (confirmado
     # `GENAV_WV07: 1` en su .INPUT, no el camino GENPROFILE_AV de SNIax).
@@ -296,6 +331,9 @@ CLASS_CONFIGS = {
         dndz=("ccs15", 0.0235),
         sntype=45,
         host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
+        # Fase 59: GENRANGE_TREST real -50/300 (ver NOTES.md, mismo hueco
+        # de Fase 40/43 nunca remedido para esta clase).
+        trest_range=(-50.0, 300.0),
     ),
     "PISN-MOSFIT": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.PISN-MOSFIT",
@@ -303,6 +341,9 @@ CLASS_CONFIGS = {
         dndz=("pisn", 1.0),
         sntype=70,
         host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
+        # Fase 59: GENRANGE_TREST real -100/300 (ver NOTES.md, mismo hueco
+        # de Fase 40/43 nunca remedido para esta clase).
+        trest_range=(-100.0, 300.0),
     ),
     # Fase 2B ronda 4: cierra el catalogo. KN-BULLA19 es la ultima de las
     # 11 clases SIMSED originales (su estructura de 3 sub-variantes
@@ -330,6 +371,9 @@ CLASS_CONFIGS = {
         dndz=("powerlaw", [(320e-9, 0.0, 0.011, 0.28)]),  # identico a KN-K17
         sntype=52,
         host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=0.5, r_v=3.1),
+        # Fase 59: GENRANGE_TREST real -100/500 (ver NOTES.md, mismo hueco
+        # de Fase 40/43 nunca remedido para esta clase).
+        trest_range=(-100.0, 500.0),
     ),
     "PISN-STELLA-HECORE": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/elastic/model_libs_updates/SIMSED.PISN-STELLA-HECORE",
@@ -337,6 +381,9 @@ CLASS_CONFIGS = {
         dndz=("pisn", 1.0),
         sntype=71,
         host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
+        # Fase 59: GENRANGE_TREST real -50/300 (ver NOTES.md, mismo hueco
+        # de Fase 40/43 nunca remedido para esta clase).
+        trest_range=(-50.0, 300.0),
     ),
     "PISN-STELLA-HYDROGENIC": dict(
         simsed_dir=SNANA_HOME / "run_SNANA/elastic/model_libs_updates/SIMSED.PISN-STELLA-HYDROGENIC",
@@ -347,6 +394,11 @@ CLASS_CONFIGS = {
         # 20000) -- confirmado, no un valor por defecto sin verificar.
         ngentot_lc=20000,
         host_av=dict(kind="wv07", av_range=(0.0, 3.0), rewgt_expav=None, r_v=3.1),
+        # Fase 59: GENRANGE_TREST real -50/300 (ver NOTES.md -- la clase que
+        # motivo esta auditoria: empeoro +20.6% en Fase 58 con el hardcode
+        # global -30/100, mismo hueco de Fase 40/43 nunca remedido para esta
+        # clase y para casi todo el resto del catalogo).
+        trest_range=(-50.0, 300.0),
     ),
 }
 
@@ -798,38 +850,57 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     restlambda_range = cfg.get("restlambda_range")
     n_gated_total = 0
 
-    head_rows, phot_rows = [], []
-    for _, row in lc.iterrows():
-        sub = row["lightcurve"]
-        if sub is None or len(sub) == 0:
-            continue
+    # Fase 59-perf: aplanado vectorizado (antes: doble iterrows anidado --
+    # boxeaba CADA fila de fotometria en un pandas.Series, ~57us/fila medido
+    # real en NLHPC independiente de la clase, dominado por Series.__init__/
+    # sanitize_array segun cProfile -- para PISN-STELLA-HYDROGENIC (119M
+    # filas) esto solo tomaba ~1h54min, mas que la simulacion misma. Ahora:
+    # una unica pd.concat() de las sub-tablas ya tabulares que devuelve
+    # simulate_lightcurves(), sin ningun loop de Python por fila. Verificado
+    # equivalente fila a fila contra la version anterior (pd.testing.
+    # assert_frame_equal, datos sinteticos con la forma real) -- 362x mas
+    # rapido en el benchmark local, mismo resultado exacto. Ver NOTES.md.
+    valid_mask = lc["lightcurve"].apply(lambda s: s is not None and len(s) > 0)
+    valid = lc[valid_mask]
+
+    if valid.empty:
+        head_df = pd.DataFrame(columns=["SNID", "SNTYPE", "RA", "DEC", "REDSHIFT_HELIO", "PEAKMJD", "NOBS"])
+        phot_df = pd.DataFrame(columns=["SNID", "MJD", "FLT", "FLUXCAL", "FLUXCALERR"])
+    else:
+        snids = valid["id"].astype(int).astype(str)
+        phot_df = pd.concat(
+            valid["lightcurve"].tolist(), keys=snids.tolist(), names=["SNID", None],
+        ).reset_index(level="SNID")
+        flt_str = phot_df["filter"].astype(str)
+        phot_df["FLT"] = flt_str.where(flt_str != "y", "Y")
+
         if restlambda_range is not None:
-            keep_mask = sub["filter"].astype(str).apply(
-                lambda f: restlambda_gate(row["z"], "Y" if f == "y" else f, restlambda_range)
-            )
-            n_gated_total += int((~keep_mask).sum())
-            sub = sub[keep_mask]
-            if len(sub) == 0:
-                continue
-        snid = str(int(row["id"]))
-        head_rows.append({
-            "SNID": snid, "SNTYPE": cfg["sntype"], "RA": row["ra"], "DEC": row["dec"],
-            "REDSHIFT_HELIO": row["z"], "PEAKMJD": row["t0"], "NOBS": len(sub),
+            z_by_snid = pd.Series(valid["z"].to_numpy(), index=snids.to_numpy())
+            z_per_row = phot_df["SNID"].map(z_by_snid).to_numpy()
+            keep_mask = restlambda_gate_vec(z_per_row, phot_df["FLT"].to_numpy(), restlambda_range)
+            n_gated_total = int((~keep_mask).sum())
+            phot_df = phot_df[keep_mask]
+
+        phot_df = phot_df.rename(columns={"mjd": "MJD", "flux": "FLUXCAL", "fluxerr": "FLUXCALERR"})
+        phot_df = phot_df[["SNID", "MJD", "FLT", "FLUXCAL", "FLUXCALERR"]].reset_index(drop=True)
+
+        nobs = phot_df.groupby("SNID").size()
+        head_df = pd.DataFrame({
+            "SNID": snids.to_numpy(), "SNTYPE": cfg["sntype"], "RA": valid["ra"].to_numpy(),
+            "DEC": valid["dec"].to_numpy(), "REDSHIFT_HELIO": valid["z"].to_numpy(),
+            "PEAKMJD": valid["t0"].to_numpy(),
         })
-        for _, obs in sub.iterrows():
-            flt = str(obs["filter"])
-            flt = "Y" if flt == "y" else flt
-            phot_rows.append({
-                "SNID": snid, "MJD": obs["mjd"], "FLT": flt,
-                "FLUXCAL": obs["flux"], "FLUXCALERR": obs["fluxerr"],
-            })
+        head_df["NOBS"] = head_df["SNID"].map(nobs).fillna(0).astype(int)
+        # replica el "continue" real de la version anterior: un objeto que
+        # pierde TODAS sus observaciones por el gate de RESTLAMBDA_RANGE
+        # tampoco entraba a head_rows -- se descarta del todo, no solo su
+        # fotometria.
+        head_df = head_df[head_df["NOBS"] > 0].reset_index(drop=True)
 
     if restlambda_range is not None:
         print(f"[{time.time()-t_start:.1f}s] Fase 13: {n_gated_total} observaciones suprimidas "
               f"por caer fuera de RESTLAMBDA_RANGE={restlambda_range} en marco de reposo")
 
-    head_df = pd.DataFrame(head_rows)
-    phot_df = pd.DataFrame(phot_rows)
     MAG_AB_ZP_NJY = 8.9 + 2.5 * 9
     positive = phot_df["FLUXCAL"] > 0
     phot_df["MAG"] = np.where(positive, MAG_AB_ZP_NJY - 2.5 * np.log10(phot_df["FLUXCAL"].where(positive)), np.nan)

@@ -7366,3 +7366,143 @@ cada uno -- 0 fallas sin explicar). Scripts de sweep generados y borrados tras u
 producción reales conservados en NLHPC (`poc_output_*_bolopeak[_seedN]`, sin `phot_df.parquet` por
 diseño -- limpieza automática por job), no versionados por `.gitignore`, mismo criterio que el resto
 de las corridas de producción.
+
+## Fase 59 (EN CURSO) -- `GENRANGE_TREST` real por clase (no el hardcode global `-30/100`): el
+"hueco" nunca remedido para 12/14 clases desde Fase 40/43 resulta ser mucho más grande de lo que
+sugería el promedio del catálogo en Fase 58
+
+### Motivación
+
+`PISN-STELLA-HYDROGENIC` fue la única clase que EMPEORÓ en el re-barrido de Fase 58 (`+20.6%`, ratio
+`1.255 -> 1.513`), pese a que el fix del pico bolométrico (Fase 56-57) mejoró o dejó estable a las
+demás 12. La hipótesis de Fase 58 fue que, siendo la clase de mayor escala temporal del catálogo
+(`GENRANGE_TREST` real hasta 1000+ días en algunas clases de la familia PISN), el shift al pico
+bolométrico corre la ventana de observación hacia una fase con más o menos flujo detectable de lo
+esperado -- pero `main()` seguía usando `rest_time_window_offset=(-30.0, 100.0)` **hardcodeado e
+idéntico para las 14 clases** (línea real, ver `run_simsed_poc.py`), salvo `SLSN-I` e `ILOT-MOSFIT`
+(únicas 2 corregidas en Fase 43). El `GENRANGE_TREST` real de cada clase (leído de su
+`SIMGEN_INCLUDE_*.INPUT` real en `run_SNANA/elastic/model_config/`) varía de `-50/300` a `-100/1000`
+-- un hueco de auditoría nunca cerrado para las otras 12 clases, documentado pero nunca remedido desde
+que Fase 40/43 lo encontraron por primera vez (para 2 clases nada más). Esta fase cierra el hueco para
+las 11 clases restantes que sí lo tenían pendiente (`PISN-STELLA-HYDROGENIC` incluida, la que motivó
+la auditoría).
+
+### Cambio real
+
+`CLASS_CONFIGS` en `run_simsed_poc.py`: se agregó `trest_range=(GENRANGE_TREST real)` explícito para
+las 11 clases que aún caían en el default `(-30, 100)` de `main()` (confirmado línea por línea contra
+cada `SIMGEN_INCLUDE_*.INPUT` real, mismo método que Fase 40/43 para las 2 originales). El consumidor
+(`trest_range = cfg.get("trest_range", (-30.0, 100.0))`, línea ~823) ya existía desde Fase 43 -- no se
+tocó código de ejecución, solo se completó la tabla de configuración que quedó a medio llenar.
+
+### Resultado (10/11 clases completas, 5 semillas c/u -- `PISN-STELLA-HYDROGENIC` aún corriendo)
+
+Mismo método que Fase 58 (detección media ± desviación estándar sobre 5 semillas, contra `SNANA%`
+DDF-only real de Fase 48, fijo):
+
+| clase | detección media Fase 59 (5 semillas) | SNANA% real (Fase 48) | ratio Fase 58 (rango `-30/100`) | ratio Fase 59 (rango real) | Δ |
+|---|---:|---:|---:|---:|---:|
+| `SNIa-91bg` | `58.28%±0.86` | 41.69% | 1.245 | **1.398** | +12.3% |
+| `KN-K17` | `18.10%±0.42` | 4.83% | 2.014 | **3.748** | +86.1% |
+| `CaRT` | `25.80%±1.36` | 0.94% | 8.819 | **27.45** | **+211%** |
+| `SNIax` | `28.54%±1.10` | 10.08% | 1.755 | **2.832** | +61.4% |
+| `TDE-MOSFIT` | `65.06%±0.91` | 46.58% | 1.192 | **1.397** | +17.2% |
+| `SNII-NMF` | `38.08%±0.73` | 20.75% | 1.285 | **1.835** | +42.8% |
+| `SNIIn-MOSFIT` | `19.57%±0.73` | 2.12% | 4.613 | **9.231** | +100% |
+| `PISN-MOSFIT` | `51.56%±1.33` | 23.41% | 1.597 | **2.203** | +37.9% |
+| `KN-BULLA19` | `24.28%±0.97` | 6.07% | 1.957 | **4.000** | +104% |
+| `PISN-STELLA-HECORE` | `41.72%±1.25` | 21.88% | 1.503 | **1.907** | +26.9% |
+| `SLSN-I` (sin cambio, ya corregida en Fase 43) | -- | -- | 1.487 | 1.487 | 0% |
+| `ILOT-MOSFIT` (sin cambio, ya corregida en Fase 43) | -- | -- | 7.091 | 7.091 | 0% |
+| `PISN-STELLA-HYDROGENIC` | `46.07%±0.36` (4/5 semillas -- ver nota) | 24.45% | 1.513 | **1.884** | +24.5% |
+| **promedio (13 clases)** | | | **2.895*** | **5.113** | |
+
+\* recalculado sobre las mismas 13 filas para comparar manzanas con manzanas (Fase 58 original
+reportaba 2.914 sobre el catálogo con una referencia distinta para 2 filas, ver esa sección).
+
+### Nota -- incidente real de cuota de disco en `PISN-STELLA-HYDROGENIC` (semilla 1)
+
+`PISN-STELLA-HYDROGENIC` es la única clase con `NGENTOT_LC=20000` (10x el resto) -- con el
+`trest_range` real (`-50/300`, antes `-30/100`) cada semilla aplanó a **~119M filas de fotometría**
+(vs. ~15M de `CaRT`, la siguiente más pesada). El job de la semilla 1 (`12133078`) llegó hasta
+`SEARCHEFF aplicado: 9295/19998` y recién ahí murió: `pyarrow.lib.ArrowIOError: Error writing bytes to
+file ... Disk quota exceeded` -- cuota real agotada por la escritura concurrente de 4 `phot_df.parquet`
+de ~119M filas cada uno en paralelo (semillas 1-4 lanzadas juntas), pese a la limpieza automática por
+job de Fase 58 (que borra `phot_df.parquet` recién *después* de que `summary.json` se escribe -- no
+protege si la escritura del parquet en sí falla a mitad de camino). Las semillas 0/2/3/4 sí terminaron
+(`46.29%`, `46.03%`, `46.46%`, `45.50%` -- consistentes entre sí, `std=0.36`). Trampa real encontrada
+al revisar: `poc_output_pisnstellahydrogenic_seed1_bolopeak/summary.json` seguía existiendo con un
+valor de una corrida vieja (`37.03%`, `mtime` 11:41am, anterior al lanzamiento de esta corrida a las
+3:48pm) -- si no se hubiera verificado el `mtime` contra la hora real de lanzamiento del job, ese
+número stale se habría usado por error como si fuera el resultado de Fase 59. Headroom verificado
+(escritura de prueba de 1GB, éxito) y semilla 1 re-lanzada sola (`12152052`, sin las otras 3 compitiendo
+por I/O/cuota al mismo tiempo) -- resultado pendiente, la tabla de arriba usa el promedio de las 4
+semillas ya válidas (`n=4`, no `n=5`) como valor provisional.
+
+### Lectura -- IMPORTANTE, contradice la conclusión de cierre de Fase 58
+
+Fase 58 concluyó que "el fix del pico bolométrico NO invalida de forma generalizada las tablas de
+referencia... el promedio se mueve solo -4.8%". Esa conclusión es correcta **para el fix del pico
+bolométrico en sí**, pero se apoyaba sin saberlo sobre una configuración de `trest_range` incorrecta
+para 12/14 clases. Al corregir *esa* configuración (no el pico bolométrico, un bug distinto y ya
+cerrado), el ratio LCL/SNANA **no mejora, empeora, y de forma sustancial** en las 11 clases remedidas
+-- el promedio del catálogo (13 clases SIMSED, `PISN-STELLA-HYDROGENIC` con valor provisional `n=4`)
+pasa de `2.895x` a `5.113x`, casi el doble. `CaRT` es el caso extremo: de `8.8x` a `27.5x`
+sobre-detección relativa a SNANA. Ninguna de las 13 clases mejora con el rango real -- todas empeoran,
+de `+12.3%` (`SNIa-91bg`, el menor) a `+211%` (`CaRT`, el mayor).
+
+Interpretación mecánica (confirmar, no bloqueante para el resultado ya medido): `rest_time_window_offset`
+en `simulate_lightcurves()` acota la ventana de fase-resto dentro de la cual se puede ubicar la parte
+observada de la curva de luz -- análogo a `GENRANGE_TREST` de SNANA, que limita qué épocas rest-frame
+SNANA genera en absoluto. Un rango más angosto (`-30/100` vs. p.ej. `-100/500` real de `CaRT`) reduce
+mecánicamente cuánta curva de luz cae dentro de cualquier ventana de observación dada, lo que **reduce**
+la probabilidad de detección (`>=2 épocas reales`) sin importar si el rango usado es "correcto" o no.
+El hardcode angosto no era una aproximación neutral -- estaba **artificialmente conteniendo** la
+sobre-detección real de LightCurveLynx frente a SNANA para la mayoría del catálogo, haciendo que el
+desacuerdo pareciera mucho menor de lo que es con la configuración real.
+
+### Consecuencia real (pendiente de decisión, no tomada aún)
+
+Las tablas de referencia de detección "finales" de Fase 58 (y todo lo que se apoyó en ellas para las
+11 clases remedidas) quedan **obsoletas** -- no por el pico bolométrico, sino por este hueco de
+configuración distinto y anterior. Falta: (1) confirmar `PISN-STELLA-HYDROGENIC` con las 5 semillas
+(semilla 1 relanzada sola, job `12152052`, resultado provisional `n=4` ya estable -- `std=0.36` entre
+las 4 semillas válidas, cambio de 5ta semilla no debería mover el promedio de forma significativa),
+(2) decidir si el salto de `2.9x` a `5.1x` de sobre-detección promedio cambia la conclusión de la
+propuesta para sncosmo/LightCurveLynx (borrador ya existente, ver commit `c82abc4`) -- un desacuerdo
+de este tamaño es mucho más difícil de explicar solo por diferencias de implementación menores. Nada
+de esto se ha commiteado a git todavía (`run_simsed_poc.py` sigue con cambios sin commitear al cierre
+de esta entrada).
+
+### Fase 59-perf -- aplanado vectorizado (`main()`, líneas ~841-898): elimina el doble `iterrows()`
+anidado que dominaba el tiempo de ejecución, sin cambiar ningún resultado
+
+Motivado por `PISN-STELLA-HYDROGENIC`: su paso de "aplanado" (convertir el resultado crudo de
+`simulate_lightcurves()` a `head_df`/`phot_df`) tomaba **~1h54min por semilla** (más que la simulación
+misma, ~32min) -- perfilado localmente contra datos sintéticos con la forma real (`cProfile`) confirmó
+que el 100% del costo es overhead de boxeo de `pandas.Series` en el doble `for _, row in lc.iterrows(): 
+... for _, obs in sub.iterrows():` (línea por línea: `Series.__init__` 203s, `sanitize_array` 85s, ~77M
+llamadas a `isinstance` -- ningún cómputo real, escala linealmente con el número de filas totales
+independiente de la clase, ~57us/fila medido real en NLHPC tanto para `CaRT` como para
+`PISN-STELLA-HYDROGENIC`).
+
+Reemplazado por un único `pd.concat()` de las sub-tablas ya tabulares que devuelve
+`simulate_lightcurves()` (sin ningún loop de Python por fila), más `restlambda_gate_vec()` (nueva,
+versión vectorizada de `restlambda_gate()`, mismo álgebra) para las 2 clases que usan
+`RESTLAMBDA_RANGE` (`SLSN-I`, `ILOT-MOSFIT`). Benchmark local (datos sintéticos, forma real de `CaRT`):
+**362x más rápido** (144.2s -> 0.40s sobre 1.54M filas).
+
+**Verificación real en NLHPC** (no solo sintética): corridas lado a lado del código viejo y nuevo,
+`ngentot_override=40`, semilla `777` (descartable), para `SLSN-I` (con `RESTLAMBDA_RANGE`, ejercita el
+gate vectorizado) y `CaRT` (sin él) -- agregados idénticos en ambas versiones (`SLSN-I`: 338,979 filas
+de fotometría, 44,071 suprimidas por el gate, 27/40 detectados, SNR mediana 0.802/p90 2.402; `CaRT`:
+278,113 filas, 11/40 detectados, SNR 0.674/1.650) y **comparación fila por fila con
+`pd.testing.assert_frame_equal`** sobre los `head_df.parquet`/`phot_df.parquet` reales escritos a disco
+por cada versión: `IDENTICO` en las 4 combinaciones (2 clases × 2 tablas). Sincronizado como la versión
+de producción en NLHPC (`~/AUTOSIM/exploration/lightcurvelynx/run_simsed_poc.py`); los archivos de
+verificación (`run_simsed_poc_{OLD,NEW}_verify.py`, `verify_flatten.py`) se borraron después de usarlos.
+
+**Nota:** el job `12152052` (`PISN-STELLA-HYDROGENIC` semilla 1, re-lanzado antes de este cambio) sigue
+corriendo con la versión vieja del aplanado en memoria (el intérprete ya había cargado el módulo antes
+de que el archivo se sobreescribiera en disco) -- no afecta su resultado, solo tardará el tiempo
+antiguo. Cualquier corrida nueva que se lance de acá en adelante ya usa la versión rápida.
