@@ -7704,6 +7704,26 @@ segunda ronda (job `12217035`, `FAILED`), corregido y confirmado limpio (job `12
 ni warnings, 5 imágenes reales). Dos bugs propios del notebook en total, ninguno de LightCurveLynx --
 documentados por transparencia, mismo criterio que el resto del proyecto.
 
+**Tercera ronda -- "las 5 mejores curvas" y una hipótesis propia descartada con evidencia real**: a
+pedido del usuario, se cambió de 3 a 5 curvas de ejemplo. Primer intento real: ordenar por `NOBS`
+(cantidad de observaciones reales) y tomar las 5 con más -- técnicamente correcto pero visualmente
+inservible (job `12220219`): las curvas resultantes (hasta `NOBS=15.646`, objetos ubicados
+exactamente en el pointing real del campo `cosmos`, el más denso -- 48.128 observaciones reales en
+10 años, nada anormal) mostraban un patrón de barras de error gigantes tapando cualquier forma de
+curva reconocible. Hipótesis inicial (incorrecta, escrita y luego revertida): "artefacto de
+extrapolación en `flux_perfect`". Verificado directo con un diagnóstico aparte en NLHPC (no en el
+notebook): `flux_perfect` estaba perfectamente sano (máximo real ~480 nJy, consistente con el
+modelo) -- era `fluxerr` el que dominaba (mediana 364 nJy, máximo 3346 nJy), ruido fotométrico REAL
+y esperado para objetos cerca del límite de detección la mayor parte del tiempo, no un bug de
+ningún lado. La causa real del criterio equivocado: `NOBS` alto no implica S/N alto -- estos 5
+objetos tenían S/N mediana de apenas `0.02-0.76`. Corregido: seleccionar por **S/N mediana**
+(`|flux_perfect|/fluxerr`) en vez de `NOBS` (job `12220895`, confirmado limpio) -- los 5 resultantes
+(S/N mediana `1.14-2.54`) muestran curvas de luz reales y legibles, subida-pico-declive claro en
+todas las bandas, calidad visual comparable a las 3 del notebook oficial. Lección para el propio
+proceso de verificación de este proyecto: revisar la ESCALA real de un gráfico (no solo que corra
+sin error) antes de darlo por válido -- la versión con `NOBS` había pasado la verificación de
+"0 errores, 0 warnings" de la ronda anterior sin que se detectara el problema visual.
+
 **No incluye** (documentado en el notebook como tabla, no re-ejecutado): Fase 13
 (`RESTLAMBDA_RANGE`) y Fase 51 (colisión `add_effect()`) -- ambos con evidencia real ya
 publicada, pero fuera del alcance de este notebook por tiempo. El notebook termina con un callout
