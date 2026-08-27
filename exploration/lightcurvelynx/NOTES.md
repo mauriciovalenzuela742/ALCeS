@@ -7511,3 +7511,189 @@ verificación (`run_simsed_poc_{OLD,NEW}_verify.py`, `verify_flatten.py`) se bor
 corriendo con la versión vieja del aplanado en memoria (el intérprete ya había cargado el módulo antes
 de que el archivo se sobreescribiera en disco) -- no afecta su resultado, solo tardará el tiempo
 antiguo. Cualquier corrida nueva que se lance de acá en adelante ya usa la versión rápida.
+
+## Fase 60 (en curso) -- extender la comparación de brillo verdadero (metodología SALT2/Fase 16, ya
+generalizada en Fase 50) a las 10 clases SIMSED que nunca la tuvieron
+
+Motivada por la pregunta abierta de Fase 59: la sobre-detección real (2.9x→5.1x) no la explica ninguno
+de los 4 bugs conocidos. De las 13 clases SIMSED, solo 3 (`SNIa-91bg`, `SNIax`, `CaRT`) pasaron por la
+comparación de brillo sin ruido/patrón cromático (Fases 7/50-56) que en `SNIa`/SALT2 encontró la causa
+raíz real (`MAG_OFFSET`, Fase 37). Las otras 10 (`TDE-MOSFIT`, `SNII-NMF`, `ILOT-MOSFIT`,
+`SNIIn-MOSFIT`, `PISN-MOSFIT`, `KN-BULLA19`, `PISN-STELLA-HECORE`, `PISN-STELLA-HYDROGENIC`, `SLSN-I`,
+`KN-K17`) nunca la tuvieron -- pese a que `compare_brightness_truth.py`/`compare_brightness_truth_binned.py`
+ya están generalizados para cualquier clase de `CLASS_CONFIGS` desde Fase 50, sin necesidad de código
+nuevo. Varias de las 10 son justamente las de peor ratio de sobre-detección en Fase 59
+(`SNIIn-MOSFIT` 9.2x, `ILOT-MOSFIT` 7.1x, `KN-BULLA19` 4.0x, `KN-K17` 3.7x).
+
+### Lanzado
+
+`compare_brightness_truth_class.sbatch` (nuevo, genérico -- toma `<Clase>` como argumento, corre
+`compare_brightness_truth.py` + `compare_brightness_truth_binned.py` en secuencia, mismo patrón que
+`compare_brightness_truth_salt2.sbatch` de Fase 16). 10 jobs reales en NLHPC (partición `largemem`,
+reasignados automáticamente por ratio memoria/CPU): `12191398` (`TDE-MOSFIT`), `12191399`
+(`SNII-NMF`), `12191400` (`ILOT-MOSFIT`), `12191401` (`SNIIn-MOSFIT`), `12191402` (`PISN-MOSFIT`),
+`12191403` (`KN-BULLA19`), `12191404` (`PISN-STELLA-HECORE`), `12191405`
+(`PISN-STELLA-HYDROGENIC`), `12191406` (`SLSN-I`), `12191407` (`KN-K17`). Confirmados los 10
+`.DUMP` de referencia de SNANA en `DATASIM_LSST_1/DDF/SIMDv8/` antes de lanzar (todos existen, sin
+`DUMP_FOLDER_OVERRIDES` nuevos que agregar).
+
+### Plan de triage (una vez completen)
+
+1. Para cada clase, revisar el delta medio bins 2-7 por banda (salida de `compare_brightness_truth_binned.py`,
+   mismo formato que las Fases 50/56). Residuo `≤0.05-0.1` mag en las 6 bandas → clase cerrada, mismo
+   criterio que `SNIa-91bg` (Fase 56).
+2. Clases con residuo mayor o con patrón cromático real → investigar mecanismo (mismo método que
+   Fases 51-56: colisión `add_effect()`, fuga de filtro, mezcla de extinción de host específica de la
+   clase -- ej. `TDE-MOSFIT` usa `exp` pura en vez de la mezcla `exp_halfgauss`/WV07 del resto).
+3. Reconciliar con los ratios de detección de Fase 59 -- un residuo de brillo chico no implica que el
+   ratio de detección deba ser chico (mecanismos distintos: `CaRT` ya tiene residuo de brillo pequeño,
+   -0.11 mag en `u`, pero ratio de detección 27.45x -- ver Fase 59).
+4. Retomar los 2 residuos nuevos sin investigar que dejó Fase 56: `SNIax` (+0.15 mag acromático,
+   las 6 bandas) y `CaRT` (-0.11 mag creciente hacia el azul).
+5. Si aparece un bug nuevo con evidencia de código de ambos lados (LCL + sncosmo/SNANA), sumar un 5º
+   `ISSUE_DRAFT_*.md` al catálogo de la Sección 5 de `SINTESIS_hallazgos_y_brecha_abierta.md`.
+
+### Resultado (9/10 completos; `KN-K17` timeout a los 40min sin imprimir ni la primera línea de
+progreso -- relanzado como job `12214018` con `-t 01:30:00`, contención de I/O sospechada ya que
+corrió en paralelo con otras 3 clases leyendo el mismo `.db` de OpSim)
+
+Delta medio bins 2-7 por banda (`compare_brightness_truth_binned.py`, mismo formato que Fases 50/56):
+
+| clase | u | g | r | i | z | y | lectura |
+|---|---:|---:|---:|---:|---:|---:|---|
+| `TDE-MOSFIT` | +0.112 | -0.073 | +0.140 | +0.193 | +0.238 | +0.195 | patrón real, crece hacia el rojo |
+| `SNII-NMF` | +0.106 | +0.126 | +0.150 | +0.155 | +0.177 | +0.173 | residuo chico-mediano, mismo signo las 6 bandas |
+| `ILOT-MOSFIT` | -0.386 | -0.389 | -0.352 | -0.417 | -0.391 | -0.270 | **grande, ~acromático** (-0.27 a -0.42), LCL más tenue |
+| `SNIIn-MOSFIT` | +0.257 | +0.221 | +0.114 | +0.058 | +0.066 | +0.112 | decrece hacia el rojo |
+| `PISN-MOSFIT` | +0.491 | +0.194 | +0.156 | +0.106 | +0.089 | +0.067 | fuerte en `u`, decrece rápido hacia el rojo |
+| `SLSN-I` | -0.270 (N=1) | -0.077 (N=1) | -0.574 (N=3) | -0.042 (N=4) | +0.464 (N=4) | +0.369 (N=5) | ruidoso, pocos bins válidos (gate `RESTLAMBDA_RANGE`) |
+| `PISN-STELLA-HECORE` | -- | -- | -- | -- | -- | -- | **sin datos, ver más abajo** |
+| `PISN-STELLA-HYDROGENIC` | -- | -- | -- | -- | -- | -- | **sin datos, ver más abajo** |
+| `KN-BULLA19` | -- | -- | -- | -- | -- | -- | **sin datos, ver más abajo** |
+| `KN-K17` | pendiente (retry `12214018`) | | | | | | |
+
+### Hallazgo nuevo, no anticipado: `PISN-STELLA-HECORE`, `PISN-STELLA-HYDROGENIC` y `KN-BULLA19` no
+tienen `PEAKMAG` real en el `.DUMP` de SNANA -- no es un residuo de brillo, es una referencia ausente
+
+`compare_brightness_truth_binned.py` reportó `GLOBAL SNANA: N=0` en las 6 bandas para las 3 clases.
+Verificado directo contra el `.DUMP` real (no es un bug del script de comparación): las columnas
+`PEAKMAG_{u,g,r,i,z,Y}` valen `99` o `-9` (ambos sentinelas reales de SNANA, "no calculado") para el
+**100% de los objetos** -- `PISN-STELLA-HECORE`: 1740/2000 en `99`, 260/2000 en `-9`, cero filas
+válidas; `PISN-STELLA-HYDROGENIC`: 17375/20000 en `99`, 2625/20000 en `-9`, cero válidas;
+`KN-BULLA19`: idéntico split 1740/260 que `PISN-STELLA-HECORE` (coincidencia exacta entre dos clases
+físicamente no relacionadas -- sospechoso, sin explicación todavía). Las otras 5 clases medidas en
+esta fase SÍ tienen `PEAKMAG` real (~1695-1696/1696 válidas tras el filtro de campo) -- no es un
+comportamiento genérico de SNANA para SIMSED, es específico de estas 3 clases. Mecanismo real sin
+diagnosticar todavía (candidatos: alguna combinación de `GENRANGE_PEAKMJD`/temporada de observación/
+`OPT_SETPKMJD` que deja esas 3 clases sin trigger de cómputo de `PEAKMAG` en esta campaña específica).
+**Consecuencia:** la comparación de brillo verdadero, tal como está planteada, no se puede hacer para
+estas 3 clases con los datos de referencia actuales -- haría falta re-generar el `.DUMP` de SNANA (o
+diagnosticar y corregir por qué no calculó `PEAKMAG`) antes de poder medir un residuo real. Tarea
+separada de la búsqueda de bugs de LightCurveLynx -- esto es un problema de la referencia SNANA, no
+del simulador que se está auditando.
+
+### Lectura preliminar (6 clases con datos utilizables)
+
+Ninguna de las 6 clases con datos cierra tan limpio como `SNIa-91bg` (Fase 56, ≤0.05 mag). `ILOT-MOSFIT`
+tiene, por lejos, el residuo más grande medido en esta fase (~acromático, -0.27 a -0.42 mag, LCL más
+tenue) -- pero su ratio de detección (Fase 59) es 7.09x de SOBRE-detección, signo contrario al que
+predeciría un LCL sistemáticamente más tenue. Este cruce (residuo de brillo vs. ratio de detección, con
+signos que no calzan intuitivamente) es exactamente el tipo de reconciliación que pide el paso 3 del
+plan de triage -- pendiente completar con `KN-K17` antes de escribir la síntesis final.
+
+`KN-K17` (job `12191407`) hizo `TIMEOUT` a los 40min sin imprimir ni la primera línea de progreso
+(corrió en paralelo con otras 3 clases leyendo el mismo `.db` de OpSim -- contención de I/O
+sospechada). Relanzado solo, con `-t 01:30:00` (job `12214018`, terminó en 35min sin error) --
+delta medio bins 2-7: `u +0.257, g +0.096, r +0.115, i +0.102, z +0.031, y +0.055` -- residuo
+positivo, mayor en `u`, decrece hacia el rojo (mismo patrón cualitativo que `SNIIn-MOSFIT`).
+
+### Tabla final -- 10/10 clases completas
+
+| clase | u | g | r | i | z | y | patrón |
+|---|---:|---:|---:|---:|---:|---:|---|
+| `TDE-MOSFIT` | +0.112 | -0.073 | +0.140 | +0.193 | +0.238 | +0.195 | crece hacia el rojo |
+| `SNII-NMF` | +0.106 | +0.126 | +0.150 | +0.155 | +0.177 | +0.173 | crece hacia el rojo, mismo signo |
+| `ILOT-MOSFIT` | -0.386 | -0.389 | -0.352 | -0.417 | -0.391 | -0.270 | grande, ~acromático, LCL más tenue |
+| `SNIIn-MOSFIT` | +0.257 | +0.221 | +0.114 | +0.058 | +0.066 | +0.112 | decrece hacia el rojo |
+| `PISN-MOSFIT` | +0.491 | +0.194 | +0.156 | +0.106 | +0.089 | +0.067 | fuerte en `u`, decrece rápido |
+| `SLSN-I` | -0.270(N1) | -0.077(N1) | -0.574(N3) | -0.042(N4) | +0.464(N4) | +0.369(N5) | ruidoso, gate RESTLAMBDA |
+| `KN-K17` | +0.257 | +0.096 | +0.115 | +0.102 | +0.031 | +0.055 | decrece hacia el rojo |
+| `PISN-STELLA-HECORE` | -- | -- | -- | -- | -- | -- | sin `PEAKMAG` real en SNANA |
+| `PISN-STELLA-HYDROGENIC` | -- | -- | -- | -- | -- | -- | sin `PEAKMAG` real en SNANA |
+| `KN-BULLA19` | -- | -- | -- | -- | -- | -- | sin `PEAKMAG` real en SNANA |
+
+### Cruce con Fase 59 (ratio de sobre-detección) -- confirma que residuo de brillo y ratio de
+detección son mecanismos distintos, ninguno predice al otro
+
+| clase | residuo brillo (orden de magnitud) | ratio Fase 59 | ¿coherente? |
+|---|---|---:|---|
+| `ILOT-MOSFIT` | grande, LCL MÁS TENUE (-0.35 a -0.42) | 7.09x SOBRE-detección | **no** -- signos opuestos |
+| `CaRT` (Fase 56) | chico, LCL más tenue (-0.11 en `u`) | 27.45x SOBRE-detección | **no** -- residuo chico, ratio enorme |
+| `SNIax` (Fase 56) | chico, LCL más brillante (+0.15 acromático) | 2.83x SOBRE-detección | parcialmente -- signo coherente, magnitud no explica el factor |
+| `PISN-MOSFIT` | grande en `u` (+0.49), LCL más brillante | 2.20x SOBRE-detección | parcialmente -- signo coherente |
+| `KN-K17`/`SNIIn-MOSFIT` | moderado, LCL más brillante en azul | 3.75x/9.23x SOBRE-detección | signo coherente, magnitud no alcanza a explicar factores de 4-9x |
+
+**Lectura:** el residuo de brillo pico (una magnitud puntual, sin ruido) y el ratio de detección
+(que depende de SEARCHEFF sobre la curva completa, con ruido, y de cuánta curva cae dentro de la
+ventana de observación real) son dos mecanismos genuinamente distintos -- un objeto puede tener
+brillo pico casi idéntico a SNANA y aun así sobre-detectarse por un factor de 27x si su forma de
+curva de luz (duración, tasa de decaimiento) difiere, algo que esta comparación puntual no mide.
+`ILOT-MOSFIT` es el caso más claro: LCL es sistemáticamente MÁS TENUE en brillo pico, pero SOBRE-detecta
+7x -- descarta de plano que el residuo de brillo sea la causa de su sobre-detección; el mecanismo
+tiene que estar en la forma/duración de la curva o en SEARCHEFF, no en la calibración de brillo.
+Esto es consistente con -- y ayuda a explicar por qué -- ninguno de los 4 bugs de brillo conocidos
+(MAG_OFFSET, add_effect, RESTLAMBDA_RANGE, Trest=0) cierra la brecha de detección de Fase 59: atacan
+el eje equivocado del problema para la mayoría de las clases. Candidato concreto para la próxima
+fase: medir directamente la forma/duración de la curva de luz (no solo el brillo pico) contra SNANA.
+
+### Pendiente
+
+- Diagnosticar por qué `PISN-STELLA-HECORE`/`HYDROGENIC`/`KN-BULLA19` no tienen `PEAKMAG` real en
+  el `.DUMP` de SNANA de esta campaña (bloquea la comparación de brillo para esas 3 clases).
+- Investigar directamente la forma/duración de la curva de luz (no solo `PEAKMAG`) como el
+  mecanismo real detrás de la brecha de detección de Fase 59 -- ver lectura de arriba.
+- Publicar (con confirmación explícita del usuario) los borradores de issue A/D si corresponde.
+
+## Fase 61 -- notebook de verificación end-to-end (estilo tutorial oficial de LightCurveLynx) para
+2 de los 4 bugs reales: `MAG_OFFSET` (Fase 37) y `Trest=0`/pico bolométrico (Fase 56)
+
+A pedido del usuario: un Jupyter notebook con el mismo formato que el [notebook oficial de
+LightCurveLynx sobre Rubin DP2](https://lightcurvelynx.readthedocs.io/en/latest/notebooks/pre_executed/rubin_dp2.html)
+(carga cadencia real, arma un modelo real, simula curvas de luz con/sin ruido), pero que demuestre
+de punta a punta -- con datos y código reales, no solo texto -- que hubo un bug real y que
+corregirlo mejora el resultado. `exploration/lightcurvelynx/verificacion_bugs_lightcurvelynx.ipynb`
+(+ `.html` renderizado, mismo directorio).
+
+**Sección A (recalculada 100% en vivo en el notebook, no copiada de `NOTES.md`)**: reconstruye la
+población real de `SNIa`/SALT2 (mismos parámetros de producción -- `DNDZ`, sampler bifurcado,
+`Om0=0.315`, `F99`, `GENSIGMA_MWEBV_RATIO`) dos veces, cambiando un solo parámetro
+(`mag_offset=0.0` = comportamiento real de `sncosmo` sin el fix, vs. `mag_offset=0.27` = valor real
+de `SALT2.INFO`), y compara ambas contra el `.DUMP` real de SNANA (filtrado por contaminación de
+campo, Fase 48). Resultado real (job `12216697`): el residuo acromático pasa de **`-0.2463` a
+`+0.0237` mag** -- cierra, mismo signo/orden de magnitud que el `-0.2646 -> +0.0054` publicado en
+Fase 37 (la pequeña diferencia es ruido de muestreo -- misma semilla base pero un `nbconvert`
+fresco, no una discrepancia real). Incluye también 3 curvas de luz de ejemplo (observadas con
+ruido real + modelo sin ruido superpuesto), mismo estilo que el notebook oficial.
+
+**Sección B**: reproduce en vivo el estado "después del fix" de `SNIa-91bg` (carga el
+`compare_brightness_truth_snia91bg_output.parquet` real ya generado + el `.DUMP` real de SNANA) --
+los 6 valores recalculados (`-0.039, -0.047, -0.031, -0.028, -0.013, -0.011`) coinciden EXACTOS con
+los publicados en Fase 56 (mismo archivo fuente, verificación de consistencia, no una medición
+nueva). El estado "antes del fix" se cita textual de la corrida archivada (Fase 56, jobs
+`12110321-3`) -- el código de producción ya no expone la versión sin corregir como opción de línea
+de comando. Gráfico de barras antes/después por banda.
+
+**Incidente real encontrado y corregido durante la construcción**: la primera versión del notebook
+(job `12216618`) asumía que `simulate_lightcurves()` devuelve las curvas de luz ruidosas en formato
+ancho (columnas `u`, `g`, `r`...) -- en realidad devuelve formato largo (`filter`/`mjd`/`flux`/
+`fluxerr`, una fila por observación real, igual que aplana `run_snia_ddf_poc.py` a `phot_df`). El
+notebook corrió sin error pero el gráfico de curvas de ejemplo salió vacío (warning real de
+matplotlib, "No artists with labels found"). Corregido y re-ejecutado (job `12216697`) -- confirmado
+sin errores ni warnings, gráfico con datos reales. Un bug propio del notebook, no de
+LightCurveLynx -- documentado por transparencia, mismo criterio que el resto del proyecto.
+
+**No incluye** (documentado en el notebook como tabla, no re-ejecutado): Fase 13
+(`RESTLAMBDA_RANGE`) y Fase 51 (colisión `add_effect()`) -- ambos con evidencia real ya
+publicada, pero fuera del alcance de este notebook por tiempo. El notebook termina con un callout
+honesto: los 4 bugs son reales y mejoran el resultado donde aplican, pero ninguno explica la brecha
+de sobre-detección que sigue abierta desde Fase 59 (`2.895x -> 5.113x`).
