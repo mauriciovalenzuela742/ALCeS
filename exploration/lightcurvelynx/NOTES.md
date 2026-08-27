@@ -7683,14 +7683,26 @@ nueva). El estado "antes del fix" se cita textual de la corrida archivada (Fase 
 `12110321-3`) -- el código de producción ya no expone la versión sin corregir como opción de línea
 de comando. Gráfico de barras antes/después por banda.
 
-**Incidente real encontrado y corregido durante la construcción**: la primera versión del notebook
-(job `12216618`) asumía que `simulate_lightcurves()` devuelve las curvas de luz ruidosas en formato
-ancho (columnas `u`, `g`, `r`...) -- en realidad devuelve formato largo (`filter`/`mjd`/`flux`/
-`fluxerr`, una fila por observación real, igual que aplana `run_snia_ddf_poc.py` a `phot_df`). El
-notebook corrió sin error pero el gráfico de curvas de ejemplo salió vacío (warning real de
-matplotlib, "No artists with labels found"). Corregido y re-ejecutado (job `12216697`) -- confirmado
-sin errores ni warnings, gráfico con datos reales. Un bug propio del notebook, no de
-LightCurveLynx -- documentado por transparencia, mismo criterio que el resto del proyecto.
+**Incidente real encontrado y corregido durante la construcción (2 rondas)**: la primera versión del
+notebook (job `12216618`) asumía que `simulate_lightcurves()` devuelve las curvas de luz ruidosas en
+formato ancho (columnas `u`, `g`, `r`...) -- en realidad devuelve formato largo (`filter`/`mjd`/
+`flux`/`fluxerr`, una fila por observación real, igual que aplana `run_snia_ddf_poc.py` a `phot_df`).
+El notebook corrió sin error pero el gráfico de curvas de ejemplo salió vacío (warning real de
+matplotlib, "No artists with labels found") -- y aunque ya no estaba vacío, el estilo (un panel por
+objeto con las 6 bandas superpuestas, sin la curva continua del modelo) no coincidía con el del
+notebook oficial de LightCurveLynx. El usuario lo notó ("los gráficos... no son los mismos").
+Se descargó el `.ipynb` fuente real del notebook oficial
+(`github.com/lincc-frameworks/lightcurvelynx`, `docs/notebooks/pre_executed/rubin_dp2.ipynb`, no un
+resumen indirecto) para confirmar el código exacto: reusa `plot_lightcurves()`
+(`lightcurvelynx.utils.plotting`) y `compute_single_noise_free_lightcurve()`
+(`lightcurvelynx.simulate`), grafica `flux_perfect` (el valor verdadero en cada tiempo de
+observación real, no `flux` ruidoso) con las barras de error reales, superpuesto a una curva
+continua del modelo (grilla de fase -50 a +100 días, paso 0.5), y genera una figura separada por
+objeto (no subplots). Reescrito para reusar literalmente esas mismas funciones -- un `NameError`
+real (`BANDS` quedó indefinida al borrar la celda vieja) se coló en el primer intento de esta
+segunda ronda (job `12217035`, `FAILED`), corregido y confirmado limpio (job `12217154`, sin errores
+ni warnings, 5 imágenes reales). Dos bugs propios del notebook en total, ninguno de LightCurveLynx --
+documentados por transparencia, mismo criterio que el resto del proyecto.
 
 **No incluye** (documentado en el notebook como tabla, no re-ejecutado): Fase 13
 (`RESTLAMBDA_RANGE`) y Fase 51 (colisión `add_effect()`) -- ambos con evidencia real ya
