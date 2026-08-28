@@ -7845,3 +7845,152 @@ del `SED.INFO` de cada clase (antes asumía shift activo siempre). `NOTES.md`: e
 `docs/index.html`: tarjeta de Fase 62 + actualización de "Líneas para seguir investigando" (pendiente
 de Fase 60 #1 cerrado; #2 sigue abierto). Exploratorios en NLHPC, ya limpiados: 15 `.sh`/`.out`/`.err`
 en `~/AUTOSIM/fase62_jobs/` (se conservan como evidencia real, no se borran).
+
+## Fase 63 -- segundo pendiente de Fase 60: forma/duración de curva de luz medida objeto-a-objeto contra
+SNANA real, extendiendo Fase 39 a una clase SIMSED por primera vez -- resultado honesto y no el
+esperado: no confirma la hipótesis de forma/duración, pero destapa una posible causa raíz nueva y mucho
+más grande, compartida por TODO el catálogo
+
+### Motivación y restricción real del método
+
+Extiende la metodología de Fase 39 (pareo real objeto-a-objeto y época-a-época vía `_HEAD.FITS`/
+`_PHOT.FITS` reales, hecha entonces solo para `SNIa`/SALT2) a una clase SIMSED por primera vez --
+`ILOT-MOSFIT`, el caso de bandera de Fase 60 (más tenue en el pico que SNANA pero sobre-detecta 7.09x).
+Script nuevo y versionado: `compare_lightcurve_shape.py`.
+
+Restricción real, no un descuido: `_HEAD.FITS`/`_PHOT.FITS` solo persisten los objetos que SNANA
+realmente escribió (`NGENLC_WRITE` = 73/2000 para `ILOT-MOSFIT`, 3.65% -- coincide exacto con el
+`SNANA%` real ya usado desde Fase 48/49). No existe fotometría real de los ~1927 objetos que SNANA
+rechazó -- esta fase solo puede responder "para los mismos objetos que SNANA SÍ detectó, con los mismos
+parámetros/cadencia/ruido reales, ¿sostiene LightCurveLynx una ventana de detección más larga que SNANA
+real?", no "¿cuántos objetos que SNANA rechazó LCL detecta de más?" (esa pregunta requeriría
+reconstruir cadencia sintética para los no escritos, fuera de alcance).
+
+### Método real
+
+Para los 73/73 objetos reales: se reconstruyó el modelo SIMSED exacto de cada uno (mismo template real
+vía `SIMSED_GRIDONLY(ILOT_INDEX)`, mismo `z`/`AV`/`RV`/`PEAKMJD`/RA/Dec reales de `_HEAD.FITS`,
+`SIMSEDModel([tmpl], weights=None, ...)` con un solo template -- fuerza la selección exacta sin pasar
+por el sampler de `MultiSEDTemplateModel`, reusando los templates ya cargados en cache por índice, sin
+releer disco por objeto). Se evaluó `evaluate_bandfluxes()` en los MJD/bandas EXACTOS de cada época real
+de `_PHOT.FITS` (6 bandas, no solo `r`), se sumó extinción de host (`host_extinction_mag_offset()`,
+Fase 53) y se convirtió a magnitud. Trampa real encontrada y corregida en el camino: un primer intento
+asumió el `ZP=27.5` fijo que documenta la literatura genérica de SNANA para `FLUXCAL` -- **falso para
+esta campaña real**, que usa el `ZEROPT` real POR ÉPOCA (columna real del `_PHOT.FITS`, ~29-32 según
+banda/condiciones, viene del SIMLIB real) -- con el ZP fijo, `fluxcal_lcl` salía ~15-20x más chico que
+el real y anulaba casi toda detección del lado LCL; corregido a `FLUXCAL = 10**(-0.4*(mag-ZEROPT_real))`
+por época, igual que hace `run_simsed_poc.py` de producción vía `mag2flux(ZPT)`.
+
+Para medir la ventana de detección se reusó SIN reimplementar el código real de producción
+(`searcheff.py`: `apply_detection_efficiency`/`group_into_epochs`/`object_level_detected`, el mismo que
+usa `run_simsed_poc.py` desde Fase 4) sobre tres fuentes de flujo distintas, mismo ruido real
+(`FLUXCALERR` real de `_PHOT.FITS`) y misma cadencia real en los tres casos:
+- **real**: `MJD_DETECT_FIRST`/`MJD_DETECT_LAST` real de SNANA (ya en `_HEAD.FITS`, no se recalcula).
+- **ctrl** (control/sanidad): se recalcula la detección aplicando el propio código de trigger sobre el
+  `FLUXCAL` REAL de SNANA (no el de LCL) -- si el método está bien implementado, debería reproducir
+  aproximadamente la ventana real.
+- **lcl**: igual que `ctrl` pero con el `FLUXCAL` evaluado por LightCurveLynx.
+
+Trampa real #2, más importante: con una sola realización Monte Carlo (`apply_detection_efficiency` es
+estocástico, sortea contra la curva de eficiencia real), **`ctrl` no reprodujo la ventana real ni de
+cerca** (738 días vs. 114.7 reales en el piloto de 5 objetos) pese a ser el mismo código de producción.
+Diagnosticado con evidencia real (no descartado a ciegas): la curva real `LSST_SEARCHEFF_PIPELINE.DAT`
+tiene eficiencia **exactamente 0 para SNR<3.0** en las 6 bandas, pero ya en SNR∈[3.5,5.0] tiene eficiencia
+11-47% -- con objetos de `GENRANGE_TREST` ancho (miles de épocas reales por objeto, `ILOT-MOSFIT` real
+`GENRANGE_TREST=(-100,1000)`, hasta 15.392 filas de fotometría real para un solo objeto), incluso una
+eficiencia baja pero no-cero en un puñado de épocas dispersas en años basta para producir por azar ≥2
+"épocas detectadas" muy separadas del pico real -- un sorteo independiente (el mío) no tiene por qué
+coincidir con el sorteo específico que hizo SNANA real. Mitigado promediando 20 semillas independientes
+por objeto (mediana sobre las 20 réplicas) -- reduce el ruido pero **no lo elimina**: `ctrl` sigue dando
+una ventana bastante más ancha que la real incluso promediada (ver resultado abajo) -- esto en sí mismo
+es el hallazgo más importante de la fase, ver más abajo.
+
+### Resultado -- residuo de brillo objeto-a-objeto: mucho más chico que la estimación poblacional de Fase 60
+
+| métrica | valor (mediana, n=73) |
+|---|---:|
+| residuo de magnitud, todas las épocas reales | `-0.020` mag |
+| residuo de magnitud, cerca del pico (\|fase rest\|<5d) | `-0.035` mag (n=52 objetos con época cerca del pico) |
+| rango del residuo cerca del pico | `-0.129` a `-0.012` mag |
+
+**Mucho más chico que el `-0.35` a `-0.42` mag que reportó Fase 60** para esta misma clase. Diferencia
+metodológica real entre ambas mediciones: Fase 60 comparó `compute_noise_free_lightcurves()` con
+parámetros SAMPLEADOS de la distribución poblacional contra el `PEAKMAG_r` real de la población
+completa (no objeto-a-objeto); esta fase reconstruye el modelo con los parámetros REALES de cada objeto
+específico (mismo template, mismo `z`/`AV`/`RV`/`PEAKMJD` exactos) y evalúa en su época real exacta --
+un pareo mucho más controlado. La discrepancia entre ambos métodos (~0.3-0.4 mag) queda como pregunta
+abierta nueva, no resuelta en esta fase: candidato más plausible es un desajuste de distribución
+poblacional (p.ej. `host_av` o `z` muestreado vs. real) en la comparación de Fase 60, no un error de
+esta fase (que usa parámetros reales exactos, no muestreados).
+
+### Resultado -- forma/duración: la hipótesis de Fase 60 NO se confirma en el censo disponible
+
+| comparación | mediana duración (días) | mediana Δ por objeto (días) | fracción con Δ>0 |
+|---|---:|---:|---:|
+| real (SNANA, un solo sorteo real) | 142.8 | -- | -- |
+| ctrl (flujo REAL de SNANA + trigger reimplementado, 20 semillas) | 373.0 | `ctrl - real` = +60.0 | -- |
+| lcl (flujo de LightCurveLynx + trigger reimplementado, 20 semillas) | 176.2 | `lcl - real` = +15.1 (93% de objetos) | 93.1% |
+| **lcl vs. ctrl (comparación pareada, mismo trigger, aísla solo el modelo de brillo)** | -- | **`lcl - ctrl` = -22.0** | **32.9%** |
+
+La comparación que realmente aísla el efecto de LightCurveLynx (`lcl` vs. `ctrl`, mismo código de
+trigger reimplementado en ambos lados, mismo ruido/cadencia real -- la diferencia de `real` no aplica
+porque ya se demostró que el trigger reimplementado en sí mismo se desvía de SNANA real incluso con su
+propio flujo) muestra: en **67.1%** de los 73 objetos, LightCurveLynx da una ventana de detección
+IGUAL O MÁS CORTA que la que da el flujo real de SNANA bajo el mismo trigger -- la mediana del delta es
+NEGATIVA (`-22.0` días). **La hipótesis de Fase 60 ("la forma/duración es lo que hace sobre-detectar a
+`ILOT-MOSFIT`") no se confirma en este censo** -- si acaso, la tendencia es la contraria. Esto no
+contradice el 7.09x de sobre-detección real de esta clase (medido sobre los 2000 objetos completos, no
+solo los 73 ya detectados) -- indica que ese 7.09x viene predominantemente de que LightCurveLynx
+convierte en detectados objetos que SNANA real rechaza (fuera del alcance de este censo, que solo tiene
+fotometría real de los ya-detectados), no de alargar la ventana de los que ya de por sí se iban a
+detectar.
+
+### Hallazgo no buscado, pero más importante: el propio código de trigger reimplementado (Fase 4, usado
+en TODAS las mediciones de ratio de detección del proyecto desde entonces) da una ventana ~2.6x más
+ancha que SNANA real incluso alimentado con el flujo REAL de SNANA
+
+El control (`ctrl`) es la pieza clave: usa el `FLUXCAL` REAL de SNANA, no el de LightCurveLynx, y aun
+así da una mediana de `373.0` días de ventana de detección contra los `142.8` días reales de SNANA (un
+delta mediano por objeto de `+60.0` días, con casos individuales de cientos de días de diferencia). Esto
+es un hallazgo sobre el MÉTODO de este proyecto, no sobre LightCurveLynx: `searcheff.py`
+(`apply_detection_efficiency` + `group_into_epochs` + `object_level_detected`, exactamente el código
+que calcula CADA ratio de detección publicado desde Fase 4 -- Fase 46, 48, 58, 59, 62, todos) no
+reproduce fielmente el trigger real de SNANA para objetos con `GENRANGE_TREST` ancho, porque modela la
+detección como un sorteo estocástico independiente por época sobre TODA la ventana de generación, sin
+ningún límite adicional de "ventana de búsqueda" -- mientras que la curva real de eficiencia tiene una
+cola de baja probabilidad pero no-cero (SNR∈[3,5): 11-47%) que, repartida sobre miles de épocas
+reales de un objeto de vida larga, casi garantiza por pura combinatoria que ALGUNA época lejos del pico
+real cruce el umbral por azar en cualquier sorteo independiente del que hizo SNANA.
+
+Esto conecta directo con una pregunta que Fase 60 ya había dejado abierta y nunca se investigó
+("candidato 3": *¿SNANA real trunca la ventana de trigger de forma distinta a `GENRANGE_TREST` -- es
+decir, aplica una ventana de búsqueda más angosta que la de generación, que este proyecto nunca
+replicó?*) y con el propio hallazgo real de Fase 59 sobre `CaRT` (35.5% de las detecciones disparan a
+más de 100 días post-pico, con SNR no más marginal que las cercanas al pico) -- ambos son consistentes
+con la misma explicación: el trigger reimplementado permite detecciones tardías espurias que el trigger
+real de SNANA restringe de alguna forma que este proyecto aún no ha identificado en el código C real.
+**Si este sesgo está presente en todo el catálogo (medido aquí solo para `ILOT-MOSFIT`), podría ser una
+causa real y unificadora del hueco de sobre-detección de Fase 59 (`2.895x -> 5.113x`)** -- mucho más
+prometedora que cualquier candidato anterior, porque no depende de ningún detalle del modelo de brillo
+de LightCurveLynx: aparece incluso usando el flujo 100% real de SNANA.
+
+### Conclusión Fase 63
+
+Segundo pendiente de Fase 60 cerrado con una respuesta honesta y no la esperada: la forma/duración de
+`ILOT-MOSFIT` NO sostiene una ventana de detección más ancha que SNANA real en el censo de objetos ya
+detectados (tendencia más bien contraria) -- la hipótesis original de Fase 60 no se confirma. Pero el
+método usado para medirlo (control con flujo real de SNANA) destapó algo más grande y no buscado: el
+propio trigger reimplementado de este proyecto (Fase 4, usado en todas las fases desde entonces) se
+desvía sustancialmente de SNANA real en clases de `GENRANGE_TREST` ancho, en una dirección que coincide
+exactamente con el patrón de sobre-detección tardía ya documentado (Fase 46, Fase 59). Candidato nuevo,
+concreto, y potencialmente el más grande del proyecto para la próxima fase: leer el código C real de
+SNANA (`snlc_sim.c`) para determinar si existe una ventana de búsqueda/trigger real más angosta que
+`GENRANGE_TREST` que este proyecto nunca replicó -- y si se confirma, corregirla y re-medir el catálogo
+completo.
+
+### Archivos de esta fase
+
+`compare_lightcurve_shape.py` (nuevo, versionado): pareo objeto-a-objeto real vía `_HEAD.FITS`/
+`_PHOT.FITS`, extiende Fase 39 a clases SIMSED, reusa `searcheff.py`/`host_extinction_mag_offset()` sin
+reimplementar. Corrido interactivamente en NLHPC (censo completo, 73 objetos reales, 19.5s -- trivial,
+no necesitó `sbatch`). `NOTES.md`: esta entrada.

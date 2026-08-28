@@ -1639,6 +1639,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       el ratio de detección apenas se mueve (&lt;3% en las 3 clases) — a diferencia de Fase 59, este bug
       no era el mecanismo detrás de su sobre-detección. Queda un solo pendiente abierto: medir
       forma/duración de curva de luz directamente contra SNANA (Fase 60, punto 2).</p></div></li>
+      <li><span class="step-n">24</span><div class="step-body"><p><strong>✓ Medido en Fase 63 — segundo
+      pendiente de Fase 60 respondido, hipótesis no confirmada, pero aparece un candidato nuevo y
+      potencialmente mayor.</strong> Pareo real objeto-a-objeto (extensión de Fase 39 a SIMSED,
+      <code>ILOT-MOSFIT</code> completo, 73/73 objetos reales) muestra que LightCurveLynx NO sostiene una
+      ventana de detección más ancha que SNANA real para los objetos que SNANA ya detecta (67% de los
+      casos da una ventana igual o más corta) — la hipótesis de Fase 60 no se confirma en ese censo.
+      Pero el control del método (aplicar el trigger reimplementado de este proyecto, usado desde Fase 4
+      en todas las mediciones de ratio, al flujo 100% REAL de SNANA) da una ventana <strong>~2.6x más
+      ancha</strong> (373 vs. 143 días) que la real — el propio trigger reimplementado, no
+      LightCurveLynx, se desvía de SNANA real en clases de <code>GENRANGE_TREST</code> ancho. Responde
+      directo la pregunta que Fase 60 dejó abierta y nunca se investigó ("¿SNANA aplica una ventana de
+      búsqueda más angosta que <code>GENRANGE_TREST</code>?") con evidencia de que probablemente sí.
+      <strong>Candidato prioritario para la próxima fase</strong>: leer <code>snlc_sim.c</code> real para
+      confirmar el mecanismo — de confirmarse, podría explicar buena parte del hueco de sobre-detección
+      de Fase 59 (<code>2.895x → 5.113x</code>) para todo el catálogo, no solo una clase.</p></div></li>
     </ol>
     </div>
 
@@ -3290,6 +3305,35 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           (<code>trest_range</code>, +12% a +211%), este bug era real y el fix correcto, pero no era el
           mecanismo detrás del ratio alto de estas 3 clases. Esa causa sigue siendo el hueco general de
           detecciones tardías espurias de Fase 59/60.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">63</span>
+        <div class="step-body">
+          <p><strong>Segundo pendiente de Fase 60 (forma/duración de curva de luz) no se confirma — pero
+          el método usado destapa un candidato nuevo, más grande y potencialmente unificador para el
+          hueco de sobre-detección.</strong> Extendida la metodología de pareo real objeto-a-objeto de
+          Fase 39 a una clase SIMSED por primera vez (<code>ILOT-MOSFIT</code>, censo completo de 73/73
+          objetos reales que SNANA sí escribió). Residuo de brillo objeto-a-objeto real:
+          <code>-0.02</code> a <code>-0.035</code> mag — mucho más chico que el <code>-0.35</code> a
+          <code>-0.42</code> mag que estimó Fase 60 con parámetros muestreados de la población (no
+          objeto-a-objeto); la discrepancia entre ambos métodos queda como pregunta abierta.</p>
+          <p>Comparación pareada de ventana de detección (mismo trigger real reusado de
+          <code>searcheff.py</code>, aislando solo el modelo de brillo): en <strong>67%</strong> de los
+          73 objetos, LightCurveLynx da una ventana igual o más corta que el flujo real de SNANA bajo el
+          mismo trigger — la hipótesis de Fase 60 no se confirma en este censo.</p>
+          <p><strong>Hallazgo no buscado:</strong> el control (aplicar el trigger reimplementado de este
+          proyecto al flujo 100% REAL de SNANA, no al de LightCurveLynx) da una ventana de detección
+          <strong>~2.6x más ancha</strong> (373 vs. 143 días reales) que SNANA real. El propio código de
+          trigger (Fase 4, usado en TODAS las mediciones de ratio de detección desde entonces) no
+          replica fielmente el trigger real de SNANA en clases de <code>GENRANGE_TREST</code> ancho —
+          coincide exactamente con el patrón de detecciones tardías espurias ya documentado (Fase 46,
+          Fase 59) y con una pregunta que Fase 60 dejó explícitamente abierta y nunca se investigó: si
+          SNANA aplica una ventana de búsqueda/trigger real más angosta que <code>GENRANGE_TREST</code>.
+          Candidato nuevo y potencialmente el más grande del proyecto: podría explicar buena parte del
+          hueco de sobre-detección de Fase 59 (<code>2.895x → 5.113x</code>) de forma unificada, sin
+          depender de ningún detalle del modelo de brillo — próximo paso propuesto: leer
+          <code>snlc_sim.c</code> real para confirmar o descartar.</p>
         </div>
       </li>
     </ol>
