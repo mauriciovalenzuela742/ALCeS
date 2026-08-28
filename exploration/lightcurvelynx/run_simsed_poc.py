@@ -888,7 +888,7 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
 
     if valid.empty:
         head_df = pd.DataFrame(columns=["SNID", "SNTYPE", "RA", "DEC", "REDSHIFT_HELIO", "PEAKMJD", "NOBS"])
-        phot_df = pd.DataFrame(columns=["SNID", "MJD", "FLT", "FLUXCAL", "FLUXCALERR"])
+        phot_df = pd.DataFrame(columns=["SNID", "MJD", "FLT", "FLUXCAL", "FLUXCALERR", "FLUXTRUE"])
     else:
         snids = valid["id"].astype(int).astype(str)
         phot_df = pd.concat(
@@ -904,8 +904,16 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
             n_gated_total = int((~keep_mask).sum())
             phot_df = phot_df[keep_mask]
 
-        phot_df = phot_df.rename(columns={"mjd": "MJD", "flux": "FLUXCAL", "fluxerr": "FLUXCALERR"})
-        phot_df = phot_df[["SNID", "MJD", "FLT", "FLUXCAL", "FLUXCALERR"]].reset_index(drop=True)
+        # Fase 64: se retiene "flux_perfect" (flujo sin ruido, ya calculado y
+        # antes descartado por simulate_lightcurves() -- ver NOTES.md) como
+        # FLUXTRUE, en la MISMA escala fisica (nJy) que FLUXCAL -- necesario
+        # para que el trigger real de SEARCHEFF use SNR_CALC (flujo
+        # verdadero/error), no SNR_OBS (flujo observado/error, el "wrong SNR"
+        # real de SNANA que este proyecto calculaba desde la Fase 4).
+        phot_df = phot_df.rename(columns={
+            "mjd": "MJD", "flux": "FLUXCAL", "fluxerr": "FLUXCALERR", "flux_perfect": "FLUXTRUE",
+        })
+        phot_df = phot_df[["SNID", "MJD", "FLT", "FLUXCAL", "FLUXCALERR", "FLUXTRUE"]].reset_index(drop=True)
 
         nobs = phot_df.groupby("SNID").size()
         head_df = pd.DataFrame({
@@ -931,12 +939,21 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
           f"{len(phot_df)} filas de fotometria")
 
     snr_sim = (phot_df["FLUXCAL"] / phot_df["FLUXCALERR"]).abs()
-    print(f"[{time.time()-t_start:.1f}s] SNR simulado (todas las obs): "
+    print(f"[{time.time()-t_start:.1f}s] SNR observado (todas las obs, solo informativo): "
           f"mediana={snr_sim.median():.3f}, p90={snr_sim.quantile(0.9):.3f}")
 
     band_curves = parse_searcheff_pipeline(SEARCHEFF_PIPELINE_FILE)
     min_epochs = parse_pipeline_logic(SEARCHEFF_LOGIC_FILE)
-    detected_mask = apply_detection_efficiency(phot_df, band_curves, seed=seed_base + 7)
+    # Fase 64: el trigger real de SNANA calcula el SNR sobre el flujo
+    # VERDADERO sin ruido (SNR_CALC, snlc_sim.c:24495-24497 -- SNANA llama
+    # "wrong SNR" al SNR sobre flujo observado, y lo evita para LSST), no
+    # sobre FLUXCAL/FLUXCALERR (SNR_OBS) como este proyecto calculaba desde
+    # la Fase 4. Validado epoca a epoca contra el PHOTFLAG&4096 real de
+    # SNANA (ver NOTES.md): la formula anterior sobre-estimaba la tasa de
+    # deteccion real en +17.1%; esta la reproduce casi exacta (+0.04%).
+    detected_mask = apply_detection_efficiency(
+        phot_df, band_curves, flux_col="FLUXTRUE", seed=seed_base + 7,
+    )
     phot_df["PHOTFLAG"] = np.where(detected_mask, 4096, 0)
     # Fase 4: agrupar observaciones en epocas reales (NEWMJD_DIF=0.007d, ver
     # searcheff.group_into_epochs) antes de aplicar el trigger ">=2 epocas" --

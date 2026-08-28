@@ -8129,3 +8129,71 @@ implementarlo en `searcheff.py`/`run_simsed_poc.py` y re-medir el catálogo.
 
 Ninguno versionado todavía (fase de diagnóstico puro) -- exploratorio en NLHPC, no borrado como
 evidencia: `validate_snr_calc.py` (`~/AUTOSIM/exploration/lightcurvelynx/`). `NOTES.md`: esta entrada.
+
+## Fase 65 -- fix implementado y validado en el código de producción, pero el re-barrido completo del
+catálogo queda bloqueado por un cupo de disco real agotado en NLHPC (incidente distinto, no relacionado
+con el fix)
+
+### Implementación real del fix de Fase 64
+
+`run_simsed_poc.py::main()`: la tabla de fotometría aplanada ahora retiene `flux_perfect` (ya calculado
+por `simulate_lightcurves()`, antes descartado) como columna nueva `FLUXTRUE`, en la misma escala física
+(nJy) que `FLUXCAL`. La llamada real al trigger pasa a usar `apply_detection_efficiency(phot_df,
+band_curves, flux_col="FLUXTRUE", seed=...)` -- `searcheff.py` ya soportaba `flux_col` como parámetro,
+no necesitó cambios. `FLUXCAL`/`FLUXCALERR` (observados, con ruido) se conservan sin cambios para todo
+lo demás (columna `MAG`, QC, persistencia) -- el fix solo cambia qué flujo alimenta al trigger real.
+
+### Validación real, parcial: el código funciona, la persistencia falla por un motivo real y distinto
+
+Una corrida interactiva chica (`ngentot_override=50`, trivial, no necesitó `sbatch`) confirmó que el
+fix corre limpio de punta a punta hasta la persistencia: `"SEARCHEFF aplicado: 1/50 objetos detectados"`
+se imprimió correctamente -- el código nuevo funciona. Falló recién en el último paso
+(`head_df.to_parquet()`) con:
+```
+OSError: [Errno 122] Error writing bytes to file. Detail: [errno 122] Disk quota exceeded
+```
+La primera línea de la corrida ya lo anticipaba: `Could not save font_manager cache [Errno 122] Disk
+quota exceeded` -- **la cuenta real de NLHPC está sobre su cupo de disco en este momento**, fallando
+hasta escrituras triviales (el caché de fuentes de `matplotlib`). Esto es el mismo tipo de incidente
+real ya documentado en Fase 8/59 (cuenta cerca de su límite histórico de ~200GB) -- confirmado con `du
+-sh ~` real: **183-185GB** usados. Los 4 intentos previos de esta fase (`CaRT`/`ILOT-MOSFIT` × 2 nodos
+distintos cada uno, todos con `ExitCode 120:0` sin traceback visible, muriendo ~159/2000 objetos, ~3 min
+de wall time, en 3 nodos reales distintos -- `fn001`/`fn002`/`fn003`) tienen la MISMA causa real: no es
+un bug del fix (el crash real ocurre dentro de la escritura a disco, un paso que el piloto interactivo sí
+alcanzó a reproducir con traceback limpio) ni del nodo (mismo patrón en 3 nodos reales distintos).
+
+Limpieza real ya hecha en el propio territorio de este proyecto (`exploration/lightcurvelynx/`, sin
+tocar nada de `DATASIM_LSST_1`/`run_SNANA`/otros directorios de producción reales, fuera de alcance de
+esta investigación): se liberaron ~3GB de `poc_output_*` viejos, de antes del fix `_bolopeak` (Fase 57)
+-- `poc_output_slsni`, `poc_output_ilotmosfit(+seed1-4)`, `poc_output_cart`, `poc_output_seed{1..4}` --
+sus hallazgos ya están documentados en `NOTES.md`, no se perdió ningún dato real. `exploration/
+lightcurvelynx/` bajó de 5.4GB a 2.4GB, ya lo más lean posible sin tocar dependencias reales activas
+(confirmado, p.ej., que `bullansed_local` sigue siendo referenciado por `run_non1ased_poc.py`, no es
+basura). **No fue suficiente** -- el re-barrido sigue bloqueado.
+
+### Qué NO se hace en esta fase, y por qué
+
+No se toca `DATASIM_LSST_1` (150GB, el mayor consumidor real de la cuenta, con mucha diferencia) ni
+ningún otro directorio de producción/referencia real (`run_SNANA` 18GB, `SNDATA_ROOT` 4.2GB,
+`SIMLIBv5*` 6.1GB, `OTMODEL_NON1ASED` 1.1GB) -- son datos reales de SNANA usados activamente por esta
+misma investigación (todos los `.DUMP`/`_HEAD.FITS`/`_PHOT.FITS` reales citados en Fases 39-64 viven
+ahí), fuera del alcance de lo que este proyecto exploratorio puede decidir borrar por su cuenta. Resolver
+el cupo real (pedir aumento a NLHPC vía `soporte@nlhpc.cl`, o decidir qué archivar/borrar de esos
+directorios) es una decisión que le corresponde al usuario, no a esta fase.
+
+### Conclusión Fase 65
+
+El fix de Fase 64 está implementado en el código de producción (`run_simsed_poc.py`/`searcheff.py`,
+commiteado) y parcialmente validado en una corrida real (el trigger corregido corre limpio; el único
+fallo real ocurrió en un paso de persistencia no relacionado, por cupo de disco agotado). El re-barrido
+completo del catálogo (13 clases × 5 semillas, para medir el impacto real en la tabla de Fase 59) queda
+**pendiente, bloqueado por un incidente de infraestructura real y actual**, no por el fix en sí --
+retomar en cuanto se libere cupo suficiente (~2-5GB de headroom sostenido deberían bastar para las
+clases más livianas; `PISN-STELLA-HYDROGENIC` sola puede necesitar picos de hasta 3.3GB transitorios por
+semilla, ver Fase 59).
+
+### Archivos de esta fase
+
+`run_simsed_poc.py`: fix de Fase 64 implementado (`FLUXTRUE` retenida, `apply_detection_efficiency(...,
+flux_col="FLUXTRUE")`). `NOTES.md`: esta entrada. `fase65_jobs/*.sh` en NLHPC (exploratorio, no
+borrado): scripts piloto de `CaRT`/`ILOT-MOSFIT`, ninguno completó por el incidente de cuota.

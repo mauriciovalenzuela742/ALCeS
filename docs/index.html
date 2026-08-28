@@ -1668,6 +1668,15 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       exacta (<code>+0.04%</code>). <strong>El candidato mejor evidenciado de todo el proyecto</strong>
       para el hueco de sobre-detección de Fase 59 — fix viable sin cambios estructurales grandes.
       Pendiente: implementarlo en producción y re-medir el catálogo completo.</p></div></li>
+      <li><span class="step-n">26</span><div class="step-body"><p><strong>⚠ Fase 65 — fix implementado y
+      commiteado, re-barrido bloqueado por un incidente real de infraestructura.</strong> El código de
+      producción ya usa el flujo verdadero para el trigger (validado parcialmente en una corrida real: el
+      trigger corrido corre limpio). El re-barrido de 13 clases × 5 semillas para medir el impacto real en
+      la tabla de Fase 59 (<code>2.895x → 5.113x</code>) quedó bloqueado por la cuenta real de NLHPC sobre
+      su cupo de disco (183-185GB, mismo tipo de incidente de Fase 8/59) — no por el fix en sí. Pendiente
+      de retomar en cuanto se libere cupo (pedir aumento a NLHPC, o decidir qué archivar de
+      <code>DATASIM_LSST_1</code>, 150GB de datos reales de producción — decisión del usuario, fuera de
+      alcance de esta investigación).</p></div></li>
     </ol>
     </div>
 
@@ -3377,6 +3386,23 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           hueco de sobre-detección de Fase 59 (<code>2.895x → 5.113x</code>) — fix viable sin cambios
           estructurales grandes (la columna necesaria ya existe). Pendiente: implementarlo en
           <code>searcheff.py</code>/<code>run_simsed_poc.py</code> y re-medir el catálogo completo.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">65</span>
+        <div class="step-body">
+          <p><strong>Fix de Fase 64 implementado en producción — el re-barrido completo queda bloqueado
+          por un incidente real y distinto: la cuenta de NLHPC está sobre su cupo de disco.</strong>
+          <code>run_simsed_poc.py</code> ahora retiene <code>flux_perfect</code> (como
+          <code>FLUXTRUE</code>) y el trigger real usa ese flujo verdadero, no el observado. Validado
+          parcialmente en una corrida real: el código corre limpio hasta el trigger
+          (<code>"SEARCHEFF aplicado: 1/50 objetos detectados"</code>), y falla recién en la persistencia
+          con <code>OSError: Disk quota exceeded</code> — mismo tipo de incidente ya documentado en Fase
+          8/59, cuenta real en <strong>183-185GB</strong>. Se liberaron ~3GB de resultados viejos
+          (pre-<code>_bolopeak</code>, ya documentados) del propio territorio de este proyecto, sin tocar
+          <code>DATASIM_LSST_1</code> (150GB, datos reales de producción, fuera de alcance) — no fue
+          suficiente. El fix queda listo y commiteado; el re-barrido de 13 clases × 5 semillas para medir
+          el impacto real en la tabla de Fase 59 queda pendiente hasta liberar cupo.</p>
         </div>
       </li>
     </ol>
