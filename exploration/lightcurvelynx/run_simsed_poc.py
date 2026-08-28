@@ -458,17 +458,32 @@ def load_simsed_templates_bolometric(simsed_dir):
     """Fase 56: replica `T0shiftPeak_SEDMODEL()` real de SNANA
     (`genmag_SEDtools.c:2825-2884`), activo por defecto para SIMSED via
     `OPTMASK_T0SHIFT_PEAKMAG` (`genmag_SIMSED.c:226-230`, "shift T=0 to
-    peak") -- confirmado sin excepcion en los `SED.INFO` reales de las 12
-    clases SIMSED de esta campana (ninguno declara `OPTFLAG_T0SHIFT_
-    PEAKMAG: 0`, y las tres condiciones para que se ejecute (`SIMSED_USE_
-    BINARY: 0` real, sin `MJD_EXPLODE`/`OPTMASK_T0SHIFT_EXPLODE` reales)
-    se cumplen). SNANA shiftea la grilla `DAY` de CADA template para que
-    el dia con mayor flujo bolometrico (suma simple de flujo sobre todos
-    los bins de lambda del archivo, sin ponderar por dlambda -- formula
-    real confirmada linea por linea) quede en `DAY=0`. `Trest=0` real de
-    SNANA es entonces el pico bolometrico del template, NO la fase nativa
-    0 del archivo `.SED` (que en `SNIa-91bg` vale `+1`/`+2` dias segun el
+    peak"). SNANA shiftea la grilla `DAY` de CADA template para que el dia
+    con mayor flujo bolometrico (suma simple de flujo sobre todos los bins
+    de lambda del archivo, sin ponderar por dlambda -- formula real
+    confirmada linea por linea) quede en `DAY=0`. `Trest=0` real de SNANA
+    es entonces el pico bolometrico del template, NO la fase nativa 0 del
+    archivo `.SED` (que en `SNIa-91bg` vale `+1`/`+2` dias segun el
     template, y en `CaRT` hasta `+33` dias -- ver NOTES.md Fase 56).
+
+    Fase 62: la Fase 56 declaro esto "activo sin excepcion en las 12 clases
+    SIMSED" -- FALSO, un error de auditoria (solo se revisaron los
+    `SED.INFO` bajo `plasticc_models/`, no las rutas alternativas
+    `elastic/model_libs_updates/` ni el `SED.INFO` anidado bajo
+    `SIMSED.KN-BULLA19/SIMSED.BULLA-BNS-M2-2COMP/`). Los `SED.INFO` reales
+    de `KN-BULLA19`/`PISN-STELLA-HECORE`/`PISN-STELLA-HYDROGENIC`
+    declaran `OPTFLAG_T0SHIFT_PEAKMAG: 0` ("do NOT time-shift PEAKMAG to
+    DAY=0") -- las UNICAS 3 excepciones reales del catalogo (confirmado
+    barriendo las 13 clases). Esto explica de punta a punta el hallazgo de
+    Fase 60 (esas 3 clases tienen `PEAKMAG_{u..Y}` = `99`/`-9` en el 100%
+    de los objetos del `.DUMP` real de SNANA -- no un problema de la
+    referencia, sino la consecuencia esperada de evaluar en fase nativa 0
+    un modelo cuyo dia 0 real es "tiempo de fusion"/explosion, sin brillo
+    -- ver NOTES.md Fase 62). Respetar el flag real evita que
+    `simsed_t0_mode="bolometric_peak"` (default de produccion desde Fase
+    57) le aplique a estas 3 clases un shift que la propia SNANA nunca
+    aplica -- sin este fix, LightCurveLynx y SNANA quedarian usando
+    referencias de tiempo distintas para las 3.
 
     Devuelve (templates, flux_scale) en el MISMO orden que
     `SIMSEDModel.from_dir()` (orden real de las lineas `SED:` en
@@ -478,23 +493,31 @@ def load_simsed_templates_bolometric(simsed_dir):
     simsed_dir = Path(simsed_dir)
     file_names, simsed_params = SIMSEDModel._read_simsed_info_file(simsed_dir)
     flux_scale = float(simsed_params.get("FLUX_SCALE", 1.0))
+    # Fase 62: default real de SNANA es "shiftear" (OPTMASK_T0SHIFT_PEAKMAG
+    # activo por defecto, genmag_SIMSED.c:226-230) -- solo se desactiva si
+    # el SED.INFO real de la clase declara la clave explicita en 0.
+    do_shift = int(simsed_params.get("OPTFLAG_T0SHIFT_PEAKMAG", 1)) != 0
     templates = []
     for file_name in file_names:
         path = Path(file_name)
         if not path.exists() and path.suffix != ".gz":
             path = path.with_suffix(path.suffix + ".gz")
         data = np.loadtxt(path, comments="#")
-        # Fase 58: suma de flujo por fase vectorizada (sort + np.add.reduceat)
-        # -- el loop original (mascara booleana por cada fase unica) es
-        # O(N_fases x N_filas); para templates con grilla de fase muy fina
-        # (p.ej. KN-K17, kilonovas con cientos de fases) tardaba minutos por
-        # archivo. Mismo resultado, mismo orden de magnitud mas rapido.
-        order = np.argsort(data[:, 0], kind="stable")
-        phase_sorted = data[order, 0]
-        flux_sorted = data[order, 2]
-        phases, start_idx = np.unique(phase_sorted, return_index=True)
-        fluxsum = np.add.reduceat(flux_sorted, start_idx)
-        t0_bolo = float(phases[np.argmax(fluxsum)])
+        if do_shift:
+            # Fase 58: suma de flujo por fase vectorizada (sort +
+            # np.add.reduceat) -- el loop original (mascara booleana por
+            # cada fase unica) es O(N_fases x N_filas); para templates con
+            # grilla de fase muy fina (p.ej. KN-K17, kilonovas con cientos
+            # de fases) tardaba minutos por archivo. Mismo resultado,
+            # mismo orden de magnitud mas rapido.
+            order = np.argsort(data[:, 0], kind="stable")
+            phase_sorted = data[order, 0]
+            flux_sorted = data[order, 2]
+            phases, start_idx = np.unique(phase_sorted, return_index=True)
+            fluxsum = np.add.reduceat(flux_sorted, start_idx)
+            t0_bolo = float(phases[np.argmax(fluxsum)])
+        else:
+            t0_bolo = 0.0
         templates.append(SEDTemplate(
             data, sed_data_t0=t0_bolo, interpolation_type="linear", periodic=False,
         ))

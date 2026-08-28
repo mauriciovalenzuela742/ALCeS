@@ -7729,3 +7729,119 @@ sin error) antes de darlo por válido -- la versión con `NOBS` había pasado la
 publicada, pero fuera del alcance de este notebook por tiempo. El notebook termina con un callout
 honesto: los 4 bugs son reales y mejoran el resultado donde aplican, pero ninguno explica la brecha
 de sobre-detección que sigue abierta desde Fase 59 (`2.895x -> 5.113x`).
+
+## Fase 62 -- resuelto el misterio de `PEAKMAG` faltante de Fase 60 (`OPTFLAG_T0SHIFT_PEAKMAG: 0`, un
+hueco de auditoría de Fase 56), pero el fix real apenas mueve el ratio de detección de las 3 clases
+afectadas
+
+### Motivación
+
+Fase 60 dejó 2 pendientes explícitos. Esta fase cierra el primero: por qué `KN-BULLA19`,
+`PISN-STELLA-HECORE` y `PISN-STELLA-HYDROGENIC` tienen `PEAKMAG_{u..Y}` = `99`/`-9` en el 100% de los
+objetos del `.DUMP` real de SNANA (0 filas válidas para medir brillo verdadero, a diferencia de las
+otras 10 clases SIMSED).
+
+### Causa raíz real: Fase 56 declaró "sin excepción" algo que no verificó del todo
+
+Fase 56 encontró que SNANA aplica por defecto `T0shiftPeak_SEDMODEL()` (`genmag_SEDtools.c:2825-2884`)
+-- shiftea la grilla `DAY` de cada template SIMSED para que el día de pico bolométrico caiga en
+`DAY=0`, vía `OPTMASK_T0SHIFT_PEAKMAG` activo por defecto (`genmag_SIMSED.c:226-230`) -- y concluyó que
+esto aplicaba "sin excepción" a las 12 clases SIMSED del catálogo. Esa conclusión se apoyaba en un
+grep incompleto: solo se habían revisado los `SED.INFO` bajo `run_SNANA/plasticc_models/`, sin cubrir
+la ruta alternativa `run_SNANA/elastic/model_libs_updates/` ni el `SED.INFO` anidado bajo
+`SIMSED.KN-BULLA19/SIMSED.BULLA-BNS-M2-2COMP/`.
+
+Confirmado con `grep` directo sobre los `SED.INFO` reales de las 13 clases en NLHPC: exactamente 3
+declaran `OPTFLAG_T0SHIFT_PEAKMAG: 0` ("do NOT shift PEAKMAG to T=0"):
+
+| clase | ruta real del `SED.INFO` |
+|---|---|
+| `KN-BULLA19` | `run_SNANA/plasticc_models/SIMSED.KN-BULLA19/SIMSED.BULLA-BNS-M2-2COMP/SED.INFO` |
+| `PISN-STELLA-HECORE` | `run_SNANA/elastic/model_libs_updates/SIMSED.PISN-STELLA-HECORE/SED.INFO` |
+| `PISN-STELLA-HYDROGENIC` | `run_SNANA/elastic/model_libs_updates/SIMSED.PISN-STELLA-HYDROGENIC/SED.INFO` |
+
+Las 10 clases restantes (`SNIa-91bg`, `SLSN-I`, `SNIax`, `TDE-MOSFIT`, `SNII-NMF`, `ILOT-MOSFIT`,
+`SNIIn-MOSFIT`, `PISN-MOSFIT`, `KN-K17`, `CaRT`) no declaran esta clave -- shift activo por defecto,
+sin cambios. Esto explica de punta a punta el hallazgo de Fase 60: para estas 3 clases, SNANA real
+evalúa `PEAKMAG` en la fase nativa `DAY=0` del archivo `.SED` sin shiftear -- que para estos 3 modelos
+(kilonova/PISN, día 0 = tiempo de fusión o pre-explosión) no tiene brillo definido. No es un defecto de
+la referencia: es la consecuencia esperada y documentada por la propia SNANA de evaluar un modelo en un
+punto donde no hay luz.
+
+### Fix real
+
+`load_simsed_templates_bolometric()` (`run_simsed_poc.py`) ahora lee
+`simsed_params.get("OPTFLAG_T0SHIFT_PEAKMAG", 1)` y solo aplica el shift al pico bolométrico
+(`np.argsort`+`np.add.reduceat`, Fase 58) si esa clave es distinta de `0`; si la clase la declara en
+`0`, usa `sed_data_t0=0.0` para todos sus templates -- igual que hace SNANA real. Compilado
+(`py_compile`), sincronizado a NLHPC (`scp` + `md5sum` verificado), y smoke-test directo confirmó el
+alcance correcto: los 550 templates de `KN-BULLA19` quedan con `sed_data_t0=0.0` uniforme; los 225 de
+`CaRT` (clase de control, no debe verse afectada) siguen recibiendo shifts variados de 3.5 a 8+ días,
+sin cambios.
+
+### Resultado -- re-barrido de 5 semillas para las 3 clases corregidas
+
+15 jobs reales en NLHPC (`sbatch`, partición `largemem`, `--mem=16G` para `KN-BULLA19`/
+`PISN-STELLA-HECORE`, `--mem=128G` para `PISN-STELLA-HYDROGENIC` por su `NGENTOT_LC=20000`), contra la
+misma referencia `SNANA%` DDF-only de Fase 48:
+
+| clase | detección media Fase 59 (bug: shift aplicado igual) | detección media Fase 62 (fix: shift respetado) | SNANA% real | ratio Fase 59 | ratio Fase 62 | Δ ratio |
+|---|---:|---:|---:|---:|---:|---:|
+| `KN-BULLA19` | `24.28%±0.97` | `23.98%±0.75` | 6.07% | 4.000 | **3.951** | -1.2% |
+| `PISN-STELLA-HECORE` | `41.72%±1.25` | `40.62%±0.97` | 21.88% | 1.907 | **1.856** | -2.6% |
+| `PISN-STELLA-HYDROGENIC` | `46.15%±0.36` | `45.78%±0.35` | 24.45% | 1.888 | **1.872** | -0.8% |
+
+Valores por semilla (job base 12230351-365): `KN-BULLA19` = `24.30, 24.00, 22.75, 23.80, 25.05`;
+`PISN-STELLA-HECORE` = `39.90, 40.25, 40.20, 40.20, 42.55`; `PISN-STELLA-HYDROGENIC` = `45.65, 45.755,
+45.53, 46.46, 45.50`.
+
+### Lectura honesta: el bug era real y el fix es correcto, pero NO es el mecanismo detrás del ratio
+alto de estas 3 clases
+
+A diferencia de Fase 59 (donde corregir `trest_range` cambió los ratios en +12% a +211%), corregir
+`OPTFLAG_T0SHIFT_PEAKMAG` mueve los 3 ratios menos de un 3%, y en la dirección de MEJORA (más cerca de
+1.0x), no de empeoramiento. Esto es coherente con lo ya sabido de estos templates: sus grillas de fase
+nativa ya empiezan muy cerca de su propio pico real incluso sin shiftear formalmente (a diferencia de
+`CaRT`, donde Fase 56 midió shifts de hasta +33 días) -- el bug de Fase 56 existía y violaba la
+referencia de tiempo real de SNANA para estas 3 clases, pero su impacto práctico en la ventana de
+detección resultó ser chico. El ratio de sobre-detección que sigue alto en las 3 (1.86x a 3.95x) tiene
+la misma causa que en el resto del catálogo: el hueco de `trest_range`/detecciones tardías espurias que
+Fase 59 generalizó y que sigue sin explicación mecánica completa (Fase 60, segundo pendiente).
+
+### Nota operativa -- 3 jobs marcados `FAILED` que en realidad completaron limpio (dato no perdido)
+
+Los 3 jobs `seed=0` de cada clase (`12230351`, `12230356`, `12230361`) terminaron con `sacct` en estado
+`FAILED` (`ExitCode 1:0`), pero sus `.err` no muestran ninguna excepción de Python -- `run_simsed_poc.py`
+corrió completo y `summary.json` se escribió con datos válidos (confirmado por `mtime` y contenido
+consistente con las otras 4 semillas de cada clase). Causa real: el propio script `.sh` generado para
+esta ronda arma el nombre de directorio de salida con `$([ 0 -ne 0 ] && echo _seed0)` -- cuando el
+índice de semilla es `0`, ese `&&` nunca ejecuta el `echo`, y la sustitución de comandos devuelve el
+código de salida de `[ 0 -ne 0 ]` (`1`, falso). Bajo `set -euo pipefail`, una asignación de variable
+que contiene una sustitución de comandos con salida no-cero SÍ dispara la salida del script (no está
+en la lista de excepciones de `set -e`: pipeline no-final, `&&`/`||` no-final, condición de `if`/`while`,
+negación con `!` -- una asignación simple no aplica ninguna). El script murió ahí, **después** de
+escribir `summary.json` pero **antes** de la línea de limpieza (`rm -f phot_df.parquet`) -- dejando sin
+borrar 3 archivos grandes (`272MB`, `326MB`, `3.3GB` para `KN-BULLA19`/`HECORE`/`HYDROGENIC`
+respectivamente). Verificado que ningún dato se perdió (`summary.json` completo y consistente en los 3
+casos); los 3 `phot_df.parquet` se borraron manualmente tras confirmar. Bug solo del script sbatch de
+esta ronda (no de `run_simsed_poc.py` ni de ningún hallazgo científico) -- documentado para no repetirlo
+en la próxima ronda que reuse esta plantilla de `.sh`.
+
+### Conclusión Fase 62
+
+Primer pendiente de Fase 60 cerrado: el `PEAKMAG` faltante de `KN-BULLA19`/`PISN-STELLA-HECORE`/
+`PISN-STELLA-HYDROGENIC` tiene una explicación completa y real (`OPTFLAG_T0SHIFT_PEAKMAG: 0` en su
+`SED.INFO`, un caso real que SNANA sí distingue y que Fase 56 no auditó por una ruta de archivo
+incompleta). El fix correspondiente en `load_simsed_templates_bolometric()` ya respeta ese flag y está
+verificado con un re-barrido real de 5 semillas -- pero el resultado es honesto y no es el que hubiera
+sido más satisfactorio narrativamente: el bug no explica (ni siquiera parcialmente) el ratio de
+sobre-detección alto de estas 3 clases, que sigue siendo un caso más del hueco general de Fase 59/60
+(detecciones tardías espurias más allá de la fase donde SNANA real deja de generar señal).
+
+### Archivos de esta fase
+
+`run_simsed_poc.py`: `load_simsed_templates_bolometric()` ahora respeta `OPTFLAG_T0SHIFT_PEAKMAG` real
+del `SED.INFO` de cada clase (antes asumía shift activo siempre). `NOTES.md`: esta entrada.
+`docs/index.html`: tarjeta de Fase 62 + actualización de "Líneas para seguir investigando" (pendiente
+de Fase 60 #1 cerrado; #2 sigue abierto). Exploratorios en NLHPC, ya limpiados: 15 `.sh`/`.out`/`.err`
+en `~/AUTOSIM/fase62_jobs/` (se conservan como evidencia real, no se borran).

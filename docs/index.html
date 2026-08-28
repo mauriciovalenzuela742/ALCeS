@@ -1616,6 +1616,29 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       por qué los 4 bugs ya conocidos no la explican combinados. (Fase 59-perf, en paralelo, optimizó
       el rendimiento del aplanado ~360x — mejora de infraestructura, sin efecto en ningún resultado,
       verificado byte-idéntico.)</p></div></li>
+      <li><span class="step-n">21</span><div class="step-body"><p><strong>✓ Hecho en Fase 60 —
+      hallazgo clave: el residuo de brillo pico y el ratio de detección son mecanismos
+      independientes.</strong> Medido brillo verdadero en 7 clases nunca auditadas —
+      <code>ILOT-MOSFIT</code> es <strong>más tenue</strong> en LCL que en SNANA en el pico
+      (<code>-0.35</code> a <code>-0.42</code> mag) pero <strong>sobre-detecta 7.09x</strong>: la
+      sobre-detección viene de la forma/duración de la curva, no del brillo pico. 3 clases
+      (<code>KN-BULLA19</code>/<code>PISN-STELLA-HECORE</code>/<code>PISN-STELLA-HYDROGENIC</code>) no
+      se pudieron auditar así — <code>PEAKMAG</code> = <code>99</code>/<code>-9</code> en el 100% de sus
+      objetos reales. Dos pendientes: diagnosticar esa ausencia (✓ Fase 62) y medir forma/duración
+      directamente contra SNANA (en curso).</p></div></li>
+      <li><span class="step-n">22</span><div class="step-body"><p><strong>✓ Hecho en Fase 61:</strong>
+      notebook de verificación end-to-end, estilo tutorial oficial de LightCurveLynx, reproduce 2 de los
+      4 bugs reales conocidos (<code>MAG_OFFSET</code>/Fase 37 y pico bolométrico/Fase 56) con evidencia
+      visual real. Termina con un callout honesto: ninguno de los 4 bugs conocidos explica la brecha de
+      sobre-detección abierta desde Fase 59.</p></div></li>
+      <li><span class="step-n">23</span><div class="step-body"><p><strong>✓ RESUELTO en Fase 62 —
+      primer pendiente de Fase 60 cerrado, con una lectura honesta:</strong> <code>OPTFLAG_T0SHIFT_PEAKMAG:
+      0</code> en el <code>SED.INFO</code> real de las 3 clases sin <code>PEAKMAG</code> — un hueco de
+      auditoría de Fase 56 (solo revisó <code>plasticc_models/</code>, no
+      <code>elastic/model_libs_updates/</code>). Fix aplicado y verificado con 15 corridas reales, pero
+      el ratio de detección apenas se mueve (&lt;3% en las 3 clases) — a diferencia de Fase 59, este bug
+      no era el mecanismo detrás de su sobre-detección. Queda un solo pendiente abierto: medir
+      forma/duración de curva de luz directamente contra SNANA (Fase 60, punto 2).</p></div></li>
     </ol>
     </div>
 
@@ -3210,6 +3233,63 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           <code>pd.concat()</code>, ~360x más rápido en benchmark, verificado byte-idéntico contra la
           versión anterior (fila por fila, en NLHPC real, con y sin el gate de
           <code>RESTLAMBDA_RANGE</code>).</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">60</span>
+        <div class="step-body">
+          <p><strong>Primera medición de brillo verdadero para 10 clases SIMSED que nunca la habían
+          tenido — y una desconexión real: el residuo de brillo pico no predice el ratio de
+          detección.</strong> Generalizado <code>compare_brightness_truth.py</code>/<code>_binned.py</code>
+          a <code>TDE-MOSFIT</code>, <code>SNII-NMF</code>, <code>ILOT-MOSFIT</code>,
+          <code>SNIIn-MOSFIT</code>, <code>PISN-MOSFIT</code>, <code>SLSN-I</code>, <code>KN-K17</code>
+          (7 con dato usable). Ejemplo más claro: <code>ILOT-MOSFIT</code> es <strong>más tenue</strong>
+          en LCL que en SNANA en el pico (-0.35 a -0.42 mag) y aun así <strong>sobre-detecta 7.09x</strong>
+          — el mecanismo real de sobre-detección está en la forma/duración de la curva, no en el brillo
+          pico.</p>
+          <p><code>KN-BULLA19</code>/<code>PISN-STELLA-HECORE</code>/<code>PISN-STELLA-HYDROGENIC</code>
+          no se pudieron auditar así: <code>PEAKMAG_{u..Y}</code> = <code>99</code>/<code>-9</code> en el
+          100% de sus objetos reales. Quedan 2 pendientes explícitos: diagnosticar esa ausencia de
+          <code>PEAKMAG</code> (cerrado en Fase 62) y medir forma/duración de curva directamente contra
+          SNANA (en curso).</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">61</span>
+        <div class="step-body">
+          <p><strong>Notebook de verificación end-to-end, en el estilo del tutorial oficial de
+          LightCurveLynx (Rubin DP2), reproduce 2 de los 4 bugs reales con evidencia visual.</strong>
+          Cubre Fase 37/19-20 (<code>MAG_OFFSET</code>/<code>SALT2.INFO</code>) y Fase 56
+          (pico bolométrico) de punta a punta. Dos bugs propios del notebook encontrados y corregidos en
+          el camino (formato ancho vs. largo de curva de luz; un <code>NameError</code>), documentados
+          por transparencia. Selección de las "5 mejores curvas de ejemplo" corregida de <code>NOBS</code>
+          a <strong>S/N mediana</strong> tras comprobar que <code>NOBS</code> alto no implica curvas
+          legibles (S/N mediana real de esos objetos: apenas 0.02-0.76). No incluye Fase 13/51 (fuera de
+          alcance por tiempo). Termina con un callout honesto: los 4 bugs reales conocidos no explican la
+          brecha de sobre-detección abierta desde Fase 59.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">62</span>
+        <div class="step-body">
+          <p><strong>Resuelto el misterio del <code>PEAKMAG</code> faltante de Fase 60 — pero el fix real
+          apenas mueve el ratio de detección de las 3 clases afectadas.</strong> Causa raíz:
+          <code>OPTFLAG_T0SHIFT_PEAKMAG: 0</code> en el <code>SED.INFO</code> real de
+          <code>KN-BULLA19</code>/<code>PISN-STELLA-HECORE</code>/<code>PISN-STELLA-HYDROGENIC</code> —
+          las únicas 3 clases del catálogo donde SNANA declara explícitamente "no shiftear PEAKMAG a
+          T=0". Fase 56 había concluido "sin excepción" para las 12 clases SIMSED, pero solo auditó
+          <code>SED.INFO</code> bajo <code>plasticc_models/</code> — un hueco de ruta que dejó fuera
+          <code>elastic/model_libs_updates/</code> y el <code>SED.INFO</code> anidado de
+          <code>KN-BULLA19</code>. Confirma de punta a punta el hallazgo de Fase 60: para estas 3 clases
+          SNANA evalúa el brillo en la fase nativa 0 (tiempo de fusión/pre-explosión, sin luz definida) —
+          no es un defecto de la referencia.</p>
+          <p><code>load_simsed_templates_bolometric()</code> corregido para respetar ese flag, verificado
+          con un re-barrido real de 5 semillas × 3 clases: el ratio apenas se mueve (<code>KN-BULLA19</code>
+          4.000→<strong>3.951</strong>; <code>PISN-STELLA-HECORE</code> 1.907→<strong>1.856</strong>;
+          <code>PISN-STELLA-HYDROGENIC</code> 1.888→<strong>1.872</strong>) — a diferencia de Fase 59
+          (<code>trest_range</code>, +12% a +211%), este bug era real y el fix correcto, pero no era el
+          mecanismo detrás del ratio alto de estas 3 clases. Esa causa sigue siendo el hueco general de
+          detecciones tardías espurias de Fase 59/60.</p>
         </div>
       </li>
     </ol>
