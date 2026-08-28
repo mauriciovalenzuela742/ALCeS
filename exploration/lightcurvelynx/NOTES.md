@@ -7994,3 +7994,138 @@ completo.
 `_PHOT.FITS`, extiende Fase 39 a clases SIMSED, reusa `searcheff.py`/`host_extinction_mag_offset()` sin
 reimplementar. Corrido interactivamente en NLHPC (censo completo, 73 objetos reales, 19.5s -- trivial,
 no necesitó `sbatch`). `NOTES.md`: esta entrada.
+
+## Fase 64 -- causa raíz real, validada época a época contra el ground truth de SNANA: el trigger
+reimplementado de este proyecto (Fase 4, usado en TODAS las mediciones desde entonces) calcula el SNR
+sobre el flujo OBSERVADO ruidoso, cuando SNANA real lo calcula sobre el flujo VERDADERO sin ruido -- una
+diferencia que sobre-estima la tasa de detección por época en +17% relativo, y que probablemente explica
+una fracción sustancial del hueco de sobre-detección catalogado desde Fase 46/59
+
+### Motivación
+
+Fase 63 dejó un candidato abierto y sin confirmar: el control (aplicar el trigger reimplementado de
+este proyecto al flujo 100% REAL de SNANA) dio una ventana de detección ~2.6x más ancha que la real
+(373 vs. 143 días), sugiriendo que el trigger reimplementado le falta alguna restricción real que SNANA
+sí aplica. Se investigó con un agente de lectura del código C real de SNANA en NLHPC
+(`~/github/SNANA_src/src/`, versión real `v12_02-66-g2f0773e3`, confirmada idéntica a la que generó los
+datos vía el header `SNANA_VERSION` del `_PHOT.FITS` real -- sin ambigüedad de versión).
+
+### Candidato 3 de Fase 60 (ventana de trigger más angosta que `GENRANGE_TREST`) -- REFUTADO con evidencia
+real
+
+Leído el loop completo del trigger real (`sntools_trigger.c:2176-2334`, función
+`gen_SEARCHEFF_PIPELINE()`): no hay ningún recorte adicional de MJD/Trest más allá de
+`GENRANGE_TREST`. El único agrupamiento temporal real es `TIME_SINGLE_DETECT = NEWMJD_DIF = 0.007` días
+(`snlc_sim.c:7462`/`:849`) -- exactamente lo que este proyecto ya implementa (`group_into_epochs()`,
+Fase 4). `MJD_DETECT_FIRST`/`MJD_DETECT_LAST` se llenan en el MISMO loop y con el MISMO `detectFlag` que
+decide el trigger (`sntools_trigger.c:2274-2281`), sin restricción de ventana ni relación con el pico --
+son perfectamente comparables con lo que calcula la reimplementación. El hueco de 373 vs. 143 días NO es
+un artefacto de definición de columna: es un hueco real de criterio de detección.
+
+### La causa real: SNANA calcula el SNR del trigger sobre el flujo VERDADERO, no sobre el observado
+
+Cita decisiva, `snlc_sim.c:24495-24497` (dentro de `LOAD_SEARCHEFF_DATA()`):
+```c
+SNR = SNR_CALC ;
+// for SDSS, continue using wrong SNR based on measured flux
+// so that the spec-efficiency function is still correct.
+if ( strcmp(GENLC.SURVEY_NAME,"SDSS") == 0 ) { SNR = SNR_OBS; }
+```
+El propio comentario de Kessler (autor de SNANA) llama **"wrong SNR"** al SNR basado en el flujo medido
+(ruidoso) -- SNANA real lo usa SOLO para SDSS por retrocompatibilidad. Para LSST usa `SNR_CALC`, que
+viene de `fluxsn_pe = 10^(0.4*(zpt-genmag))*ccdgain` (`snlc_sim.c:27572-27573`) -- `genmag` es
+`GENLC.genmag_obs[epoch]`, **la magnitud verdadera del modelo, ANTES de cualquier realización de
+ruido** -- dividido por el mismo presupuesto de ruido total (`SNR_CALC_SZT`, `:27683`). El flujo
+reimplementado por este proyecto en `searcheff.py` (`snr = FLUXCAL/FLUXCALERR`, ambos observados/con
+ruido) es exactamente el "wrong SNR" (`SNR_OBS`) que SNANA real evita para LSST.
+
+**Mecanismo físico**: una época lejos del pico donde el modelo predice flujo verdadero ≈0 tiene
+`SNR_CALC≈0` -> eficiencia real EXACTAMENTE 0 (la curva real arranca en `ABS(SNR):0.00 -> 0`),
+probabilidad de detección real CERO sin importar cuántas miles de épocas haya. La reimplementación
+actual, en cambio, calcula el SNR sobre el flujo YA CON RUIDO -- en esas mismas épocas de flujo
+verdadero nulo, el flujo observado es puro ruido Gaussiano, y `|ruido/sigma|` cruza el umbral real
+(SNR=3) por puro azar con probabilidad no-cero. Con miles de épocas de flujo nulo por objeto (clases de
+`GENRANGE_TREST` ancho), esa probabilidad chica se acumula y genera detecciones espurias tardías --
+exactamente el patrón ya documentado en Fase 59 (35.5% de triggers de `CaRT` a más de 100 días
+post-pico, con SNR NO más marginal que los cercanos al pico -- consistente con ser ruido cruzando el
+umbral, no señal real marginal).
+
+### Validación real, época a época, sin correr SNANA de nuevo
+
+Hallazgo operativo del agente: el `_PHOT.FITS` real trae la columna `PHOTFLAG`, con el bit `4096`
+(`PHOTFLAG_DETECT`, confirmado en `LSST_SEARCHEFF_PIPELINE.DAT`/`sntools_trigger.c:308-313`/
+`snlc_sim.c:25411-25416`) marcando EXACTAMENTE qué épocas reales SNANA detectó -- ground truth por
+época, disponible offline, sin ejecutar nada. Verificado directo en el `_PHOT.FITS` real de
+`ILOT-MOSFIT` (493.722 filas, 73 objetos): valores reales `{0, 4096, 6144}` (6144=4096+2048, ambos bits
+DETECT+TRIGGER en la misma época).
+
+Se comparó, sobre las 493.722 épocas reales de los 73 objetos:
+- **SNR_VIEJO** (el que usa `searcheff.py` hoy): `|FLUXCAL_real/FLUXCALERR_real|`.
+- **SNR_NUEVO** (el que predicen los hallazgos de arriba): `flux_verdadero(SIM_MAGOBS, ZP=31.4)/FLUXCALERR_real`,
+  con `flux_verdadero=0` donde `SIM_MAGOBS` es el sentinel real de "sin flujo" (`>=90`, `MAG_ZEROFLUX=99`
+  real de `genmag_SIMSED.c:1623`).
+
+| métrica | valor |
+|---|---:|
+| tasa de detección real (`PHOTFLAG&4096`, 493.722 épocas) | **3.8125%** |
+| entre épocas de flujo verdadero ≈0 (52.822, 10.7% del total): detectadas reales | **0.0000%** |
+| ... con SNR_VIEJO>3 (oportunidad espuria) | 0.3597% (190 épocas), eficiencia media `0.00020` |
+| ... con SNR_NUEVO>3 | **0.0000%**, eficiencia media `0.00000` |
+| tasa de detección simulada (1 sorteo MC, misma semilla) con SNR_VIEJO | 4.4641% (**+17.1%** relativo vs. real) |
+| tasa de detección simulada (1 sorteo MC, misma semilla) con SNR_NUEVO | **3.8141%** (**+0.04%** relativo vs. real -- prácticamente exacto) |
+
+La fórmula nueva reproduce la tasa de detección real de SNANA casi exactamente (diferencia de 0.04% vs.
++17.1% de la fórmula que usa el proyecto hoy) -- validación directa, no solo consistente con la
+hipótesis.
+
+### Factibilidad real de aplicar el fix a la producción de LightCurveLynx (no solo a datos reales de SNANA)
+
+`simulate_lightcurves()` de LightCurveLynx **ya calcula y descarta** un flujo sin ruido por época --
+confirmado leyendo el código instalado real (`lightcurvelynx/simulate.py:376-506`): cada objeto nested
+trae columnas `"flux"` (observado, con ruido) Y `"flux_perfect"` (verdadero, sin ruido) por época.
+`run_simsed_poc.py::main()` hoy selecciona solo `["SNID","MJD","FLT","FLUXCAL","FLUXCALERR"]` al aplanar
+(línea ~908), descartando `flux_perfect` -- el fix es viable sin cambios estructurales grandes: retener
+esa columna y usarla en `searcheff.py::apply_detection_efficiency()` en vez de `FLUXCAL`.
+
+### Fórmula exacta para el fix (derivación real, citas en `snlc_sim.c`)
+
+```
+Npe_over_FLUXCAL = 10^(0.4*(zpt - ZP_FLUXCAL)) * ccdgain     (:27559-27561)
+fluxsn_pe        = 10^(0.4*(zpt - genmag)) * ccdgain          (:27572-27573)
+=> fluxsn_pe / Npe_over_FLUXCAL = 10^(-0.4*(genmag - ZP_FLUXCAL))   -- FLUXCAL verdadero
+SNR_CALC = fluxsn_pe / sqrt(SQSIG_FINAL_DATA)                 (:27683)
+```
+`ZP_FLUXCAL=31.4` es una constante real de este proyecto (`MAG_AB_ZP_NJY` en `run_simsed_poc.py`,
+misma referencia AB de nanoJansky) -- para LCL, `flux_perfect` YA está en esa escala física (nJy), así
+que `SNR_CALC_lcl ≈ flux_perfect/FLUXCALERR` sin conversión adicional. Aproximación de primer orden, no
+exacta: `FLUXCALERR` real incluye un término `sqerr_ran` post-hoc (`snlc_sim.c:28291-28302`) que el
+denominador de `SNR_CALC` no tiene -- despreciable lejos del pico (que es donde importa el mecanismo),
+no cuantificado cerca del pico en esta fase.
+
+### Lo que NO se confirma todavía (honesto, no bloqueante para documentar el hallazgo)
+
+No se midió cuánto de la brecha catalogada en Fase 59 (`2.895x -> 5.113x`, 13 clases) se cierra con este
+fix -- el +17% relativo es por ÉPOCA, no por objeto (el trigger real exige ≥2 épocas, así que el efecto
+a nivel de objeto podría amplificarse o atenuarse, no es una extrapolación directa). Solo se validó
+`ILOT-MOSFIT`; otras clases con flujo verdadero que nunca cae a ~0 dentro de `GENRANGE_TREST` podrían
+verse menos afectadas. No se implementó el fix en el pipeline de producción todavía -- eso queda para la
+próxima fase junto con un re-barrido para medir el impacto real.
+
+### Conclusión Fase 64
+
+Candidato 3 de Fase 60 (ventana de trigger más angosta) queda refutado con evidencia real de código C.
+En su lugar se encontró y validó -- época a época, contra el ground truth real de SNANA
+(`PHOTFLAG&4096`), sin necesidad de simular nada -- una causa mecánicamente distinta y potencialmente
+mucho más grande: el SNR que usa el trigger reimplementado de este proyecto desde la Fase 4 (usado en
+TODAS las mediciones de ratio de detección publicadas: 46, 48, 58, 59, 62, 63) está calculado sobre el
+flujo observado con ruido, cuando SNANA real explícitamente evita eso ("wrong SNR") y usa el flujo
+verdadero. La fórmula corregida reproduce la tasa de detección real de SNANA casi exactamente
+(diferencia de 0.04% vs. el +17.1% de la fórmula actual). El fix es viable en producción sin cambios
+estructurales (`flux_perfect` ya existe, solo se descarta). Este es el candidato más prometedor y mejor
+evidenciado de todo el proyecto para explicar el hueco de sobre-detección de Fase 59 -- pendiente:
+implementarlo en `searcheff.py`/`run_simsed_poc.py` y re-medir el catálogo.
+
+### Archivos de esta fase
+
+Ninguno versionado todavía (fase de diagnóstico puro) -- exploratorio en NLHPC, no borrado como
+evidencia: `validate_snr_calc.py` (`~/AUTOSIM/exploration/lightcurvelynx/`). `NOTES.md`: esta entrada.

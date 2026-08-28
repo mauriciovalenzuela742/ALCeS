@@ -1654,6 +1654,20 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <strong>Candidato prioritario para la próxima fase</strong>: leer <code>snlc_sim.c</code> real para
       confirmar el mecanismo — de confirmarse, podría explicar buena parte del hueco de sobre-detección
       de Fase 59 (<code>2.895x → 5.113x</code>) para todo el catálogo, no solo una clase.</p></div></li>
+      <li><span class="step-n">25</span><div class="step-body"><p><strong>✓ CONFIRMADO en Fase 64 — el
+      candidato de Fase 63 no era una ventana de trigger, era el SNR mal calculado.</strong> Lectura real
+      de <code>sntools_trigger.c</code>/<code>snlc_sim.c</code>: no existe ninguna ventana de búsqueda más
+      angosta que <code>GENRANGE_TREST</code> (candidato refutado). La causa real:
+      <code>snlc_sim.c:24495-24497</code> — SNANA calcula el SNR del trigger sobre el flujo VERDADERO sin
+      ruido para LSST, y llama explícitamente <strong>"wrong SNR"</strong> (comentario real del autor) al
+      SNR sobre flujo observado — exactamente lo que este proyecto calcula desde la Fase 4.
+      <strong>Validado época a época contra el <code>PHOTFLAG&amp;4096</code> real de SNANA</strong>
+      (ground truth offline, sin simular nada): la fórmula actual sobre-estima la tasa de detección real
+      en <code>+17.1%</code>; la fórmula corregida (usa <code>flux_perfect</code>, que
+      <code>simulate_lightcurves()</code> de LightCurveLynx ya calcula y descarta) la reproduce casi
+      exacta (<code>+0.04%</code>). <strong>El candidato mejor evidenciado de todo el proyecto</strong>
+      para el hueco de sobre-detección de Fase 59 — fix viable sin cambios estructurales grandes.
+      Pendiente: implementarlo en producción y re-medir el catálogo completo.</p></div></li>
     </ol>
     </div>
 
@@ -3334,6 +3348,35 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           hueco de sobre-detección de Fase 59 (<code>2.895x → 5.113x</code>) de forma unificada, sin
           depender de ningún detalle del modelo de brillo — próximo paso propuesto: leer
           <code>snlc_sim.c</code> real para confirmar o descartar.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">64</span>
+        <div class="step-body">
+          <p><strong>Causa raíz real, validada época a época contra el ground truth de SNANA: el trigger
+          reimplementado de este proyecto calcula el SNR sobre el flujo OBSERVADO con ruido, cuando SNANA
+          real lo calcula sobre el flujo VERDADERO sin ruido.</strong> El candidato de Fase 63 (ventana de
+          trigger más angosta que <code>GENRANGE_TREST</code>) queda <strong>refutado</strong> con lectura
+          real del código C (<code>sntools_trigger.c</code>: el trigger real no tiene ningún recorte
+          temporal adicional). En su lugar, <code>snlc_sim.c:24495-24497</code> real: SNANA usa
+          <code>SNR_CALC</code> (flujo verdadero del modelo, antes de cualquier ruido) para LSST, y llama
+          explícitamente <strong>"wrong SNR"</strong> (comentario real del propio autor de SNANA) al SNR
+          basado en flujo medido — exactamente lo que calcula <code>searcheff.py</code> de este proyecto
+          desde la Fase 4.</p>
+          <p><strong>Validado época a época, sin correr SNANA de nuevo</strong>: el <code>_PHOT.FITS</code>
+          real trae el bit <code>PHOTFLAG&amp;4096</code> marcando qué épocas SNANA detectó realmente —
+          ground truth offline. Sobre 493.722 épocas reales de <code>ILOT-MOSFIT</code> (73 objetos): la
+          fórmula que usa el proyecto hoy (SNR sobre flujo observado) da una tasa de detección simulada
+          <strong>+17.1%</strong> por encima de la real; la fórmula corregida (SNR sobre flujo verdadero,
+          ya disponible como <code>flux_perfect</code> en <code>simulate_lightcurves()</code> de
+          LightCurveLynx, hoy descartada en <code>run_simsed_poc.py</code>) reproduce la tasa real casi
+          exacta (<strong>+0.04%</strong>). Entre épocas de flujo verdadero ≈0 (10.7% del total): 0%
+          detectadas reales, 0% con la fórmula corregida, pero <strong>0.36%</strong> con la fórmula
+          actual — el mecanismo exacto de las detecciones tardías espurias de Fase 46/59.</p>
+          <p><strong>El candidato mejor evidenciado del proyecto hasta ahora</strong> para explicar el
+          hueco de sobre-detección de Fase 59 (<code>2.895x → 5.113x</code>) — fix viable sin cambios
+          estructurales grandes (la columna necesaria ya existe). Pendiente: implementarlo en
+          <code>searcheff.py</code>/<code>run_simsed_poc.py</code> y re-medir el catálogo completo.</p>
         </div>
       </li>
     </ol>
