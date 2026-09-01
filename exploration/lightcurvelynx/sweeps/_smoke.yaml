@@ -1,0 +1,27 @@
+# Fase 66: sweep trivial de validacion del sistema de automatizacion --
+# 1 clase liviana, ngentot chico, para probar compile/worker/launch/monitor/
+# aggregate de punta a punta sin gastar computo real. No usar para ciencia.
+sweep_name: "_smoke"
+description: "Sweep trivial de 1 corrida para validar el sistema de automatizacion (Fase 66)."
+
+seeds: [0]
+
+modes:
+  - wfd: false
+    simsed_t0_mode: "bolometric_peak"
+
+classes:
+  - SNIa-91bg
+
+ngentot_overrides:
+  SNIa-91bg: 30
+
+resources:
+  default: {mem: "8G", time: "00:15:00", cpus: 2}
+  overrides: {}
+
+max_concurrent:
+  default: 4
+  override: 1
+
+partition: "general"
