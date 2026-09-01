@@ -781,7 +781,7 @@ def build_source_model(cfg: dict, obs_table: OpSim, seed_base: int, t_start: flo
 
 
 def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 0, wfd: bool = False,
-         simsed_t0_mode: str = "bolometric_peak"):
+         simsed_t0_mode: str = "bolometric_peak", out_dir_override: Path | str | None = None):
     # Fase 57: default de PRODUCCION cambia a "bolometric_peak" (Fase 56) --
     # piloto real (CaRT, 1 semilla, la clase con mayor shift del catalogo)
     # midio impacto minimo en deteccion (167->164 de 1998 objetos, SNR
@@ -814,8 +814,19 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
     # (Fase 56) en produccion -- no pisa los directorios "raw" ya reportados,
     # para poder comparar antes de decidir si cambiar el default.
     t0_suffix = "_bolopeak" if simsed_t0_mode != "raw" else ""
-    out_dir = HERE / f"poc_output_{class_key.lower().replace('-', '')}{seed_suffix}{wfd_suffix}{t0_suffix}"
-    out_dir.mkdir(exist_ok=True)
+    # Fase 66: out_dir_override permite que un llamador externo (sweep_worker.py)
+    # elija el directorio de salida (nombrado por hash de corrida, ver
+    # sweep_hash.py) en vez del nombre posicional de siempre -- necesario
+    # porque ese nombre no incluye ngentot, asi que dos corridas con el
+    # mismo (class_key, seed_index, wfd, simsed_t0_mode) pero distinto
+    # ngentot_override podrian pisarse. Default None preserva el
+    # comportamiento exacto de siempre: el CLI interactivo (bloque
+    # __main__ mas abajo) nunca pasa este argumento.
+    if out_dir_override is not None:
+        out_dir = Path(out_dir_override)
+    else:
+        out_dir = HERE / f"poc_output_{class_key.lower().replace('-', '')}{seed_suffix}{wfd_suffix}{t0_suffix}"
+    out_dir.mkdir(parents=True, exist_ok=True)
     t_start = time.time()
 
     con = sqlite3.connect(str(OPSIM_DB))
