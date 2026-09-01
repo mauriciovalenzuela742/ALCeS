@@ -1,0 +1,4 @@
+# Fase 66: los scripts .sh deben mantener terminacion de linea LF siempre
+# (incluso si se editan/commitean desde Windows) -- CRLF en un shebang o en
+# medio de un script bash puede romperlo al correr en NLHPC (Linux).
+*.sh text eol=lf

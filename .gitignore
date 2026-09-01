@@ -14,3 +14,8 @@ build/
 nlhpc.alias.disabled
 paper/
 exploration/lightcurvelynx/poc_output*/**/*.parquet
+# Fase 66: salida de sweeps (nombrada por hash) y datasets publicados --
+# mismo criterio que build/ (arriba): la config declarativa (sweeps/*.yaml)
+# se versiona, los artefactos que genera no.
+exploration/lightcurvelynx/sweep_runs/
+exploration/lightcurvelynx/datasets/
