@@ -146,6 +146,20 @@ def read_json(path: Path | str):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def write_dataframe_atomic(path: Path | str, df) -> Path:
+    """Escribe un DataFrame a parquet de forma atomica (mismo patron que
+    write_json_atomic): to_parquet() al archivo temporal, luego
+    os.replace(). Usado por sweep_aggregate.py/sweep_publish_dataset.py --
+    no depende de pandas a nivel de modulo (import local) para que
+    sweep_hash.py siga siendo importable sin pandas instalado."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(path.name + f".tmp.{os.getpid()}")
+    df.to_parquet(tmp_path, index=False)
+    os.replace(tmp_path, path)
+    return path
+
+
 if __name__ == "__main__":
     # Fase 66, paso 1: validacion local pura, sin lightcurvelynx ni NLHPC.
     import tempfile
