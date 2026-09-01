@@ -8197,3 +8197,139 @@ semilla, ver Fase 59).
 `run_simsed_poc.py`: fix de Fase 64 implementado (`FLUXTRUE` retenida, `apply_detection_efficiency(...,
 flux_col="FLUXTRUE")`). `NOTES.md`: esta entrada. `fase65_jobs/*.sh` en NLHPC (exploratorio, no
 borrado): scripts piloto de `CaRT`/`ILOT-MOSFIT`, ninguno completó por el incidente de cuota.
+
+## Fase 66 -- sistema de automatización de barridos: hash de identificación real, deploy de un click, y
+punto de enganche para entrenamiento (pedido explícito del profesor), validado de punta a punta con
+jobs reales de SLURM
+
+### Motivación
+
+El profesor pidió tres cosas concretas para seguir la investigación: automatizar las simulaciones de
+LightCurveLynx (hasta ahora, 100% manual -- un `.sh` de `sbatch` escrito a mano por combinación
+clase/semilla, cada ronda de investigación, viviendo solo en NLHPC, nunca en git -- confirmado que un
+bug real recurrió por eso: `$([ N -ne 0 ] && echo _seedN)` bajo `set -e` rompía silenciosamente la
+semilla 0, ver Fase 62), identificarlas con un hash (hoy los resultados se nombran por texto plano
+derivado de parámetros -- `poc_output_{clase}{seed}{wfd}{modo}`, sin hash, corridas repetidas se
+pisan), y dejar un punto de enganche para ingestar los resultados a un entrenamiento de clasificador
+(no existe ningún precedente en el repo, confirmado con 3 agentes de exploración de solo lectura -- ni
+código, ni submódulo, ni formato definido).
+
+Exploración previa confirmó un dato clave: el **pipeline de producción** (`pipeline/`, SNANA real, NO
+se toca en esta fase) ya resolvió automatización y hash para las campañas de producción --
+`pipeline/campaign/compiler.py` (YAML → `.INPUT` + scripts sbatch), `pipeline/orchestrate/launcher.py`
+(somete a SLURM, registra `launch.json`), y `pipeline/provenance/tagger.py` (hashes SHA256 reales de
+config e input, manifiestos ya generados con datos reales -- `build/full_v5.3_10yrs/provenance/
+PROVENANCE_MANIFEST.json`, 80 corridas). El usuario confirmó automatizar el lado **LightCurveLynx**
+(`exploration/lightcurvelynx/`), reusando el *patrón* de esos módulos (leídos como referencia, nunca
+importados) sin tocar `pipeline/`, y dejar el punto de enganche de entrenamiento sin implementar el
+conector real (formato aún no definido por el profesor/equipo ALeRCE).
+
+### Arquitectura real construida
+
+Envuelve `run_simsed_poc.py::main()` sin reescribirlo -- un único cambio aditivo: parámetro
+`out_dir_override: Path | str | None = None` al final de la firma (default `None` preserva el
+comportamiento exacto de siempre; el CLI interactivo nunca lo pasa). `CLASS_CONFIGS` no se toca.
+
+7 archivos nuevos, todos en `exploration/lightcurvelynx/`:
+
+- **`sweep_hash.py`**: esquema de hash por corrida -- SHA256 sobre `{class_key, class_config
+  (canonicalizado), seed_index, wfd, simsed_t0_mode, ngentot, code_hash}`. `code_hash` = SHA256
+  combinado de `run_simsed_poc.py`+`searcheff.py`+`snana_params.py` -- detecta cambios de CÓDIGO real
+  (incluso sin commitear), algo que el `config_hash` de `pipeline/provenance` no cubre hoy (depende de
+  YAMLs congelados). Canonicalizador recursivo resuelve los casos reales no-JSON-limpios de
+  `CLASS_CONFIGS` (`Path`, tuplas, y `redcor_params["redcor"]` con **claves de dict que son tuplas** --
+  `{("stretch","color"): -0.656}`, confirmado real en `SNIa-91bg`). También define
+  `write_json_atomic()`/`write_dataframe_atomic()` (archivo temporal + `fsync` + `os.replace()`) --
+  respuesta directa a 3 incidentes reales de corrupción por escritura fallida de esta misma sesión
+  (Fase 65: un notebook quedó en 0 bytes, 5 `_PHOT.FITS` reales quedaron truncados). 5 self-tests
+  locales (determinismo, sensibilidad a cada campo incluido el caso de clave-tupla, escritura atómica
+  sin huérfanos) dan el mismo hash exacto en Windows local y en el venv real de NLHPC.
+- **`sweep_compile.py`**: YAML declarativo de sweep (`sweeps/*.yaml`) → `manifest.json` + un `.sbatch`
+  de **job array** por tier de recursos (no N scripts individuales -- diverge deliberadamente del
+  patrón de `pipeline/orchestrate/launcher.py`, ver justificación abajo). Cada clase con override de
+  recursos propio obtiene su propio tier (nombrado por `class_key`, no un "heavy" genérico compartido
+  -- evita mezclar 2 clases con perfiles de recursos distintos bajo el mismo array). Agrupa por tier
+  ANTES de asignar índice para que cada array tenga un rango contiguo. Rechaza clases desconocidas
+  contra `CLASS_CONFIGS` real y colisiones de `run_hash`. Advierte si algún `ngentot` supera el umbral
+  histórico del catálogo (5000).
+- **`sweep_worker.py`**: entry point de cada tarea del array -- resuelve su fila por
+  `SLURM_ARRAY_TASK_ID`, llama `main()` con `out_dir_override`, limpia `phot_df.parquet` en un
+  `finally` (best-effort), y escribe `runs/<hash>/run_hash.json` de forma atómica. **`manifest.json` es
+  de SOLO LECTURA para el worker** -- nunca lo reescribe, eliminando por diseño la clase de bug de
+  escritura concurrente que causó los 3 incidentes reales mencionados arriba (cada tarea del array
+  escribe *solo* su propio archivo, sin colisión posible entre tareas concurrentes). Detecta
+  explícitamente `OSError errno 122` (cupo de disco) como caso distinto de una excepción genérica.
+- **`sweep_launch.py`**: el "deploy de un click" -- somete todos los arrays de un sweep compilado a
+  SLURM (compila primero si hace falta), mismo patrón real de `pipeline/orchestrate/launcher.py`
+  (`subprocess.run(["sbatch",...])`, parseo de `"Submitted batch job (\d+)"`). Único otro escritor
+  autorizado de `manifest.json` (una vez, con los job IDs reales y `status=submitted` por corrida).
+- **`sweep_monitor.py`**: estado de todas las corridas de un sweep, en orden de autoridad:
+  `run_hash.json` real (si existe, autoritativo) → `phot_df.parquet` huérfano sin `run_hash.json` →
+  `INTERRUPTED` (mismo patrón real de los 3 nodos con `ExitCode 120:0` de Fase 65) → `sacct` real como
+  último recurso. Una sola consulta `sacct` por lote, no una por corrida.
+- **`sweep_aggregate.py`**: reemplaza el proceso manual de leer `summary.json` a mano fase a fase
+  (tablas de Fase 59/60/62/64) -- junta manifiesto + `summary.json` + `run_hash.json` de cada corrida
+  en un parquet consolidado con `run_hash` como columna real.
+- **`sweep_publish_dataset.py`**: punto de enganche para entrenamiento, **sin implementar el conector**
+  -- arma `datasets/<dataset_hash>/` con `manifest.json` (`ingestion_format: null` a propósito),
+  `consolidated.parquet` (tabla agregada por corrida, no fotometría cruda -- esa ya se borra por
+  diseño) y un `README.md` explícito. Determinístico: publicar el mismo conjunto de corridas dos veces
+  da el mismo `dataset_hash` (verificado real, no solo en teoría).
+- **`deploy_local.sh`** (secundario/opcional): corre en la máquina LOCAL del usuario -- automatiza el
+  `scp`+`ssh` manual que se ha hecho a mano toda la investigación (sincroniza código + dispara
+  `sweep_launch.py` remoto en un solo comando). Probado con `--dry-run` real desde Windows/Git Bash.
+
+### Decisión: job array de SLURM, un array por tier -- no N scripts individuales
+
+Diverge deliberadamente del patrón real de `pipeline/orchestrate/launcher.py` (confirmado leyendo ese
+archivo: hace un `sbatch` individual por combinación). Razón concreta: el bug real de escribir `.sh` a
+mano (semilla 0 rota por `set -e`, Fase 62) desaparece por construcción con un único script de array
+generado una vez; y el throttle nativo de SLURM (`--array=0-N%K`) da control directo sobre cuántas
+escrituras concurrentes de `phot_df.parquet` ocurren a la vez -- la causa real de los incidentes de
+cuota de Fases 8/59/65.
+
+### Validación real, no solo diseño -- cada pieza probada con SLURM real, no atajos interactivos
+
+- **Worker end-to-end**: job real `12315264` (1 tarea), `run_hash.json` con job IDs reales de SLURM,
+  `status=done`, `phot_df.parquet` limpiado, `head_df.parquet`/`summary.json`/`qc/` completos.
+- **Launch + monitor + aggregate**: job real `12315391`, monitor detectó `status=done` leyendo el
+  `run_hash.json` real que escribió el worker, aggregate armó un parquet de 1 fila con las 11 columnas
+  reales de `summary.json` intactas.
+- **Concurrencia y tier heavy**: sweep de 6 corridas reales (`SNIa-91bg`/`CaRT` x2 semillas +
+  `PISN-STELLA-HYDROGENIC` x2 semillas, jobs `12315494`/`12315495`), confirmado con `squeue` EN VIVO
+  mientras corría: nunca más de 2 tareas del tier `default` corriendo a la vez (`max_concurrent=2`),
+  nunca más de 1 del tier `PISN-STELLA-HYDROGENIC` (`max_concurrent=1`) -- el throttle real coincide
+  exacto con lo declarado en el YAML. 2 arrays generados con rangos de índice contiguos y correctos
+  (`0-3`, `4-5`), las 6 corridas terminaron `done`.
+- **`deploy_local.sh`**: sincronizó código real y disparó `sweep_launch.py --dry-run` remoto desde la
+  máquina Windows local, sin someter nada a SLURM (confirmado en el output real).
+- **Bug real encontrado y corregido en el camino**: `#SBATCH -o`/`-e` se resuelven por SLURM relativos
+  al directorio de submisión (`$SLURM_SUBMIT_DIR`), NO al `cd` que corre después dentro del script --
+  la primera versión de la plantilla asumía que `sbatch` se corría desde `exploration/lightcurvelynx/`
+  y falló (`venv/bin/activate: No such file or directory`) porque la convención real de este proyecto
+  (confirmada en todas las rondas anteriores) es correr `sbatch` desde `~/AUTOSIM`. Corregido con el
+  path completo en la plantilla y un comentario explicando por qué.
+
+### Qué NO se hizo, y por qué
+
+No se tocó ningún archivo bajo `pipeline/`. No se implementó el conector real de ingesta a
+entrenamiento -- el formato no está definido; solo queda el directorio `datasets/<hash>/` como punto
+de enganche explícito (`ingestion_format: null`). El flujo manual interactivo existente
+(`python3 run_simsed_poc.py <clase> [seed]`) sigue funcionando idéntico, sin cambios de comportamiento.
+
+### Conclusión Fase 66
+
+El sistema de automatización pedido por el profesor está completo y validado con jobs reales de SLURM
+en cada pieza, no solo diseñado: hash de identificación real y determinístico (sensible a config Y a
+código), deploy de un click (`sweep_launch.py`, con una variante local opcional vía `deploy_local.sh`),
+y un punto de enganche honesto para entrenamiento (sin inventar un formato que todavía no existe). La
+primera carga de trabajo real de este sistema es el re-barrido completo de Fase 65 (13 clases × 5
+semillas, 65 corridas) -- lanzado a continuación, ver Fase 67.
+
+### Archivos de esta fase
+
+Nuevos: `sweep_hash.py`, `sweep_compile.py`, `sweep_worker.py`, `sweep_launch.py`, `sweep_monitor.py`,
+`sweep_aggregate.py`, `sweep_publish_dataset.py`, `deploy_local.sh`, `sweeps/_smoke.yaml`,
+`sweeps/_smoke_multi.yaml`, `sweeps/fase65_rebarrido.yaml`. Modificados: `run_simsed_poc.py`
+(`out_dir_override`), `.gitignore` (`sweep_runs/`/`datasets/`), `.gitattributes` (nuevo, fuerza LF para
+`*.sh`). `NOTES.md`: esta entrada.

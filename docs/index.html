@@ -3405,6 +3405,37 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           el impacto real en la tabla de Fase 59 queda pendiente hasta liberar cupo.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">66</span>
+        <div class="step-body">
+          <p><strong>Sistema de automatización de barridos, pedido explícito del profesor: hash de
+          identificación real, deploy de un click, y punto de enganche para entrenamiento — validado de
+          punta a punta con jobs reales de SLURM, no solo diseñado.</strong> 7 scripts nuevos en
+          <code>exploration/lightcurvelynx/</code> (<code>sweep_hash.py</code>/<code>_compile.py</code>/
+          <code>_worker.py</code>/<code>_launch.py</code>/<code>_monitor.py</code>/
+          <code>_aggregate.py</code>/<code>_publish_dataset.py</code> + <code>deploy_local.sh</code>),
+          envolviendo <code>run_simsed_poc.py</code> sin reescribirlo (un único cambio aditivo:
+          <code>out_dir_override</code>). Reusa el <em>patrón</em> de
+          <code>pipeline/provenance</code>/<code>orchestrate</code> (ya resuelto para producción SNANA)
+          sin tocar <code>pipeline/</code>.</p>
+          <p>Hash por corrida: SHA256 de la config real de la clase + un <code>code_hash</code> (detecta
+          cambios de <em>código</em>, no solo de config, algo que el sistema de producción no cubre
+          hoy). Deploy de un click vía job array de SLURM (decisión deliberada, diverge del patrón de
+          producción de un <code>sbatch</code> por combinación — elimina por construcción el bug real de
+          escribir <code>.sh</code> a mano que rompió la semilla 0 en Fase 62, y da throttle nativo de
+          concurrencia). Escritura atómica en todo (responde directo a 3 incidentes reales de corrupción
+          de archivos de esta misma investigación, Fase 65). Punto de enganche para entrenamiento
+          (<code>datasets/&lt;hash&gt;/</code>) con <code>ingestion_format: null</code> a propósito — el
+          formato real de ALeRCE aún no está definido.</p>
+          <p>Cada pieza validada con SLURM real: worker end-to-end (job real, <code>run_hash.json</code>
+          con job IDs reales), throttle de concurrencia confirmado con <code>squeue</code> en vivo
+          (nunca más de lo declarado en el YAML corriendo a la vez), determinismo del
+          <code>dataset_hash</code> verificado (mismo conjunto de corridas → mismo hash, dos veces),
+          <code>deploy_local.sh</code> probado con <code>--dry-run</code> real desde Windows. Bug real
+          encontrado y corregido en el camino: <code>#SBATCH -o/-e</code> se resuelven relativos al
+          directorio de submisión, no al <code>cd</code> que corre después dentro del script.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

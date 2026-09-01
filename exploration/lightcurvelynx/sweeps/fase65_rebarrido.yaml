@@ -1,0 +1,53 @@
+# Fase 65/66: re-barrido real y completo del catalogo (13 clases x 5
+# semillas) para medir el impacto real del fix de Fase 64 (el trigger
+# real usa SNR_CALC -- flujo verdadero -- en vez de SNR_OBS -- flujo
+# observado con ruido, ver NOTES.md) contra la referencia ya publicada
+# de Fase 59 (ratio LCL/SNANA por clase, 2.895x promedio del catalogo).
+# Primera carga de trabajo real del sistema de automatizacion (Fase 66).
+sweep_name: "fase65_rebarrido"
+description: >-
+  Re-barrido completo del catalogo (13 clases x 5 semillas) tras el fix
+  de Fase 64 (SNR_CALC vs SNR_OBS en el trigger real de deteccion).
+  Cierra la pregunta pendiente de Fase 65 (bloqueada anteriormente por
+  cupo de disco). Compara contra la tabla real de Fase 59.
+
+seeds: [0, 1, 2, 3, 4]
+
+modes:
+  - wfd: false
+    simsed_t0_mode: "bolometric_peak"
+
+classes:
+  - SNIa-91bg
+  - KN-K17
+  - CaRT
+  - SLSN-I
+  - SNIax
+  - TDE-MOSFIT
+  - SNII-NMF
+  - ILOT-MOSFIT
+  - SNIIn-MOSFIT
+  - PISN-MOSFIT
+  - KN-BULLA19
+  - PISN-STELLA-HECORE
+  - PISN-STELLA-HYDROGENIC
+
+# vacio a proposito: usa el ngentot_lc real de CLASS_CONFIGS para cada
+# clase (2000 para 12 clases, 20000 para PISN-STELLA-HYDROGENIC) -- el
+# mismo valor real que uso Fase 59, para comparar manzanas con manzanas.
+ngentot_overrides: {}
+
+resources:
+  default: {mem: "16G", time: "02:00:00", cpus: 4}
+  overrides:
+    PISN-STELLA-HYDROGENIC: {mem: "128G", time: "06:00:00", cpus: 8}
+
+# concurrencia moderada en el tier default (evita escrituras concurrentes
+# de muchos phot_df.parquet a la vez -- la causa real de los incidentes
+# de cuota de Fase 8/59/65); PISN-STELLA-HYDROGENIC solo (su
+# phot_df.parquet real ronda ~3.3GB, Fase 65).
+max_concurrent:
+  default: 4
+  override: 1
+
+partition: "general"
