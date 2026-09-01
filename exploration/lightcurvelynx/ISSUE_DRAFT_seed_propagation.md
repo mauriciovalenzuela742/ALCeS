@@ -1,8 +1,9 @@
 # Borrador de issue — lincc-frameworks/LightCurveLynx
 
 Redactado en Fase 19-20 (`NOTES.md`), evaluado (sin duplicados en el repo real, confirmado presente en
-`main` a la fecha de redacción), **no publicado** — a pedido explícito del usuario, queda guardado acá
-para publicarlo más adelante si se decide. No correr `gh issue create` sin confirmación explícita nueva.
+`main` a la fecha de redacción). **PUBLICADO** el 2026-09-01, con confirmación explícita del usuario,
+combinado en un solo issue junto con `ISSUE_DRAFT_add_effect_param_collision.md` e
+`ISSUE_DRAFT_sed_wavelength_range.md`: https://github.com/lincc-frameworks/lightcurvelynx/issues/955
 
 ## Título
 

@@ -1,9 +1,9 @@
 # Borrador de issue — lincc-frameworks/LightCurveLynx
 
-Redactado a partir de Fase 51 (`NOTES.md`), en el marco de una investigación de 59 fases comparando
-LightCurveLynx contra SNANA. **No publicado** — a pedido explícito del usuario, queda guardado acá
-para revisar con el profesor antes de decidir si se publica. No correr `gh issue create` sin
-confirmación explícita nueva.
+Redactado a partir de Fase 51 (`NOTES.md`), en el marco de una investigación de 59+ fases comparando
+LightCurveLynx contra SNANA. **PUBLICADO** el 2026-09-01, con confirmación explícita del usuario,
+combinado en un solo issue junto con `ISSUE_DRAFT_seed_propagation.md` e
+`ISSUE_DRAFT_sed_wavelength_range.md`: https://github.com/lincc-frameworks/lightcurvelynx/issues/955
 
 ## Contexto para quien revise esto (no forma parte del reporte en sí)
 
