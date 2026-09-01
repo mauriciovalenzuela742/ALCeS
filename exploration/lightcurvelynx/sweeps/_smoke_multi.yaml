@@ -1,0 +1,32 @@
+# Fase 66: sweep de validacion de concurrencia (throttle real de SLURM) y
+# tier "heavy" (2 arrays con rangos de indice correctos). No usar para
+# ciencia -- ngentot deliberadamente chico.
+sweep_name: "_smoke_multi"
+description: "Valida concurrencia (max_concurrent) y tier heavy con 2 clases + PISN-STELLA-HYDROGENIC."
+
+seeds: [0, 1]
+
+modes:
+  - wfd: false
+    simsed_t0_mode: "bolometric_peak"
+
+classes:
+  - SNIa-91bg
+  - CaRT
+  - PISN-STELLA-HYDROGENIC
+
+ngentot_overrides:
+  SNIa-91bg: 20
+  CaRT: 20
+  PISN-STELLA-HYDROGENIC: 20
+
+resources:
+  default: {mem: "8G", time: "00:15:00", cpus: 2}
+  overrides:
+    PISN-STELLA-HYDROGENIC: {mem: "32G", time: "00:20:00", cpus: 4}
+
+max_concurrent:
+  default: 2
+  override: 1
+
+partition: "general"
