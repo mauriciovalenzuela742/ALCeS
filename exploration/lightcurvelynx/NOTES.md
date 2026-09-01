@@ -8333,3 +8333,106 @@ Nuevos: `sweep_hash.py`, `sweep_compile.py`, `sweep_worker.py`, `sweep_launch.py
 `sweeps/_smoke_multi.yaml`, `sweeps/fase65_rebarrido.yaml`. Modificados: `run_simsed_poc.py`
 (`out_dir_override`), `.gitignore` (`sweep_runs/`/`datasets/`), `.gitattributes` (nuevo, fuerza LF para
 `*.sh`). `NOTES.md`: esta entrada.
+
+## Fase 67 -- el fix de Fase 64 (`SNR_CALC` real en vez de `SNR_OBS`) cierra casi por completo la
+brecha catálogo-completo: ratio promedio `5.113x -> 0.992x`, primera carga de trabajo real del sistema
+de automatización de Fase 66
+
+### Motivación
+
+Cierra la pregunta científica que quedó pendiente desde Fase 64/65: el trigger real de SNANA usa
+`SNR_CALC` (flujo verdadero) en vez de `SNR_OBS` (flujo observado con ruido) -- confirmado en Fase 64
+época a época contra `PHOTFLAG&4096` real -- pero el impacto de ese fix sobre la tabla catálogo-completo
+de Fase 59 (13 clases × 5 semillas, ratio promedio `5.113x` de sobre-detección LCL/SNANA) nunca se había
+medido: Fase 65 quedó bloqueada por cupo de disco real antes de poder correr un solo barrido completo.
+
+### Método
+
+Primera carga de trabajo real del sistema de automatización de Fase 66: `sweeps/fase65_rebarrido.yaml`
+(13 clases SIMSED × 5 semillas = 65 corridas, mismo `ngentot_lc` real que usó Fase 59 -- 2000 para 12
+clases, 20000 para `PISN-STELLA-HYDROGENIC` -- para comparar manzanas con manzanas) compilado y lanzado
+con `sweep_launch.py` (2 arrays: `12315817` tier `default`, 60 corridas, `max_concurrent=4`; `12315816`
+tier `PISN-STELLA-HYDROGENIC`, 5 corridas, `max_concurrent=1`).
+
+### Resultado real de la ejecución -- 65/65 corridas `done`, cero fallos
+
+Confirmado con `sacct` real (no supuesto): las 65 corridas terminaron `COMPLETED`, `ExitCode 0:0`, sin
+ningún `DISK_QUOTA_EXCEEDED` ni `INTERRUPTED`. Wall clock total: sometido `13:02:13`, tier `default`
+terminó `15:52:52` (~2h51min, throttle de 4 concurrentes sostenido de punta a punta), tier `heavy`
+terminó `16:44:38` (~3h42min desde el envío -- las 5 semillas de `PISN-STELLA-HYDROGENIC` corrieron
+estrictamente secuenciales, cada una arrancando en el segundo exacto en que terminaba la anterior,
+`42-43min` cada una -- **el throttle de `max_concurrent=1` declarado en el YAML se cumplió al 100%,
+confirmado con los timestamps reales de `sacct`, no solo observado en vivo como en la validación de
+Fase 66**). `sweep_monitor.py fase65_rebarrido` reporta `resumen: done=65` limpio. `sweep_aggregate.py`
+consolidó las 65 filas en `sweep_runs/fase65_rebarrido/aggregated_summary.parquet` sin intervención
+manual -- primera vez que esta investigación arma una tabla de resultados sin transcribir `summary.json`
+a mano.
+
+### Comparación real contra la tabla de Fase 59 (13 clases, detección media ± std sobre 5 semillas)
+
+| clase | detección Fase 67 (fix `SNR_CALC`) | SNANA% real (Fase 48) | ratio Fase 59 (`SNR_OBS`, bug) | ratio Fase 67 (`SNR_CALC`, fix) |
+|---|---:|---:|---:|---:|
+| `CaRT` | `0.95%±0.12` | 0.94% | 27.450 | **1.011** |
+| `SNIIn-MOSFIT` | `1.90%±0.31` | 2.12% | 9.231 | **0.896** |
+| `ILOT-MOSFIT` | `3.63%±0.26` | 4.30% | 7.091 | **0.844** |
+| `KN-BULLA19` | `6.94%±0.65` | 6.07% | 4.000 | **1.143** |
+| `KN-K17` | `5.20%±0.39` | 4.83% | 3.748 | **1.077** |
+| `SNIax` | `10.20%±1.18` | 10.08% | 2.832 | **1.012** |
+| `PISN-MOSFIT` | `25.23%±1.16` | 23.41% | 2.203 | **1.078** |
+| `PISN-STELLA-HECORE` | `21.32%±0.35` | 21.88% | 1.907 | **0.974** |
+| `PISN-STELLA-HYDROGENIC` | `24.55%±0.22` | 24.45% | 1.888 | **1.004** |
+| `SNII-NMF` | `17.21%±0.58` | 20.75% | 1.835 | **0.829** |
+| `SLSN-I` | `47.36%±1.27` | 46.64% | 1.487 | **1.015** |
+| `SNIa-91bg` | `43.28%±1.46` | 41.69% | 1.398 | **1.038** |
+| `TDE-MOSFIT` | `45.55%±1.45` | 46.58% | 1.397 | **0.978** |
+| **promedio (13 clases)** | | | **5.113** | **0.992** |
+
+(SNANA% real DDF-only, tabla de Fase 48 -- `SLSN-I`=46.64%/`ILOT-MOSFIT`=4.30% son los valores
+correctos ahí, distintos de los citados sin filtro DDF en Fase 43/49.)
+
+### Lectura -- confirma la hipótesis de Fase 64 al nivel más fuerte posible: catálogo completo, no solo
+época a época
+
+El ratio promedio del catálogo pasa de **`5.113x` (sobre-detección sistemática, 40%-2645% según la
+clase) a `0.992x`** (esencialmente sin sesgo sistemático) con un solo cambio de una línea (qué columna
+de flujo alimenta al trigger). El caso más extremo, `CaRT` (el peor de toda la investigación desde
+Fase 48), pasa de sobre-detectar **27.5x** a un ratio de **1.011x** -- coincide con SNANA casi al
+punto decimal. Ninguna de las 13 clases queda peor que un ±20% de desacuerdo (rango real
+`0.829x`-`1.143x`), contra el rango `1.397x`-`27.45x` de Fase 59 -- una reducción de más de un orden de
+magnitud en la dispersión del catálogo, no solo en el promedio.
+
+Esto confirma, al nivel de catálogo completo y no solo de una época individual (que es como se validó
+en Fase 64), que **el bug real detrás de la sobre-detección sistemática de LightCurveLynx frente a
+SNANA, documentada y perseguida desde Fase 5, era principalmente el trigger usando el flujo observado
+(con ruido) en vez del flujo verdadero** -- no los 3 bugs de la librería ya reportados en el issue #955
+(colisión de parámetro en `add_effect()`, `seed=` no propagada, rango de SED no verificado), que son
+reales pero secundarios frente a este efecto: ninguno de esos 3 se midió nunca contra la métrica
+agregada de 13 clases, y ahora se puede afirmar con evidencia real que no son la causa dominante del
+salto medido en Fase 58/59.
+
+### Honestidad del resultado -- no es un ajuste perfecto, y 3 clases invierten el signo del sesgo
+
+El fix no deja el catálogo en `1.000x` exacto por clase: `SNII-NMF` (`0.829x`), `ILOT-MOSFIT`
+(`0.844x`) y `SNIIn-MOSFIT` (`0.896x`) pasan de sobre-detectar a **sub-detectar** un 10-17% frente a
+SNANA -- un residuo real, no ruido (`std` de 5 semillas es `<1.2pp` en las 3). El resto del catálogo
+sobre-detecta levemente (`1.01x`-`1.14x`). No se investiga la causa de este residuo en esta fase --
+son 3 candidatas conocidas (`add_effect()`/`seed=`/rango SED del issue #955) que podrían explicar una
+fracción, pero confirmarlo requeriría aislar cada bug por separado contra estas 3 clases específicas,
+fuera del alcance de esta fase.
+
+### Conclusión Fase 67
+
+El re-barrido real y completo (65/65 corridas, cero fallos, primera carga de trabajo real del sistema
+de automatización de Fase 66) confirma que el fix de Fase 64 (`SNR_CALC` real en el trigger) es, con
+diferencia, el hallazgo más importante de toda esta investigación: reduce el desacuerdo catálogo-
+completo entre LightCurveLynx y SNANA de un factor `5.1x` sistemático a un `0.99x` esencialmente neutro,
+con toda clase dentro de ±20%. La tabla de referencia de Fase 59 queda oficialmente obsoleta y
+reemplazada por esta. El residuo real que queda (3 clases con sub-detección leve) es la pregunta
+abierta natural para continuar, no un blocker para reportar este resultado al profesor.
+
+### Archivos de esta fase
+
+`exploration/lightcurvelynx/sweep_runs/fase65_rebarrido/` (gitignorado, en NLHPC): `manifest.json`, 65
+`runs/<hash>/{run_hash.json,summary.json,head_df.parquet,qc/}`, `aggregated_summary.parquet`. `NOTES.md`:
+esta entrada. Jobs SLURM reales: `12315816` (tier heavy, 5 corridas), `12315817` (tier default, 60
+corridas).

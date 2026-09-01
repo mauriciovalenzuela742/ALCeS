@@ -3436,6 +3436,34 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           directorio de submisión, no al <code>cd</code> que corre después dentro del script.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">67</span>
+        <div class="step-body">
+          <p><strong>El fix de Fase 64 cierra casi por completo la brecha catálogo-completo: ratio
+          promedio de sobre-detección LCL/SNANA baja de <code>5.113x</code> a <code>0.992x</code>.</strong>
+          Primera carga de trabajo real del sistema de automatización de Fase 66: re-barrido de las 13
+          clases × 5 semillas de Fase 59 (65 corridas, mismo <code>ngentot_lc</code> real), lanzado con
+          <code>sweep_launch.py</code> (jobs SLURM reales <code>12315816</code>/<code>12315817</code>).
+          65/65 corridas <code>COMPLETED</code>, cero fallos, throttle de concurrencia confirmado al 100%
+          contra los timestamps reales de <code>sacct</code> (tier pesado estrictamente secuencial, tier
+          por defecto nunca más de 4 a la vez). <code>sweep_aggregate.py</code> consolidó el resultado sin
+          transcripción manual — primera vez en esta investigación.</p>
+          <p>El caso más extremo del catálogo, <code>CaRT</code> (peor ratio desde Fase 48, <code>27.5x</code>),
+          pasa a <code>1.011x</code> — coincide con SNANA casi al punto decimal. Las 13 clases quedan en
+          un rango <code>0.829x</code>–<code>1.143x</code> (antes <code>1.397x</code>–<code>27.45x</code>),
+          más de un orden de magnitud menos de dispersión. Esto confirma, a nivel de catálogo completo y
+          no solo época a época, que el trigger usando flujo observado en vez de flujo verdadero era la
+          causa dominante de la sobre-detección sistemática perseguida desde Fase 5 — no los 3 bugs de la
+          librería ya reportados en el <a href="https://github.com/lincc-frameworks/lightcurvelynx/issues/955"
+          target="_blank" rel="noopener">issue #955</a>, que son reales pero secundarios frente a este
+          efecto.</p>
+          <p>Resultado honesto, no un ajuste perfecto: 3 clases (<code>SNII-NMF</code> <code>0.829x</code>,
+          <code>ILOT-MOSFIT</code> <code>0.844x</code>, <code>SNIIn-MOSFIT</code> <code>0.896x</code>)
+          invierten el signo y quedan sub-detectando 10-17% — un residuo real (<code>std</code> &lt;1.2pp
+          en las 3), pregunta abierta para continuar. La tabla de referencia de Fase 59 queda obsoleta y
+          reemplazada por esta.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
