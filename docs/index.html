@@ -772,6 +772,59 @@
     color: var(--ink-faint);
   }
 
+  .ratio-compare {
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+
+  .ratio-compare-side {
+    flex: 1 1 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    text-align: center;
+  }
+
+  .ratio-compare-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+
+  .ratio-compare-value {
+    font-family: var(--font-mono);
+    font-size: 2.1rem;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ratio-compare-value.critical { color: var(--critical); }
+  .ratio-compare-value.good { color: var(--good); }
+
+  .ratio-compare-sub {
+    margin-top: 8px;
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+  }
+
+  .ratio-compare-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    font-size: 1.6rem;
+    color: var(--ink-faint);
+    padding: 0 4px;
+  }
+
   .ratio-chip {
     display: inline-block;
     font-family: var(--font-mono);
@@ -1338,7 +1391,7 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <code>exploration/lightcurvelynx/SINTESIS_hallazgos_y_brecha_abierta.md</code>.</p>
 
     <div class="callout accent" style="margin-top:20px;">
-      <span class="verdict-badge critical">Fase 59 — pregunta abierta, no resuelta</span>
+      <span class="verdict-badge critical">Fase 59 — se detecta una brecha grande</span>
       <p>Al corregir <code>GENRANGE_TREST</code> real (en vez del hardcode <code>-30/100</code>) para
       las 11 clases SIMSED que quedaban pendientes desde Fase 40/43, el ratio promedio de
       sobre-detección de 13 clases pasa de <strong>2.895x a 5.113x</strong> — casi el doble. Ninguna
@@ -1346,10 +1399,67 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       <code>+211%</code> (<code>CaRT</code>, de 8.8x a 27.5x). El hardcode angosto no era una
       aproximación neutral: contenía artificialmente la sobre-detección real. <strong>Ninguno de los
       4 bugs de arriba explica este salto</strong> — es una brecha nueva, sin mecanismo identificado
-      todavía. Las 13 clases ya están confirmadas con 5 semillas cada una
-      (<code>PISN-STELLA-HYDROGENIC</code>: <code>1.888x</code>, cifra final) — queda pendiente
-      decidir si esto cambia la conclusión de cualquier propuesta enviada hacia
-      LightCurveLynx/sncosmo.</p>
+      todavía en este punto de la investigación. <strong>Resuelta en Fase 64/67 — ver el resultado
+      justo abajo.</strong></p>
+    </div>
+
+    <div class="callout accent" style="margin-top:20px;">
+      <span class="verdict-badge">Fase 64/67 — brecha resuelta: la causa era el criterio de detección</span>
+      <p><strong>La causa real de la brecha de la Fase 59 no era ningún parámetro físico mal
+      configurado — era una diferencia de un paso en cómo cada simulador decide "esto se detectó".</strong>
+      SNANA decide si una supernova se detecta mirando su <strong>brillo real, sin ruido</strong>. La
+      versión anterior de nuestro código de LightCurveLynx decidía lo mismo mirando el
+      <strong>brillo ya con ruido de fondo mezclado</strong> — un criterio más permisivo, que deja
+      pasar como "detectadas" muchas observaciones que en realidad son demasiado tenues. Encontramos
+      esto leyendo línea por línea el código fuente real de SNANA (<code>snlc_sim.c</code>), que incluso
+      llama a la versión con ruido "la SNR incorrecta" en su propio comentario interno. Corregimos
+      nuestro código para que use el mismo criterio que SNANA (brillo real, sin ruido) y volvimos a
+      correr las 13 clases completas para medir el efecto real.</p>
+      <div class="ratio-compare">
+        <div class="ratio-compare-side">
+          <div class="ratio-compare-label">Antes (Fase 59)</div>
+          <div class="ratio-compare-value critical">5.11×</div>
+          <div class="ratio-compare-sub">más detecciones que SNANA, en promedio del catálogo</div>
+        </div>
+        <div class="ratio-compare-arrow">→</div>
+        <div class="ratio-compare-side">
+          <div class="ratio-compare-label">Ahora (Fase 64/67, criterio corregido)</div>
+          <div class="ratio-compare-value good">0.99×</div>
+          <div class="ratio-compare-sub">prácticamente igual a SNANA, sin sesgo sistemático</div>
+        </div>
+      </div>
+      <p>Confirmado con las 13 clases del catálogo, 5 simulaciones independientes cada una (65 en
+      total, todas terminadas sin errores):</p>
+      <div class="table-scroll">
+        <table class="ratio-compare-table">
+          <thead><tr><th>Clase</th><th>Antes (Fase 59)</th><th>Ahora (Fase 67)</th></tr></thead>
+          <tbody>
+            <tr><td><code>CaRT</code></td><td><span class="ratio-chip band-critical">27.45×</span></td><td><span class="ratio-chip band-good">1.01×</span></td></tr>
+            <tr><td><code>SNIIn-MOSFIT</code></td><td><span class="ratio-chip band-critical">9.23×</span></td><td><span class="ratio-chip band-good">0.90×</span></td></tr>
+            <tr><td><code>ILOT-MOSFIT</code></td><td><span class="ratio-chip band-critical">7.09×</span></td><td><span class="ratio-chip band-good">0.84×</span></td></tr>
+            <tr><td><code>KN-BULLA19</code></td><td><span class="ratio-chip band-warn">4.00×</span></td><td><span class="ratio-chip band-good">1.14×</span></td></tr>
+            <tr><td><code>KN-K17</code></td><td><span class="ratio-chip band-warn">3.75×</span></td><td><span class="ratio-chip band-good">1.08×</span></td></tr>
+            <tr><td><code>SNIax</code></td><td><span class="ratio-chip band-warn">2.83×</span></td><td><span class="ratio-chip band-good">1.01×</span></td></tr>
+            <tr><td><code>PISN-MOSFIT</code></td><td><span class="ratio-chip band-warn">2.20×</span></td><td><span class="ratio-chip band-good">1.08×</span></td></tr>
+            <tr><td><code>PISN-STELLA-HECORE</code></td><td><span class="ratio-chip band-good">1.91×</span></td><td><span class="ratio-chip band-good">0.97×</span></td></tr>
+            <tr><td><code>PISN-STELLA-HYDROGENIC</code></td><td><span class="ratio-chip band-good">1.89×</span></td><td><span class="ratio-chip band-good">1.00×</span></td></tr>
+            <tr><td><code>SNII-NMF</code></td><td><span class="ratio-chip band-good">1.84×</span></td><td><span class="ratio-chip band-good">0.83×</span></td></tr>
+            <tr><td><code>SLSN-I</code></td><td><span class="ratio-chip band-good">1.49×</span></td><td><span class="ratio-chip band-good">1.02×</span></td></tr>
+            <tr><td><code>SNIa-91bg</code></td><td><span class="ratio-chip band-good">1.40×</span></td><td><span class="ratio-chip band-good">1.04×</span></td></tr>
+            <tr><td><code>TDE-MOSFIT</code></td><td><span class="ratio-chip band-good">1.40×</span></td><td><span class="ratio-chip band-good">0.98×</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:12px;"><strong>Lectura honesta, no un resultado "perfecto":</strong> 3 clases
+      (<code>SNII-NMF</code>, <code>ILOT-MOSFIT</code>, <code>SNIIn-MOSFIT</code>) pasan de
+      sobre-detectar a <strong>sub-detectar un 10-17%</strong> frente a SNANA — un residuo real y
+      consistente entre simulaciones, no ruido estadístico. No se investigó todavía la causa puntual de
+      esas 3; es la pregunta natural para seguir. Aun así, este único cambio explica la enorme mayoría
+      de la sobre-detección perseguida desde el inicio del proyecto — más que los
+      3 bugs de la librería que ya reportamos al equipo de LightCurveLynx (ver arriba,
+      <a href="https://github.com/lincc-frameworks/lightcurvelynx/issues/955" target="_blank" rel="noopener">issue #955</a>), que resultaron ser reales pero secundarios frente
+      a este efecto. Detalle técnico completo en <code>exploration/lightcurvelynx/NOTES.md</code>,
+      Fases 64/65/67.</p>
     </div>
     </div>
 
