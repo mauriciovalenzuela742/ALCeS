@@ -4248,14 +4248,16 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
   function renderLclStats(records) {
     const n = records.length;
     const avg = records.reduce((s, r) => s + r.ratio_mean_5seeds, 0) / n;
-    const best = records[0];
-    const worst = records[records.length - 1];
+    const byCloseness = records.slice().sort((a, b) =>
+      Math.abs(a.ratio_mean_5seeds - 1) - Math.abs(b.ratio_mean_5seeds - 1));
+    const best = byCloseness[0];
+    const worst = byCloseness[byCloseness.length - 1];
     const statsEl = document.getElementById("lcl-stats");
     statsEl.innerHTML = [
       [`${n}`, "clases evaluadas (SIMSED/SALT2/NON1ASED)"],
       [`${avg.toFixed(2)}x`, "razón promedio LCL/SNANA (media de 5 semillas)"],
-      [`${best.ratio_mean_5seeds.toFixed(2)}x`, `mejor caso (${best.class})`],
-      [`${worst.ratio_mean_5seeds.toFixed(2)}x ± ${worst.ratio_std_5seeds.toFixed(2)}`, `peor caso (${worst.class})`],
+      [`${best.ratio_mean_5seeds.toFixed(2)}x`, `más cercano a SNANA (${best.class})`],
+      [`${worst.ratio_mean_5seeds.toFixed(2)}x ± ${worst.ratio_std_5seeds.toFixed(2)}`, `más alejado de SNANA (${worst.class})`],
     ].map(([n_, label]) => `
       <div class="lcl-stat"><div class="lcl-stat-n">${n_}</div><div class="lcl-stat-label">${label}</div></div>
     `).join("");
@@ -4317,7 +4319,7 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
     .then(r => r.json())
     .then(data => {
       LCL_DATA = data;
-      const records = data.records || [];
+      const records = (data.records || []).slice().sort((a, b) => a.ratio_mean_5seeds - b.ratio_mean_5seeds);
       lclSelected = records.length ? records[0].class : null;
       renderLclStats(records);
       renderLclTable(records);
