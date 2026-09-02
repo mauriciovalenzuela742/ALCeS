@@ -120,6 +120,113 @@ BAND_RANGES_OBS = {
     "i": (6600.0, 8440.0), "z": (7900.0, 9490.0), "Y": (8980.0, 10980.0),
 }
 
+# Fase 68: paleta Okabe-Ito (segura para daltonismo), misma que
+# verificacion_bugs_lightcurvelynx.ipynb -- reemplaza el colormap generico
+# tab10 que usa plot_lightcurves() por defecto (asigna color por ORDEN de
+# aparicion del filtro, no por banda). Ambas capitalizaciones de "y" porque
+# LightCurveLynx usa internamente minuscula pero este archivo ya normaliza a
+# "Y" en otras partes (ver FLT en main()).
+BAND_COLORS = {
+    "u": "#56B4E9", "g": "#009E73", "r": "#D55E00",
+    "i": "#E69F00", "z": "#CC79A7", "y": "#0072B2", "Y": "#0072B2",
+}
+
+
+def plot_notebook_style_lightcurves(source_model, lc, passband_group, detected_snids,
+                                     out_path, class_key: str, strategy: str, n_top: int = 5):
+    """Fase 68: mismo tipo de grafico, con el mismo codigo, que el notebook
+    oficial de LightCurveLynx (docs/notebooks/pre_executed/rubin_dp2.ipynb) --
+    no una recreacion aproximada: reusa literalmente `plot_lightcurves()`
+    (lightcurvelynx.utils.plotting) y `compute_single_noise_free_lightcurve()`
+    (lightcurvelynx.simulate), graficando flux_perfect (flujo verdadero, sin
+    ruido) con las barras de error reales superpuestas a la curva continua del
+    modelo, con la paleta BAND_COLORS de arriba (ver
+    verificacion_bugs_lightcurvelynx.ipynb, seccion 6, para el mismo patron y
+    la explicacion de por que las barras de error no son la dispersion de los
+    puntos).
+
+    Reemplaza SOLO el panel de curvas de luz del QC de
+    pipeline.postproc.qc (colores/estilo generico, no pensado para esta
+    comparacion) -- los otros 3 graficos (detecciones/magnitudes/redshift)
+    los sigue generando pipeline/ sin cambios, este archivo no lo toca.
+
+    "Mejor detectadas" = mayor S/N mediana (|flux_perfect|/fluxerr) entre los
+    objetos ya marcados como detectados por SEARCHEFF, con >=5 observaciones
+    reales y >=100 dias de cobertura (mismo criterio de calidad que el
+    notebook oficial) -- no simplemente los de mas observaciones, que pueden
+    tener S/N mediana casi nula (ver notebook, celda markdown de esta misma
+    figura).
+    """
+    import matplotlib.pyplot as plt
+    from lightcurvelynx.graph_state import GraphState
+    from lightcurvelynx.simulate import compute_single_noise_free_lightcurve
+    from lightcurvelynx.utils.plotting import plot_lightcurves
+
+    # pipeline.postproc.qc._setup_style() (ya corrido arriba, en la misma
+    # llamada a main()) muta plt.rcParams GLOBALMENTE al tema nocturno de
+    # produccion -- persiste para el resto del proceso de Python. Sin este
+    # reset, este grafico heredaria fondo oscuro/colores de esa mutacion en
+    # vez del fondo blanco real del notebook oficial (no toca pipeline/, solo
+    # revierte el estado global de matplotlib para ESTE grafico).
+    plt.rcdefaults()
+
+    detected_ids = set(detected_snids)
+    candidates = []
+    for idx in range(len(lc)):
+        row = lc.iloc[idx]
+        if str(int(row["id"])) not in detected_ids:
+            continue
+        current_lc = row["lightcurve"]
+        if current_lc is None or len(current_lc) == 0:
+            continue
+        lc_mjd = np.asarray(current_lc["mjd"], dtype=float)
+        if len(lc_mjd) < 5 or (np.max(lc_mjd) - np.min(lc_mjd)) < 100:
+            continue
+        lc_fluxerr = np.asarray(current_lc["fluxerr"], dtype=float)
+        valid_err = lc_fluxerr > 0
+        if not valid_err.any():
+            continue
+        lc_flux = np.asarray(current_lc["flux_perfect"], dtype=float)
+        median_snr = float(np.median(np.abs(lc_flux[valid_err]) / lc_fluxerr[valid_err]))
+        candidates.append((idx, len(current_lc), median_snr))
+    candidates.sort(key=lambda t: t[2], reverse=True)
+    top = candidates[:n_top]
+    if not top:
+        return False
+
+    ncols = min(3, len(top))
+    nrows = int(np.ceil(len(top) / ncols))
+    fig, axes = plt.subplots(nrows, ncols, figsize=(7.5 * ncols, 5 * nrows), squeeze=False)
+    flat_axes = axes.ravel()
+
+    for rank, (idx, nobs, snr) in enumerate(top):
+        row = lc.iloc[idx]
+        current_lc = row["lightcurve"]
+        lc_filters = np.asarray(current_lc["filter"], dtype=str)
+        lc_mjd = np.asarray(current_lc["mjd"], dtype=float)
+        lc_flux = np.asarray(current_lc["flux_perfect"], dtype=float)
+        lc_fluxerr = np.asarray(current_lc["fluxerr"], dtype=float)
+
+        noise_free = compute_single_noise_free_lightcurve(
+            source_model, GraphState.from_dict(row["params"]), passband_group,
+            rest_frame_phase_min=-50.0, rest_frame_phase_max=100.0, rest_frame_phase_step=0.5,
+        )
+        plot_lightcurves(
+            fluxes=lc_flux, times=lc_mjd, fluxerrs=lc_fluxerr, filters=lc_filters,
+            underlying_model=noise_free, colormap=BAND_COLORS, ax=flat_axes[rank],
+            title=(f"#{rank + 1}/{len(top)} SNID {int(row['id'])} (NOBS={nobs}, "
+                   f"S/N mediana={snr:.1f}, z={row['z']:.3f})"),
+        )
+
+    for extra_ax in flat_axes[len(top):]:
+        extra_ax.set_visible(False)
+
+    fig.suptitle(f"Curvas de luz mejor detectadas -- {class_key} ({strategy})", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    fig.savefig(out_path, dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    return True
+
 
 def restlambda_gate(z: float, filt: str, restlambda_range: tuple[float, float]) -> bool:
     """True si la banda `filt` a redshift `z` SI cabe dentro de
@@ -1015,6 +1122,17 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
             f"LightCurveLynx_{class_key}_{'WFD' if wfd else 'DDF'}_poc", dump_df=dump_df,
         )
         print(f"[{time.time()-t_start:.1f}s] QC generado: {list(paths.keys())}")
+        # Fase 68: reemplaza SOLO el panel de curvas de luz (paths["lightcurves"])
+        # con el estilo real del notebook oficial de LightCurveLynx
+        # (plot_lightcurves() + BAND_COLORS) -- no toca pipeline/, los otros 3
+        # graficos (detecciones/magnitudes/redshift) quedan igual que siempre.
+        if "lightcurves" in paths:
+            lc_ok = plot_notebook_style_lightcurves(
+                source_model, lc, passband_group, detected_snids, paths["lightcurves"],
+                class_key, "WFD" if wfd else "DDF",
+            )
+            print(f"[{time.time()-t_start:.1f}s] Fase 68: panel de curvas de luz "
+                  f"estilo notebook oficial {'regenerado' if lc_ok else 'omitido (sin candidatos)'}")
     else:
         print(f"[{time.time()-t_start:.1f}s] ! 0 objetos detectados, QC omitido")
     print(f"[{time.time()-t_start:.1f}s] TOTAL")

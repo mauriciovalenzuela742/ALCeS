@@ -8436,3 +8436,72 @@ abierta natural para continuar, no un blocker para reportar este resultado al pr
 `runs/<hash>/{run_hash.json,summary.json,head_df.parquet,qc/}`, `aggregated_summary.parquet`. `NOTES.md`:
 esta entrada. Jobs SLURM reales: `12315816` (tier heavy, 5 corridas), `12315817` (tier default, 60
 corridas).
+
+## Fase 68 -- el panel de curvas de luz del dashboard usaba un estilo generico, no el del notebook
+oficial de LightCurveLynx -- corregido y regenerado para las 13 clases SIMSED
+
+### Motivación
+
+El usuario notó que los gráficos de curvas de luz que se suben a la página de GitHub no se veían como
+los del notebook oficial de LightCurveLynx (colores por banda, barras de error reales sobre la curva
+continua del modelo). Investigado: el panel `lightcurves.png` de la sección 06 del dashboard se genera
+con `pipeline/postproc/qc.py::sample_lightcurves()` -- el mismo módulo compartido que arma el QC de
+producción SNANA (sección 03) -- que dibuja un panel genérico de fondo oscuro con marcadores `no det`
+para todos los puntos y colores propios, sin relación con el estilo real de la librería LightCurveLynx.
+El estilo real (usado en `verificacion_bugs_lightcurvelynx.ipynb`, Fase 60) es
+`plot_lightcurves()`/`compute_single_noise_free_lightcurve()` (`lightcurvelynx.utils.plotting`/
+`lightcurvelynx.simulate`) con la paleta `BAND_COLORS` Okabe-Ito ya definida en ese notebook.
+
+### Cambio real
+
+`run_simsed_poc.py`: nueva función `plot_notebook_style_lightcurves()` (con la misma constante
+`BAND_COLORS` del notebook) que, para los objetos ya marcados como detectados por SEARCHEFF con >=5
+observaciones reales y >=100 días de cobertura, selecciona las 5 de mayor S/N mediana
+(`|flux_perfect|/fluxerr`, mismo criterio de calidad que el notebook oficial -- NOBS alto no implica
+curva legible, ver Fase 60) y las grafica con `plot_lightcurves()` real, una por subplot, en una única
+figura de grilla. `main()` la llama justo después de `qc.run_all_qc()` y reemplaza únicamente
+`paths["lightcurves"]` -- los otros 3 gráficos (detecciones/magnitudes/redshift) los sigue generando
+`pipeline/postproc/qc.py` sin cambios; **no se tocó ningún archivo bajo `pipeline/`**.
+
+### Bug real encontrado y corregido en el camino: `qc.py` muta `plt.rcParams` globalmente
+
+Primera prueba real (`CaRT`, `ngentot_override=300`, interactivo en el login node): la función corrió
+sin errores, pero el gráfico salió con fondo oscuro y colores equivocados -- heredó el tema nocturno que
+`pipeline.postproc.qc._setup_style()` aplica vía `plt.rcParams.update({...})`, una mutación GLOBAL de
+matplotlib que persiste para el resto del proceso de Python (no se resetea sola). Corregido con
+`plt.rcdefaults()` al inicio de la función nueva -- revierte el estado global de matplotlib solo para
+este gráfico, sin tocar `pipeline/`. Segunda prueba real (`SNIa-91bg`, `ngentot_override=2000`, escala
+de producción real) confirmó el fix: fondo blanco, colores Okabe-Ito correctos, curvas limpias
+idénticas en estilo a `notebook_fig_example_lightcurve_*.png` (los PNG reales que generó
+`verificacion_bugs_lightcurvelynx.ipynb`).
+
+### Regeneración real de las 13 clases SIMSED
+
+`sweeps/fase68_lightcurves_notebook_style.yaml` (mismos parámetros reales que `fase65_rebarrido.yaml`,
+solo semilla 0) lanzado vía `sweep_launch.py` (jobs SLURM reales `12330278`/`12330279`) -- 13/13
+corridas `COMPLETED`, sin fallos. Solo se reemplazó el archivo `lightcurves.png` de cada clase en
+`docs/lcl_qc/<clase>/` (no `detections.png`/`magnitudes.png`/`redshift.png`, que ya estaban correctos y
+consistentes con la tabla desde Fase 67) -- verificados como PNG válidos antes de reemplazar.
+
+**Nota real, honesta, no bloqueante**: al comparar los conteos de detección de este re-barrido contra
+los ya publicados en Fase 67 (mismo `seed_index=0`, mismo `ngentot`, mismo código de simulación/
+detección), 12/13 clases coinciden exacto -- `SNII-NMF` difiere en 1 objeto (`342` vs `341`, `17.10%`
+vs `17.05%`, dentro del `std` de 5 semillas ya reportado). No se investigó la causa (probablemente
+orden de suma de punto flotante en un objeto justo en el umbral de detección, sensible a
+paralelización de BLAS/threads -- no confirmado); no cambia ninguna conclusión ni número publicado
+(se mantienen los valores originales de Fase 67 en la tabla). Queda como candidata a investigar si
+se repite en otra clase.
+
+### Conclusión Fase 68
+
+El panel de curvas de luz de las 13 clases SIMSED en el dashboard ahora usa el mismo código y estilo
+real que el notebook oficial de LightCurveLynx -- no una recreación aproximada. Confirma, de paso, que
+el hallazgo de Fase 67 no es un artefacto de visualización: las curvas mostradas son literalmente
+`flux_perfect` (el valor que alimenta el trigger corregido de Fase 64) con el ruido real superpuesto.
+
+### Archivos de esta fase
+
+`run_simsed_poc.py`: `BAND_COLORS`, `plot_notebook_style_lightcurves()`, llamada nueva en `main()`.
+`sweeps/fase68_lightcurves_notebook_style.yaml` (nuevo). `docs/lcl_qc/<clase>/lightcurves.png` (13
+archivos reemplazados) y `docs/lcl_qc/lcl_qc_index.json` (nota agregada, sin cambios numéricos).
+`NOTES.md`: esta entrada.

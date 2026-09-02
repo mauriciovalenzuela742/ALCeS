@@ -1,0 +1,48 @@
+# Fase 68: re-corre semilla 0 de las 13 clases SIMSED (mismos parametros
+# reales que fase65_rebarrido.yaml) solo para regenerar el QC -- en particular
+# el panel de curvas de luz, que ahora usa plot_lightcurves() real
+# (lightcurvelynx.utils.plotting) + la paleta BAND_COLORS Okabe-Ito, mismo
+# estilo que el notebook oficial de LightCurveLynx, en vez del panel generico
+# de pipeline.postproc.qc. Resultado deterministico: mismos conteos/ratios ya
+# publicados (mismo seed_base, mismo codigo de simulacion/deteccion) -- lo
+# unico nuevo es el panel de curvas de luz.
+sweep_name: "fase68_lightcurves_notebook_style"
+description: >-
+  Regenera el QC (detecciones/magnitudes/redshift/curvas de luz) de semilla 0
+  para las 13 clases SIMSED con el panel de curvas de luz ya corregido al
+  estilo del notebook oficial de LightCurveLynx (plot_lightcurves() +
+  BAND_COLORS Okabe-Ito, Fase 68). No cambia ningun numero ya publicado.
+
+seeds: [0]
+
+modes:
+  - wfd: false
+    simsed_t0_mode: "bolometric_peak"
+
+classes:
+  - SNIa-91bg
+  - KN-K17
+  - CaRT
+  - SLSN-I
+  - SNIax
+  - TDE-MOSFIT
+  - SNII-NMF
+  - ILOT-MOSFIT
+  - SNIIn-MOSFIT
+  - PISN-MOSFIT
+  - KN-BULLA19
+  - PISN-STELLA-HECORE
+  - PISN-STELLA-HYDROGENIC
+
+ngentot_overrides: {}
+
+resources:
+  default: {mem: "16G", time: "02:00:00", cpus: 4}
+  overrides:
+    PISN-STELLA-HYDROGENIC: {mem: "128G", time: "06:00:00", cpus: 8}
+
+max_concurrent:
+  default: 4
+  override: 1
+
+partition: "general"

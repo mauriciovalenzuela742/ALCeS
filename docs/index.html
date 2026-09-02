@@ -3574,6 +3574,32 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           reemplazada por esta.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">68</span>
+        <div class="step-body">
+          <p><strong>El panel de curvas de luz del dashboard usaba un estilo genérico, no el del
+          notebook oficial de LightCurveLynx — corregido y regenerado para las 13 clases SIMSED.</strong>
+          El gráfico <code>lightcurves.png</code> se generaba con
+          <code>pipeline/postproc/qc.py</code> (compartido con el QC de producción SNANA) — fondo
+          oscuro, marcadores genéricos, sin relación con la librería LightCurveLynx real. Reemplazado
+          por una función nueva en <code>run_simsed_poc.py</code> que usa
+          <code>plot_lightcurves()</code> real (<code>lightcurvelynx.utils.plotting</code>) con la
+          misma paleta Okabe-Ito ya definida en el notebook de verificación (Fase 60) — mismo código,
+          no una recreación aproximada. Solo reemplaza ese gráfico; los otros 3
+          (detecciones/magnitudes/redshift) y ningún archivo bajo <code>pipeline/</code> se tocaron.</p>
+          <p>Bug real encontrado en el camino: <code>pipeline/postproc/qc.py</code> muta
+          <code>plt.rcParams</code> globalmente (tema nocturno) y esa mutación persiste para el resto
+          del proceso de Python — el primer intento heredó ese fondo oscuro. Corregido con
+          <code>plt.rcdefaults()</code> antes de graficar. Validado con 2 corridas reales (<code>CaRT</code>
+          chico y <code>SNIa-91bg</code> a escala real) y regenerado para las 13 clases vía un sweep
+          real (<code>sweeps/fase68_lightcurves_notebook_style.yaml</code>, jobs
+          <code>12330278</code>/<code>12330279</code>, 13/13 <code>COMPLETED</code>).</p>
+          <p>Nota honesta: al comparar contra los conteos ya publicados de Fase 67 (mismo seed, mismo
+          código de detección), 12/13 clases coinciden exacto — <code>SNII-NMF</code> difiere en 1
+          objeto (<code>342</code> vs <code>341</code>, dentro del <code>std</code> de 5 semillas ya
+          reportado, sin cambiar ninguna conclusión). Candidata a investigar, no bloqueante.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
