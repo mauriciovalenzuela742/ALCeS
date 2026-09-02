@@ -83,6 +83,9 @@ from snana_params import (
 from searcheff import (
     parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency, object_level_detected,
 )
+# Fase 68/69: panel de curvas de luz estilo notebook oficial -- compartido con
+# run_simsed_poc.py/run_non1ased_poc.py (ver qc_lightcurves_notebook.py).
+from qc_lightcurves_notebook import plot_notebook_style_lightcurves
 
 HERE = Path(__file__).resolve().parent
 SNANA_HOME = Path("/home/mvalenzuela")
@@ -414,6 +417,15 @@ def main(seed_index: int = 0, wfd: bool = False):
         f"LightCurveLynx_SNIa_{'WFD' if wfd else 'DDF'}_poc", dump_df=dump_df,
     )
     print(f"[{time.time()-t_start:.1f}s] QC generado: {list(paths.keys())}")
+    # Fase 68/69: reemplaza SOLO el panel de curvas de luz con el estilo real
+    # del notebook oficial de LightCurveLynx -- no toca pipeline/.
+    if "lightcurves" in paths:
+        lc_ok = plot_notebook_style_lightcurves(
+            source, lc, passband_group, detected_snids, paths["lightcurves"],
+            "SNIa", "WFD" if wfd else "DDF",
+        )
+        print(f"[{time.time()-t_start:.1f}s] Fase 68/69: panel de curvas de luz "
+              f"estilo notebook oficial {'regenerado' if lc_ok else 'omitido (sin candidatos)'}")
 
     print(f"[{time.time()-t_start:.1f}s] TOTAL")
 

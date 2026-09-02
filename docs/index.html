@@ -3600,6 +3600,28 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           reportado, sin cambiar ninguna conclusión). Candidata a investigar, no bloqueante.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">69</span>
+        <div class="step-body">
+          <p><strong>Panel de curvas de luz extendido a las 19 clases del catálogo (antes solo 13) y
+          cambiado a 6 curvas seleccionadas por brillo real, no por S/N.</strong> Dos pedidos
+          explícitos del usuario: mostrar las 6 más luminosas de cada clase (antes 5, por S/N
+          mediana), y que el mismo formato se vea para todas las clases, no solo las SIMSED — las
+          otras 6 (<code>SNIa</code>/SALT2 y las 5 <code>NON1ASED</code>) seguían con el panel
+          genérico. <code>BAND_COLORS</code>/<code>plot_notebook_style_lightcurves()</code> se
+          movieron a un módulo compartido (<code>qc_lightcurves_notebook.py</code>) usado ahora por
+          los 3 scripts de producción (<code>run_simsed_poc.py</code>/<code>run_non1ased_poc.py</code>/
+          <code>run_snia_ddf_poc.py</code>) en vez de tenerlo copiado 3 veces.</p>
+          <p>Criterio de selección cambiado: antes S/N mediana con filtro de cobertura (≥5 obs, ≥100
+          días); ahora <strong>flujo pico verdadero</strong> (<code>max(|flux_perfect|)</code>) entre
+          los objetos ya detectados — <code>n_top</code> sube de 5 a 6 (grilla 2×3 exacta, sin panel
+          vacío). Las 19 clases regeneradas con corridas reales a escala de producción: 13 SIMSED vía
+          el mismo sweep de Fase 68 relanzado (jobs SLURM reales
+          <code>12347691</code>/<code>12347692</code>, 13/13 <code>COMPLETED</code>); las 6 restantes
+          (primera vez con este panel) directamente vía sus scripts, semilla 0. Todas verificadas como
+          PNG válidos antes de reemplazar. Ningún conteo ni ratio de las tablas cambia.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

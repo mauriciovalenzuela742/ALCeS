@@ -67,6 +67,9 @@ from snana_params import (
 from searcheff import (
     parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency, object_level_detected,
 )
+# Fase 68/69: panel de curvas de luz estilo notebook oficial -- compartido con
+# run_simsed_poc.py/run_snia_ddf_poc.py (ver qc_lightcurves_notebook.py).
+from qc_lightcurves_notebook import plot_notebook_style_lightcurves
 
 sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
 from pipeline.simlib.formatobs import format_obs  # noqa: E402
@@ -427,6 +430,15 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
             f"LightCurveLynx_{class_key}_NON1ASED_{'WFD' if wfd else 'DDF'}_poc", dump_df=dump_df,
         )
         print(f"[{time.time()-t_start:.1f}s] QC generado: {list(paths.keys())}")
+        # Fase 68/69: reemplaza SOLO el panel de curvas de luz con el estilo
+        # real del notebook oficial de LightCurveLynx -- no toca pipeline/.
+        if "lightcurves" in paths:
+            lc_ok = plot_notebook_style_lightcurves(
+                source_model, lc, passband_group, detected_snids, paths["lightcurves"],
+                f"{class_key} (NON1ASED)", "WFD" if wfd else "DDF",
+            )
+            print(f"[{time.time()-t_start:.1f}s] Fase 68/69: panel de curvas de luz "
+                  f"estilo notebook oficial {'regenerado' if lc_ok else 'omitido (sin candidatos)'}")
     else:
         print(f"[{time.time()-t_start:.1f}s] ! 0 objetos detectados, QC omitido")
     print(f"[{time.time()-t_start:.1f}s] TOTAL")

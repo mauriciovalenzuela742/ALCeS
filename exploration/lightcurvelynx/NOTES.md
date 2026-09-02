@@ -8505,3 +8505,58 @@ el hallazgo de Fase 67 no es un artefacto de visualización: las curvas mostrada
 `sweeps/fase68_lightcurves_notebook_style.yaml` (nuevo). `docs/lcl_qc/<clase>/lightcurves.png` (13
 archivos reemplazados) y `docs/lcl_qc/lcl_qc_index.json` (nota agregada, sin cambios numéricos).
 `NOTES.md`: esta entrada.
+
+## Fase 69 -- panel de curvas de luz extendido a las 19 clases del catálogo (antes solo las 13
+SIMSED) y cambiado a 6 curvas seleccionadas por brillo real, no por S/N
+
+### Motivación
+
+Dos pedidos explícitos del usuario sobre la Fase 68: (1) mostrar solo las 6 curvas de luz más
+luminosas de cada clase (antes 5, seleccionadas por S/N mediana), y (2) que el mismo formato se vea
+para **todas** las clases que se muestran en el dashboard, no solo las 13 SIMSED -- el panel
+`lightcurves.png` de las otras 6 clases (`SNIa`/SALT2 y las 5 `NON1ASED`) seguía usando el panel
+genérico de `pipeline/postproc/qc.py`.
+
+### Cambio real
+
+Refactor: `BAND_COLORS`/`plot_notebook_style_lightcurves()` se movieron de `run_simsed_poc.py` a un
+módulo nuevo y compartido, `qc_lightcurves_notebook.py` -- usado ahora por los 3 scripts de
+producción de esta investigación (`run_simsed_poc.py`, `run_non1ased_poc.py`, `run_snia_ddf_poc.py`)
+en vez de tenerlo copiado. Criterio de selección cambiado: antes S/N mediana entre objetos con >=5
+observaciones y >=100 días de cobertura (criterio de "legibilidad", igual al notebook oficial); ahora
+**flujo pico verdadero** (`max(|flux_perfect|)`, sin filtro de cobertura) entre los objetos ya
+detectados por SEARCHEFF -- las 6 curvas más luminosas, tal como se pidió. `n_top` sube de 5 a 6
+(encaja exacto en una grilla 2×3 sin panel vacío). El título de cada panel ahora muestra
+`flujo pico=... nJy` en vez de `S/N mediana=...`.
+
+### Regeneración real de las 19 clases
+
+**13 clases SIMSED**: re-lanzado el mismo sweep de Fase 68 (`fase68_lightcurves_notebook_style.yaml`,
+jobs SLURM reales `12347691`/`12347692`) -- 13/13 `COMPLETED`, sin fallos (nota: `sweep_launch.py`
+reusó el `manifest.json` ya existente de Fase 68 en vez de recompilar, así que los `run_hash` de los
+directorios no reflejan el `code_hash` real de esta fase -- inconsistencia de procedencia menor,
+aceptada porque el objetivo era solo regenerar imágenes, no una corrida científica trazada; el
+contenido real sí usa el código nuevo, verificado). Un intento de conexión SSH se cortó a mitad de las
+5 clases `NON1ASED` (`Connection reset by peer`) -- verificado con `ls` cuáles ya habían terminado
+(3/5) antes de relanzar solo las 2 restantes, sin perder trabajo ni duplicar innecesariamente.
+
+**6 clases restantes** (`SNIa` + 5 `NON1ASED`: `SNIa-91bg`, `SNIax`, `TDE`, `SLSN-I`,
+`KN-BULLA-BNS-M2COMP`): corridas reales a escala de producción (`ngentot` real de cada una, semilla 0)
+vía `run_snia_ddf_poc.py`/`run_non1ased_poc.py` directamente -- primera vez que estas 6 clases usan
+el panel de curvas de luz estilo notebook oficial (antes nunca lo habían tenido, ni con 5 paneles en
+Fase 68). Las 19 imágenes verificadas como PNG válidos antes de reemplazar.
+
+### Conclusión Fase 69
+
+Las 19 clases del catálogo (13 SIMSED + SNIa/SALT2 + 5 NON1ASED) muestran ahora el mismo panel real
+de curvas de luz -- 6 paneles, estilo `plot_lightcurves()` oficial, seleccionadas por brillo real, un
+único código compartido en vez de tres copias. Ningún conteo ni ratio de las tablas cambia.
+
+### Archivos de esta fase
+
+Nuevo: `qc_lightcurves_notebook.py` (`BAND_COLORS`/`plot_notebook_style_lightcurves()`, movido desde
+`run_simsed_poc.py`). Modificados: `run_simsed_poc.py` (importa del módulo compartido),
+`run_non1ased_poc.py`/`run_snia_ddf_poc.py` (llamada nueva tras `qc.run_all_qc()`).
+`docs/lcl_qc/<clase>/lightcurves.png` (19 archivos reemplazados/generados) y
+`docs/lcl_qc/lcl_qc_index.json` (nota agregada en las 19, sin cambios numéricos). `NOTES.md`: esta
+entrada.
