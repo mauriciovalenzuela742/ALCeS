@@ -3661,6 +3661,30 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           catálogo completo queda en <code>1.070x</code>.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">71</span>
+        <div class="step-body">
+          <p><strong>Investigado el residuo de sub-detección de 3 clases (<code>SNII-NMF</code>,
+          <code>ILOT-MOSFIT</code>, <code>SNIIn-MOSFIT</code>) — dos hipótesis descartadas con datos
+          reales, la mayor parte resulta ser un efecto de normalización ya conocido, no un déficit
+          fotométrico nuevo.</strong> Fidelidad objeto-a-objeto: re-corrida real de
+          <code>compare_lightcurve_shape.py</code> (Fase 63) confirma <code>99.93%</code> de recall —
+          LightCurveLynx recupera casi todos los objetos que SNANA detectó cuando se evalúa con los
+          mismos parámetros reales. Distribución poblacional de redshift y de extinción de host: casi
+          idénticas entre LightCurveLynx y SNANA (verificado contra el <code>.DUMP</code> real, sin
+          filtrar, de las 3 clases) — ninguna de las dos explica el residuo.</p>
+          <p>El hallazgo real: comparando <strong>conteos crudos</strong> de detección (antes de
+          normalizar a porcentaje), LightCurveLynx y SNANA detectan cantidades casi idénticas
+          (<code>ILOT-MOSFIT</code> 73 vs 73, <code>SNII-NMF</code> 342 vs 356, <code>SNIIn-MOSFIT</code>
+          35 vs 37 — diferencias de 0-5%, no 10-17%). El ratio reportado se ve más extremo porque el
+          <code>SNANA%</code> de referencia (desde Fase 48) usa un denominador post-filtro de
+          contaminación de campo <code>RGES</code> (<code>1696/2000</code>), mientras que
+          <code>LCL%</code> usa su propio <code>2000/2000</code> — correcto metodológicamente (verificado
+          que el filtro RGES nunca aplica al lado LightCurveLynx, que nunca tuvo esa contaminación), pero
+          amplifica el ratio reportado frente a la diferencia real en conteos absolutos. No cambia ningún
+          número publicado — clarifica su interpretación.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

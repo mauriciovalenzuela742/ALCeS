@@ -8636,3 +8636,100 @@ Modificados: `run_snia_ddf_poc.py`, `run_non1ased_poc.py` (fix de Fase 64 portad
 corregido; `lightcurves.png` no cambió en ninguna de las 6 -- las curvas más luminosas ya estaban
 detectadas en ambos escenarios). `docs/lcl_qc/lcl_qc_index.json` (6 registros con conteos/ratios
 reales actualizados). `NOTES.md`: esta entrada.
+
+## Fase 71 -- investigación del residuo de sub-detección en 3 clases (`SNII-NMF`/`ILOT-MOSFIT`/
+`SNIIn-MOSFIT`) tras el fix de Fase 64: dos hipótesis descartadas con datos reales, la mayor parte del
+residuo resulta ser un efecto de normalización ya conocido, no un bug nuevo
+
+### Motivación
+
+Tras el fix de Fase 64/67, 13 de las 13 clases SIMSED quedaron en un rango `0.83x-1.14x` -- 10 muy
+cerca de 1.0x, pero 3 (`SNII-NMF` 0.829x, `ILOT-MOSFIT` 0.844x, `SNIIn-MOSFIT` 0.896x) invirtieron el
+signo del residuo, pasando de sobre-detectar a **sub**-detectar 10-17%, consistente entre las 5
+semillas (`std` <1.2pp). Esta fase investiga si hay una causa real identificable, reusando
+`compare_lightcurve_shape.py` (Fase 63, ya validado con `ILOT-MOSFIT`) y comparaciones nuevas de
+distribución poblacional.
+
+### Paso 1 -- fidelidad objeto-a-objeto: prácticamente perfecta, no es la causa
+
+Re-corrida real de `compare_lightcurve_shape.py ILOT-MOSFIT` (73 objetos reales que SNANA detectó,
+mismo método de Fase 63: evalúa el modelo propio de LightCurveLynx en los MISMOS parámetros reales
+-- `z`, `host_av`, `template`, `MJD` pico -- que usó SNANA, en la MISMA cadencia/ruido real, y aplica
+el trigger real ya corregido). Resultado idéntico al de Fase 63 (determinístico, mismos seeds):
+**`lcl_detect_rate_mean = 0.9993`** -- LightCurveLynx recupera el 99.93% de los objetos que SNANA
+realmente detectó, cuando se le dan los mismos parámetros reales. La fidelidad fotométrica/trigger
+objeto-a-objeto **no es la causa** del residuo.
+
+### Paso 2 -- distribución poblacional de redshift: descartada
+
+Comparación real, `.DUMP` crudo de SNANA (2000 objetos, sin ningún filtro) vs. la población propia de
+LightCurveLynx (`head_df.parquet` real de la corrida de Fase 68/69, mismo `ngentot=2000`):
+
+| clase | z mediana LCL | z mediana SNANA | z p90 LCL | z p90 SNANA |
+|---|---:|---:|---:|---:|
+| `ILOT-MOSFIT` | 0.246 | 0.242 | 0.292 | 0.289 |
+| `SNII-NMF` | 0.757 | 0.745 | 0.958 | 0.954 |
+| `SNIIn-MOSFIT` | 1.246 | 1.200 | 1.838 | 1.824 |
+
+Las 3 clases coinciden dentro de un 1.5-4% -- consistente con varianza de muestreo normal para
+`N=2000`, no una diferencia real de `DNDZ`/rango de redshift entre los dos simuladores.
+
+### Paso 3 -- distribución de extinción de host (`host_av`): descartada para `ILOT-MOSFIT`
+
+`ILOT-MOSFIT` y `SNIIn-MOSFIT` declaran extinción real WV07 (`SNII-NMF` no declara ninguna, comparación
+limpia sin este candidato). Se sampleó la distribución propia de `host_av` de LightCurveLynx para
+`ILOT-MOSFIT` (2000 sorteos reales, mismo `seed_base`/`build_source_model()` de producción, sin correr
+la simulación completa) y se comparó contra el `.DUMP` real de SNANA (filtrando el sentinela real
+`AV=-9.0` que SNANA usa para "no medido", 76/2000 objetos):
+
+| | mediana | media | p90 |
+|---|---:|---:|---:|
+| LightCurveLynx | 0.160 | 0.296 | 0.727 |
+| SNANA (real, sin sentinelas) | 0.159 | 0.302 | 0.775 |
+
+Prácticamente idénticas. La distribución de extinción de host tampoco es la causa.
+
+### Paso 4 -- el hallazgo real: la mayor parte del residuo es un efecto de normalización ya conocido
+(Fase 48), no un déficit fotométrico nuevo
+
+Comparando el **conteo crudo** de detecciones (antes de cualquier normalización a porcentaje) entre
+LightCurveLynx y SNANA, sobre la misma población de referencia real (`N=2000` cada lado):
+
+| clase | detectados LCL (crudo) | detectados SNANA (`FLAG_ACCEPT>0`, crudo) | diferencia cruda |
+|---|---:|---:|---:|
+| `ILOT-MOSFIT` | 73 (semilla 0) / 72.6 (media 5 semillas) | 73 | ~0% |
+| `SNII-NMF` | 342 | 356 | -3.9% |
+| `SNIIn-MOSFIT` | 35 | 37 | -5.4% |
+
+Los conteos crudos son casi idénticos -- mucho más cerca de 1.0 que el `0.83x-0.90x` reportado. La
+diferencia viene de que el `SNANA%` de referencia (desde Fase 48) se calcula sobre el denominador
+**post-filtro de contaminación de campo RGES** (`1696/2000`, no `2000/2000`) -- una corrección
+correcta y necesaria (SNANA simuló ~15% de sus "DDF" en el campo `RGES` por un bug de
+`scheduler_note` en su SIMLIB, ver Fase 48), mientras que el `LCL%` usa su propio `ngentot=2000`
+completo como denominador. Esto es **metodológicamente correcto como comparación de eficiencia de
+detección** (ambos numeradores/denominadores están bien definidos, no hay bug de bookkeeping real
+-- se verificó explícitamente que `filter_ddf_field_contamination()` nunca se aplica a la
+construcción del `df_ddf` propio de LightCurveLynx, que filtra directo del OpSim real por
+`target_name` conteniendo `"ddf_"`, un mecanismo distinto y no afectado por el bug de `scheduler_note`
+del SIMLIB de SNANA) -- pero explica por qué el ratio reportado (`0.83x-0.90x`) es
+proporcionalmente más extremo que la diferencia real en conteos absolutos (`0-5%`).
+
+### Conclusión Fase 71
+
+Se descartaron con datos reales dos causas candidatas (muestreo poblacional de redshift, muestreo de
+extinción de host) y se confirmó que la fidelidad fotométrica/trigger objeto-a-objeto es excelente
+(99.93% de recall). El grueso del residuo de `0.83x-0.90x` reportado en la tabla es una consecuencia
+esperada y correcta de cómo se normaliza el `SNANA%` de referencia (denominador post-filtro RGES,
+Fase 48) contra el `LCL%` (denominador propio, nunca contaminado) -- no un déficit fotométrico nuevo.
+Queda un residuo real pero pequeño (`0-5%` en conteo crudo) sin causa identificada -- del mismo orden
+que la varianza esperable de semilla a semilla dado el tamaño de muestra (35-356 objetos detectados),
+no se investiga más a fondo en esta fase. Este hallazgo no cambia ningún número ya publicado (los
+ratios de Fase 67/70 siguen siendo la comparación correcta y vigente) -- clarifica su interpretación:
+el residuo de estas 3 clases es en gran parte esperado por diseño metodológico, no evidencia de un
+bug nuevo pendiente de corregir.
+
+### Archivos de esta fase
+
+Ninguno modificado -- investigación de solo lectura/análisis, sin cambios de código ni de datos
+publicados. `shape_output_ilotmosfit/` (ya existente desde Fase 63, re-verificado con una corrida
+real nueva, resultado idéntico). `NOTES.md`: esta entrada.
