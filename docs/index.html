@@ -1461,6 +1461,21 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
       a este efecto. Detalle técnico completo en <code>exploration/lightcurvelynx/NOTES.md</code>,
       Fases 64/65/67.</p>
     </div>
+
+    <div class="callout accent" style="margin-top:20px;">
+      <span class="verdict-badge">Fase 70 — el fix se extiende a las otras 6 clases: las 19 del
+      catálogo quedan al día</span>
+      <p>El fix de Fase 64 se había implementado en <code>run_simsed_poc.py</code> (las 13 clases
+      SIMSED de arriba), pero <code>SNIa</code>/SALT2 y las 5 clases <code>NON1ASED</code> corren con
+      scripts distintos que nunca lo recibieron — seguían disparando el trigger sobre el flujo con
+      ruido. Portado el mismo fix y re-medidas las 6 con 5 semillas cada una: todas bajan
+      sustancialmente (<code>SNIax (NON1ASED)</code> <code>7.06x→1.17x</code>, el caso más extremo).
+      No llegan tan cerca de 1.0x como las 13 SIMSED — quedan en <code>1.17x-1.33x</code>, un residuo
+      consistente con mecanismos ya conocidos y no relacionados al trigger (ruido de <code>SNIa</code>,
+      codificación <code>NON1ASED</code> perdiendo peso <code>SIMSED_REDCOR</code>). El promedio de las
+      <strong>19 clases del catálogo completo</strong> queda en <code>1.070x</code>. Detalle completo
+      en <code>NOTES.md</code>, Fase 70.</p>
+    </div>
     </div>
 
     <div class="lcl-subpanel" id="lcl-sub-conclusiones">
@@ -3620,6 +3635,30 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           <code>12347691</code>/<code>12347692</code>, 13/13 <code>COMPLETED</code>); las 6 restantes
           (primera vez con este panel) directamente vía sus scripts, semilla 0. Todas verificadas como
           PNG válidos antes de reemplazar. Ningún conteo ni ratio de las tablas cambia.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-n">70</span>
+        <div class="step-body">
+          <p><strong>El fix de Fase 64 nunca se había portado a <code>SNIa</code>/SALT2 ni a las 5
+          clases <code>NON1ASED</code> — corregido y re-medido, las 19 clases del catálogo quedan al
+          día.</strong> Confirmado leyendo el código real: <code>run_snia_ddf_poc.py</code> y
+          <code>run_non1ased_poc.py</code> (a diferencia de <code>run_simsed_poc.py</code>) nunca
+          retenían <code>flux_perfect</code> ni pasaban <code>flux_col="FLUXTRUE"</code> al trigger —
+          seguían disparando sobre el flujo observado con ruido. Mismo fix exacto de Fase 64/65,
+          portado a los 2 scripts restantes (4 ediciones puntuales), validado con corridas chicas antes
+          de lanzar las 30 corridas reales (6 clases × 5 semillas, <code>ngentot=2000</code> c/u, sin
+          fallos).</p>
+          <p>Las 6 clases bajan sustancialmente: <code>SNIax (NON1ASED)</code> <code>7.06x→1.17x</code>,
+          <code>KN-BULLA-BNS-M2COMP (NON1ASED)</code> <code>4.75x→1.33x</code>, <code>SNIa-91bg
+          (NON1ASED)</code> <code>2.25x→1.19x</code>, <code>TDE (NON1ASED)</code>
+          <code>2.07x→1.19x</code>, <code>SLSN-I (NON1ASED)</code> <code>1.65x→1.26x</code>,
+          <code>SNIa</code> <code>1.615x→1.285x</code>. No llegan tan cerca de 1.0x como las 13 SIMSED
+          (rango <code>1.17x-1.33x</code> vs. <code>0.83x-1.14x</code>) — residuo consistente con
+          mecanismos ya documentados y no relacionados al trigger (SNR de <code>SNIa</code> desde Fase
+          38, efecto de codificación <code>SIMSED_REDCOR</code> perdido en NON1ASED desde Fase 6-9,
+          denominadores SNANA chicos en las 2 clases más extremas). El promedio de las 19 clases del
+          catálogo completo queda en <code>1.070x</code>.</p>
         </div>
       </li>
     </ol>

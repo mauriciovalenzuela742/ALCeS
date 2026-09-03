@@ -337,6 +337,11 @@ def main(seed_index: int = 0, wfd: bool = False):
             phot_rows.append({
                 "SNID": snid, "MJD": obs["mjd"], "FLT": flt,
                 "FLUXCAL": obs["flux"], "FLUXCALERR": obs["fluxerr"],
+                # Fase 70: retiene flux_perfect (flujo verdadero, sin ruido) --
+                # mismo fix de Fase 64 que ya tiene run_simsed_poc.py, nunca
+                # portado aca. Necesario para que el trigger real use SNR_CALC
+                # (flujo verdadero/error) en vez de SNR_OBS (observado/error).
+                "FLUXTRUE": obs["flux_perfect"],
             })
 
     head_df = pd.DataFrame(head_rows)
@@ -362,8 +367,10 @@ def main(seed_index: int = 0, wfd: bool = False):
     # -- eficiencia de deteccion real (SEARCHEFF) --
     band_curves = parse_searcheff_pipeline(SEARCHEFF_PIPELINE_FILE)
     min_epochs = parse_pipeline_logic(SEARCHEFF_LOGIC_FILE)
+    # Fase 70: trigger real usa SNR_CALC (flujo verdadero/error), no SNR_OBS
+    # (observado/error) -- mismo fix de Fase 64, portado aca.
     detected_mask = apply_detection_efficiency(
-        phot_df, band_curves, seed=seed_base + 7,
+        phot_df, band_curves, flux_col="FLUXTRUE", seed=seed_base + 7,
     )
     phot_df["PHOTFLAG"] = np.where(detected_mask, 4096, 0)
     # Fase 4: agrupar en epocas reales (NEWMJD_DIF=0.007d) antes del trigger

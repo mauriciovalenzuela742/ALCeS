@@ -374,6 +374,11 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
             phot_rows.append({
                 "SNID": snid, "MJD": obs["mjd"], "FLT": flt,
                 "FLUXCAL": obs["flux"], "FLUXCALERR": obs["fluxerr"],
+                # Fase 70: retiene flux_perfect (flujo verdadero, sin ruido) --
+                # mismo fix de Fase 64 que ya tiene run_simsed_poc.py, nunca
+                # portado aca. Necesario para que el trigger real use SNR_CALC
+                # (flujo verdadero/error) en vez de SNR_OBS (observado/error).
+                "FLUXTRUE": obs["flux_perfect"],
             })
 
     head_df = pd.DataFrame(head_rows)
@@ -390,7 +395,11 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
 
     band_curves = parse_searcheff_pipeline(SEARCHEFF_PIPELINE_FILE)
     min_epochs = parse_pipeline_logic(SEARCHEFF_LOGIC_FILE)
-    detected_mask = apply_detection_efficiency(phot_df, band_curves, seed=seed_base + 7)
+    # Fase 70: trigger real usa SNR_CALC (flujo verdadero/error), no SNR_OBS
+    # (observado/error) -- mismo fix de Fase 64, portado aca.
+    detected_mask = apply_detection_efficiency(
+        phot_df, band_curves, flux_col="FLUXTRUE", seed=seed_base + 7,
+    )
     phot_df["PHOTFLAG"] = np.where(detected_mask, 4096, 0)
     detected_snids = object_level_detected(phot_df, min_epochs=min_epochs)
     print(f"[{time.time()-t_start:.1f}s] SEARCHEFF aplicado: {len(detected_snids)}/{len(head_df)} "

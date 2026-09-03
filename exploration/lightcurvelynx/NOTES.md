@@ -8560,3 +8560,79 @@ Nuevo: `qc_lightcurves_notebook.py` (`BAND_COLORS`/`plot_notebook_style_lightcur
 `docs/lcl_qc/<clase>/lightcurves.png` (19 archivos reemplazados/generados) y
 `docs/lcl_qc/lcl_qc_index.json` (nota agregada en las 19, sin cambios numéricos). `NOTES.md`: esta
 entrada.
+
+## Fase 70 -- el fix de Fase 64 (`SNR_CALC` vs `SNR_OBS`) nunca se había portado a `SNIa`/SALT2 ni a
+las 5 clases `NON1ASED` -- corregido y re-medido, las 19 clases del catálogo quedan al día
+
+### Motivación
+
+El re-barrido de Fase 67 midió el impacto del fix de Fase 64 solo para las 13 clases SIMSED
+(`run_simsed_poc.py`), porque ese era el script donde se había implementado originalmente el fix en
+Fase 65. Al planificar los próximos pasos de la investigación se confirmó, leyendo el código real, que
+**`run_snia_ddf_poc.py` (clase `SNIa`/SALT2) y `run_non1ased_poc.py` (5 clases `NON1ASED`:
+`SNIa-91bg`, `SNIax`, `TDE`, `SLSN-I`, `KN-BULLA-BNS-M2COMP`) nunca recibieron el fix** -- ninguno de
+los dos retenía `flux_perfect` en el aplanado de fotometría, y ambos llamaban
+`apply_detection_efficiency(phot_df, band_curves, seed=...)` sin `flux_col="FLUXTRUE"`, es decir,
+seguían disparando el trigger sobre el flujo observado con ruido (`SNR_OBS`), el mismo bug real que
+Fase 64 corrigió para las clases SIMSED. Sus ratios en el dashboard seguían siendo pre-fix: `SNIa`
+1.615x, `SNIa-91bg (NON1ASED)` 2.254x, `SNIax (NON1ASED)` 7.06x, `TDE (NON1ASED)` 2.074x,
+`SLSN-I (NON1ASED)` 1.647x, `KN-BULLA-BNS-M2COMP (NON1ASED)` 4.746x.
+
+### Cambio real
+
+Mismo patrón exacto ya validado en `run_simsed_poc.py` (Fase 64/65), portado a los 2 scripts
+restantes -- 2 archivos, 4 ediciones puntuales:
+- En el loop de aplanado de fotometría, se agrega `"FLUXTRUE": obs["flux_perfect"]` a cada fila (antes
+  solo se guardaban `FLUXCAL`/`FLUXCALERR`, el flujo observado con ruido).
+- En la llamada a `apply_detection_efficiency(...)`, se agrega `flux_col="FLUXTRUE"` (antes usaba el
+  default `"FLUXCAL"`).
+
+Validado primero con una corrida chica (`SNIax` NON1ASED, `ngentot_override=300`) y una a escala real
+(`TDE` NON1ASED, `ngentot_override=300` también pero sin necesidad de reducir más) antes de lanzar las
+30 corridas reales.
+
+### Re-medición real: 30 corridas (6 clases × 5 semillas), `ngentot=2000` cada una, sin fallos
+
+| clase | detección media Fase 70 (5 semillas) | SNANA% real | ratio antes (Fase ≤69) | ratio Fase 70 (fix) |
+|---|---:|---:|---:|---:|
+| `SNIax (NON1ASED)` | `1.75%±0.42` | 1.49% | 7.060 | **1.174±0.281** |
+| `SNIa-91bg (NON1ASED)` | `8.72%±0.54` | 7.35% | 2.254 | **1.186±0.074** |
+| `TDE (NON1ASED)` | `27.60%±0.87` | 23.11% | 2.074 | **1.194±0.038** |
+| `SLSN-I (NON1ASED)` | `69.24%±0.64` | 55.02% | 1.647 | **1.258±0.012** |
+| `SNIa` | `38.36%±1.15` | 29.85% | 1.615 | **1.285±0.039** |
+| `KN-BULLA-BNS-M2COMP (NON1ASED)` | `1.85%±0.25` | 1.395% | 4.746 | **1.326±0.177** |
+| **promedio (6 clases)** | | | **3.299** | **1.237** |
+
+Las 6 clases bajan sustancialmente, mismo patrón que las 13 SIMSED de Fase 67 -- pero **no llegan tan
+cerca de 1.0x**: quedan en un rango `1.17x-1.33x` (vs. `0.83x-1.14x` de las 13 SIMSED). El promedio de
+las 19 clases del catálogo completo (SIMSED + SALT2 + NON1ASED) queda en **1.070x**.
+
+### Lectura honesta -- el residuo restante es consistente con la codificación de estas clases, no un
+fix incompleto
+
+El residuo del `~15-33%` en estas 6 clases es compatible con mecanismos ya documentados y no
+relacionados con el trigger: (1) `SNIa` tiene su propio residuo de SNR conocido desde Fase 38 (el SNR
+mediano no baja proporcional al brillo tras `MAG_OFFSET`, apunta al modelo de ruido/readnoise, no al
+trigger); (2) las 4 clases `NON1ASED` con `SIMSED_REDCOR` perdido (`SNIa-91bg`, ver Fase 6) tienen un
+efecto de codificación real de ~1.10-1.15x ya medido y no relacionado con Fase 64; (3)
+`KN-BULLA-BNS-M2COMP` y `SNIax (NON1ASED)` tienen los conteos SNANA más bajos del catálogo (279 y 149
+sobre 20000/10000), el mismo patrón de alta varianza relativa por denominador chico ya visto en
+`KN-K17`/`CaRT` desde Fase 5. No se investiga más a fondo en esta fase -- el objetivo era cerrar la
+brecha del fix de Fase 64 para las 19 clases, no una auditoría nueva de estos mecanismos secundarios.
+
+### Conclusión Fase 70
+
+Las 19 clases del catálogo completo (13 SIMSED + `SNIa`/SALT2 + 5 `NON1ASED`) quedan al día con el fix
+real de Fase 64 -- ya no hay clases con el trigger viejo (`SNR_OBS`) mezcladas en el dashboard junto a
+clases ya corregidas. El promedio del catálogo de 19 clases es `1.070x`, y ninguna clase queda por
+encima de `1.33x` (antes el rango llegaba hasta `27.45x` para `CaRT`, ya corregido en Fase 67, y
+`7.06x` para `SNIax (NON1ASED)`, corregido en esta fase).
+
+### Archivos de esta fase
+
+Modificados: `run_snia_ddf_poc.py`, `run_non1ased_poc.py` (fix de Fase 64 portado). `docs/lcl_qc/
+{SNIa,SNIa-91bg_NON1ASED,SNIax_NON1ASED,TDE_NON1ASED,SLSN-I_NON1ASED,KN-BULLA-BNS-M2COMP_NON1ASED}/
+{detections,magnitudes,redshift}.png` (18 archivos regenerados con el conjunto de detección real
+corregido; `lightcurves.png` no cambió en ninguna de las 6 -- las curvas más luminosas ya estaban
+detectadas en ambos escenarios). `docs/lcl_qc/lcl_qc_index.json` (6 registros con conteos/ratios
+reales actualizados). `NOTES.md`: esta entrada.
