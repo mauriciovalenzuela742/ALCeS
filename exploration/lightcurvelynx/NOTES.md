@@ -8733,3 +8733,67 @@ bug nuevo pendiente de corregir.
 Ninguno modificado -- investigación de solo lectura/análisis, sin cambios de código ni de datos
 publicados. `shape_output_ilotmosfit/` (ya existente desde Fase 63, re-verificado con una corrida
 real nueva, resultado idéntico). `NOTES.md`: esta entrada.
+
+## Fase 73 -- endurece `exploration/lightcurvelynx/` para que el equipo pueda operarlo con confianza,
+sin tocar `pipeline/`; documenta y justifica la decisión de NO generalizar el sistema de sweeps
+
+### Motivación
+
+Con la brecha de detección cerrada (Fase 64-71) y el catálogo completo re-medido, cierra el ciclo de
+"poner esto en producción" pedido por el profesor: no como integración formal a `pipeline/` (fuera de
+alcance, confirmado con el usuario -- `pipeline/` no tiene ninguna abstracción de simulador, sería una
+reescritura de 5 módulos), sino endureciendo `exploration/lightcurvelynx/` para que alguien más que no
+haya vivido esta investigación pueda correrlo con confianza.
+
+### `HOWTO.md` actualizado
+
+Estaba desactualizado en dos frentes: (1) citaba "18 fases"/"19 fases" (van más de 70, y seguían
+creciendo -- número hardcodeado que se pudre solo); (2) **no mencionaba el sistema de automatización
+de barridos de Fase 66 en absoluto** -- solo documentaba el flujo manual de un `sbatch` por
+combinación (sección 5), pese a que ese sistema lleva 5 fases de uso real y validado (Fase
+66-69). Agregada sección `5-bis` con el flujo real de un click (`sweep_launch.py` →
+`sweep_monitor.py` → `sweep_aggregate.py` → `sweep_publish_dataset.py`), marcando explícitamente el
+smoke test (`sweeps/_smoke.yaml`) como paso obligatorio antes de un barrido real grande -- no
+opcional, la primera vez que se usa el sistema en una sesión nueva. Sincronizado a NLHPC (`scp`, el
+repo no vive como clon git ahí, mismo patrón de todo el proyecto).
+
+### Decisión: NO generalizar `sweep_compile.py`/`sweep_worker.py` a los 3 scripts de producción
+
+El plan de esta fase dejaba esto como opcional, a evaluar con el patrón real de las 6 clases restantes
+ya en la mano (Fase 70). Con ese patrón confirmado, la decisión es **no hacerlo, por ahora**:
+
+- Las 6 clases (`SNIa` + 5 `NON1ASED`) son un conjunto fijo y ya conocido, no uno que vaya a crecer
+  con el tiempo -- correrlas directo (mismo patrón ya usado en Fase 70) fue suficiente y no volvió a
+  fallar tras adaptarse al patrón de `nohup`/polling remoto para sobrevivir cortes de conexión SSH.
+- Generalizar el sistema de sweeps requeriría dos cambios reales no triviales: (1) agregar
+  `out_dir_override` a `run_non1ased_poc.py`/`run_snia_ddf_poc.py` (que hoy no lo tienen, confirmado
+  leyendo sus firmas de `main()` -- `run_snia_ddf_poc.py` ni siquiera recibe `class_key`, tiene una
+  sola clase); (2) construir una capa de despacho en `sweep_compile.py`/`sweep_worker.py` que sepa
+  cuál de los 3 scripts llamar según la clase. Trabajo real, con su propio riesgo de introducir bugs
+  nuevos en código ya validado, para un beneficio marginal ahora que el backfill de Fase 70 ya está
+  hecho.
+- Si en el futuro se necesita re-barrer estas 6 clases repetidamente (no solo una vez, como ahora),
+  vale la pena reconsiderar esta decisión -- queda documentada acá, no descartada para siempre.
+
+### `sweep_publish_dataset.py`/`datasets/<hash>/` -- sin cambios, como estaba planeado
+
+El punto de enganche para entrenamiento sigue con `ingestion_format: null` a propósito -- el formato
+real de ingesta de ALeRCE sigue sin definirse por el profesor/equipo, y no es una tarea que este
+proyecto pueda resolver desde este lado. No se tocó nada acá, confirmando lo ya construido en Fase 66
+sigue siendo la decisión correcta.
+
+### Conclusión Fase 73
+
+`exploration/lightcurvelynx/` queda con documentación al día (`HOWTO.md` refleja el sistema de
+automatización real, no solo el flujo manual histórico), una decisión explícita y justificada sobre
+el alcance del sistema de sweeps (no generalizado, por ahora), y sin deuda pendiente de esta ronda de
+"puesta en producción" -- cierra el plan de Fases 70-73. La investigación LightCurveLynx-vs-SNANA
+queda en un estado sólido: brecha de detección catálogo-completo cerrada y confirmada (19/19 clases),
+3/4 bugs de la librería publicados, 1 pendiente de decisión con el profesor, y un sistema de
+automatización real y documentado para seguir iterando.
+
+### Archivos de esta fase
+
+Modificado: `HOWTO.md` (sección `5-bis` nueva, conteos de fases desactualizados corregidos,
+sincronizado a NLHPC). `NOTES.md`: esta entrada. Sin cambios en `pipeline/`, `sweep_compile.py`,
+`sweep_worker.py`, ni `sweep_publish_dataset.py`.

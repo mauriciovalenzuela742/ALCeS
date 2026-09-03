@@ -131,6 +131,68 @@ dd if=/dev/zero of=~/.headroom_test bs=1M count=500        # prueba de escritura
 rm -f ~/.headroom_test
 ```
 
+## 5-bis. Cómo correr un barrido real (varias clases × varias semillas, un solo comando) —
+sistema de automatización de Fase 66
+
+La sección 5 corre **una** combinación clase/semilla por `sbatch`, a mano — sirve para depuración o
+una corrida puntual. Para un barrido real (varias clases, varias semillas, pensado para no repetir a
+mano el trabajo de escribir `.sh` — un bug real recurrió por eso, ver `NOTES.md` Fase 62), usar el
+sistema de `sweep_*.py`, construido específicamente para esto:
+
+```bash
+cd ~/AUTOSIM/exploration/lightcurvelynx
+module load python/3.12.3-legacy-skylake && source venv/bin/activate
+
+# 1. Probar el mecanismo con un sweep trivial ANTES de lanzar algo grande -- 1 clase liviana,
+#    ngentot chico, no toma más de unos minutos. Este paso NO es opcional la primera vez que se usa
+#    el sistema en una sesión nueva: confirma que el venv/código están sanos antes de comprometer
+#    horas de cómputo real.
+python3 sweep_launch.py sweeps/_smoke.yaml
+
+# 2. Monitorear (polling real contra sacct + run_hash.json de cada corrida, nunca asumir que
+#    terminó sin chequear)
+python3 sweep_monitor.py _smoke
+
+# 3. Una vez el smoke test da "resumen: done=N" sin fallos, escribir un YAML real (copiar
+#    sweeps/fase65_rebarrido.yaml como plantilla -- ya documenta cada campo) y lanzarlo igual:
+python3 sweep_launch.py sweeps/<mi_barrido>.yaml
+python3 sweep_monitor.py <mi_barrido>   # repetir hasta done=N
+
+# 4. Consolidar resultados (reemplaza transcribir summary.json a mano)
+python3 sweep_aggregate.py <mi_barrido>
+
+# 5. Opcional -- punto de enganche para un futuro conector de entrenamiento (formato de
+#    ingesta de ALeRCE aún no definido, ver NOTES.md Fase 66 -- este paso deja los datos listos,
+#    no implementa el conector real)
+python3 sweep_publish_dataset.py <mi_barrido>
+```
+
+Qué hace cada pieza (detalle completo, justificación de cada decisión de diseño, en `NOTES.md`
+Fase 66):
+
+- **Hash de identificación real**: cada corrida se identifica por un hash SHA256 (`sweep_hash.py`)
+  sobre su configuración *y* el código que la generó (`code_hash`) — dos corridas con los mismos
+  parámetros pero código distinto (aunque no esté commiteado) dan hashes distintos, así que nunca se
+  pisan resultados por accidente.
+- **Deploy de un click vía job array de SLURM**: `sweep_compile.py` (llamado automáticamente por
+  `sweep_launch.py` si el manifiesto no existe) genera un único script de array de SLURM por "tier"
+  de recursos (no un `.sh` por combinación) — el throttle de concurrencia (`--array=0-N%K`) se
+  controla con `max_concurrent` en el YAML, la defensa real contra los incidentes de cuota de disco
+  de Fases 8/59/65 (demasiadas escrituras de `phot_df.parquet` a la vez).
+- **`sweep_worker.py`** es el entry point real de cada tarea del array — nunca se corre a mano.
+- **`manifest.json` de solo lectura para los workers** — solo `sweep_compile.py`/`sweep_launch.py`
+  lo escriben; cada worker escribe únicamente su propio `runs/<hash>/run_hash.json`, sin colisión
+  posible entre tareas concurrentes.
+- **Salida por corrida**: `sweep_runs/<sweep>/runs/<hash>/` tiene la misma estructura que
+  `poc_output_*/` de la sección 6 (`head_df.parquet`/`phot_df.parquet`/`summary.json`/`qc/`) más
+  `run_hash.json` (metadatos de procedencia: job ID real de SLURM, timestamps, `code_hash`).
+  Gitignorado, igual que `poc_output_*/` — vive solo en NLHPC.
+- **Alcance real**: el sistema de sweeps está construido en torno a `run_simsed_poc.py::CLASS_CONFIGS`
+  (las 13 clases SIMSED). Las otras 6 clases del catálogo (`SNIa`/SALT2 vía
+  `run_snia_ddf_poc.py`, 5 `NON1ASED` vía `run_non1ased_poc.py`) todavía se corren directo con
+  `sbatch` (sección 5) o interactivo — no hay soporte de sweep para ellas todavía (ver `NOTES.md`
+  Fase 73 si se generalizó después).
+
 ## 6. Qué produce y cómo leerlo
 
 Cada corrida crea `poc_output_<clase>[_seed<N>][_wfd]/` con:
@@ -183,7 +245,15 @@ archivo real primero (es el criterio metodológico de todo este proyecto, ver `N
 
 ## 8. Para profundizar
 
-- `NOTES.md` (mismo directorio) — el historial completo, 18 fases, con cada hallazgo/bug/decisión
-  justificado con evidencia real de código, no supuestos.
-- `docs/index.html`, pestaña "06 LightCurveLynx" — el resumen curado para lectores no expertos,
-  con glosario y las 19 fases explicadas en una línea cada una.
+- `NOTES.md` (mismo directorio) — el historial completo (más de 70 fases y creciendo), con cada
+  hallazgo/bug/decisión justificado con evidencia real de código, no supuestos. El hallazgo más
+  importante hasta ahora (Fase 64/67/70): el trigger de detección de este proyecto usaba el flujo
+  observado en vez del flujo verdadero, cerrando una brecha catálogo-completo de `5.1x` a `1.07x` —
+  leer esa fase primero si el objetivo es entender el estado real de fidelidad del simulador, no solo
+  cómo correrlo.
+- `exploration/lightcurvelynx/SINTESIS_hallazgos_y_brecha_abierta.md` — síntesis de los 4 bugs reales
+  de LightCurveLynx/sncosmo encontrados y de la causa real de la brecha de detección, con estado real
+  de publicación de cada uno (3/4 ya reportados como issue #955).
+- `docs/index.html`, pestaña "06 LightCurveLynx" — el resumen curado para lectores no expertos, con
+  glosario y todas las fases explicadas en una línea cada una (el contador en la pestaña "N fases" se
+  calcula dinámicamente, siempre refleja el total real).

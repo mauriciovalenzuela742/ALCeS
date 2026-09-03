@@ -3685,6 +3685,32 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           número publicado — clarifica su interpretación.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">73</span>
+        <div class="step-body">
+          <p><strong>Endurece <code>exploration/lightcurvelynx/</code> para que el equipo pueda
+          operarlo con confianza — cierra el ciclo de "puesta en producción" pedido por el
+          profesor.</strong> No como integración formal a <code>pipeline/</code> (fuera de alcance,
+          confirmado con el usuario — <code>pipeline/</code> no tiene ninguna abstracción de
+          simulador, sería una reescritura de 5 módulos), sino documentando y ordenando el lado
+          exploratorio. <code>HOWTO.md</code> estaba desactualizado en dos frentes: citaba conteos de
+          fase obsoletos, y <strong>no mencionaba el sistema de automatización de barridos de Fase 66
+          en absoluto</strong> pese a llevar 5 fases de uso real. Agregada una sección nueva con el
+          flujo real de un click, marcando el smoke test como paso obligatorio antes de un barrido
+          grande.</p>
+          <p>Decisión explícita, no solo omisión: <strong>no generalizar</strong> el sistema de sweeps
+          a los 3 scripts de producción (quedó como opcional en el plan). Las 6 clases restantes
+          (<code>SNIa</code> + 5 <code>NON1ASED</code>) son un conjunto fijo, ya corregido una vez
+          (Fase 70) — generalizar requeriría cambios reales no triviales (agregar
+          <code>out_dir_override</code> a 2 scripts que no lo tienen, construir una capa de despacho
+          nueva) para un beneficio marginal ahora. Documentada la razón, no descartada para siempre.
+          <code>sweep_publish_dataset.py</code>/<code>datasets/&lt;hash&gt;/</code> quedan sin
+          cambios — el punto de enganche de entrenamiento sigue esperando un formato de ALeRCE que
+          aún no se define. Cierra el plan de Fases 70-73: brecha de detección catálogo-completo
+          cerrada (19/19 clases), 3/4 bugs de la librería publicados, sistema de automatización real y
+          documentado.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
