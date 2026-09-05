@@ -383,7 +383,11 @@ CLASS_CONFIGS = {
         trest_range=(-100.0, 500.0),
     ),
     "PISN-STELLA-HECORE": dict(
-        simsed_dir=SNANA_HOME / "run_SNANA/elastic/model_libs_updates/SIMSED.PISN-STELLA-HECORE",
+        # Fase 75: copia local propia (mismo patrón que SNIa-91bg/KN-BULLA19)
+        # -- una de las 3 clases piloto para instalación local (ver
+        # vendor_snana_class.py, NOTES.md Fase 75). Antes leía directo de
+        # SNANA_HOME / "run_SNANA/elastic/...", solo disponible en NLHPC.
+        simsed_dir=HERE / "simsed_pisnstellahecore_local",
         genrange_redshift=(0.02, 2.2),
         dndz=("pisn", 1.0),
         sntype=71,

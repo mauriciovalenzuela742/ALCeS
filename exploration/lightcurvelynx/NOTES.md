@@ -8871,3 +8871,76 @@ Nuevo: `local_env.py`. Modificados (16): `run_simsed_poc.py`, `run_non1ased_poc.
 `fase11_zgrid_compare.py`, `compare_noise_formulas.py`, `test_opsim_load.py`,
 `check_opsim_schema.py`, `requirements.txt` (`sncosmo`/`pandas`/`pyarrow`/`matplotlib`/`pyyaml`
 agregados). `NOTES.md`: esta entrada.
+
+## Fase 75 -- `vendor_snana_class.py` reemplaza 5 scripts de vendoring casi idénticos por uno
+parametrizado, y empaqueta datos reales de SNANA para las 3 clases piloto de instalación local
+
+### Motivación
+
+Fase 74 resolvió el bloqueo de rutas; quedaba el bloqueo de datos: las plantillas SED reales de
+SNANA (SIMSED/NON1ASED) que necesitan los scripts de producción solo existen en `run_SNANA/` de
+NLHPC. De 6 clases con vendoring a copia local ya intentado (`setup_salt2_local.py`,
+`setup_simsed_91bg_local.py`, `setup_knbulla19_local.py`, `setup_bullansed_local.py`,
+`setup_tdebbfit_local.py`), ninguna copia generada llegó a commitearse -- y las otras 8 clases
+SIMSED del catálogo ni siquiera tienen un script que las empaquete.
+
+### Cambio real
+
+`vendor_snana_class.py` nuevo: un único comando parametrizado (`python3 vendor_snana_class.py
+<clase>`) reemplaza el patrón de "un script por clase". Reusa `CLASS_CONFIGS` de
+`run_simsed_poc.py` para saber de dónde copiar -- agregar una clase nueva es correr el comando, no
+escribir código. Modos especiales: `--salt2` (reproduce la lógica real de `setup_salt2_local.py`,
+formato distinto que exige `sncosmo.SALT2Source`) y `--searcheff` (los 2 `.DAT` de `SEARCHEFF` que
+nunca tuvieron vendoring).
+
+**Bug real encontrado y corregido en el camino**: la copia genérica inicial usaba
+`src.glob("*.SED*")` (mismo patrón que `setup_simsed_91bg_local.py`), pero `PISN-STELLA-HECORE`
+(clase nueva, nunca vendorizada antes) usa una convención de nombre de archivo real distinta
+(`<algo>_SED.dat.gz`, no `<algo>.SED`) -- el glob no encontraba nada, "0 archivos copiados" en la
+primera corrida real. Corregido para leer los nombres reales declarados en `SED.INFO` ("SED: <nombre>
+...") y copiar el archivo que efectivamente existe en disco (probando el nombre exacto y luego
+`+".gz"`) -- misma lógica de resolución que ya usa `SIMSEDModel` de LightCurveLynx internamente
+(confirmado en `compare_lightcurve_shape.py::build_template()`), en vez de adivinar una extensión
+fija.
+
+**`CLASS_CONFIGS["PISN-STELLA-HECORE"]` actualizado** en `run_simsed_poc.py` para apuntar a
+`HERE / "simsed_pisnstellahecore_local"` (antes leía directo de `SNANA_HOME /
+"run_SNANA/elastic/..."`) -- mismo patrón ya establecido para `SNIa-91bg`/`KN-BULLA19`. Esto crea una
+dependencia circular real entre `CLASS_CONFIGS` y el propio script de vendoring (una vez migrada la
+clase, `CLASS_CONFIGS` ya no dice de dónde vino el dato original) -- resuelta con una tabla chica
+`KNOWN_SOURCE_OVERRIDES` en `vendor_snana_class.py` que documenta la ruta real de origen para las
+clases ya migradas.
+
+### Datos reales empaquetados (3 clases piloto + config compartida)
+
+Corrido real en NLHPC (`ssh nlhpc`, venv de producción):
+
+| Clase/config | Comando | Tamaño real |
+|---|---|---:|
+| `SNIa` (SALT2) | ya vendorizado (Fase 1) | 31M |
+| `SNIa-91bg` (SIMSED) | ya vendorizado (Fase 2B) | 30M |
+| `PISN-STELLA-HECORE` (SIMSED) | `vendor_snana_class.py PISN-STELLA-HECORE` (nuevo, 14/14 templates) | 4.9M |
+| `SEARCHEFF` (2 `.DAT`) | `vendor_snana_class.py --searcheff` (nuevo) | 17K |
+
+Empaquetado en 2 bundles reales (verificados con `unzip -l`, archivos no vacíos):
+`lightcurvelynx_local_data_pilot.zip` (~35MB -- las 3 carpetas `*_local/`, se extrae dentro de
+`exploration/lightcurvelynx/`) y `run_SNANA_pilot.zip` (~2KB -- carpeta `run_SNANA/` con los 2
+`.DAT`, se extrae en el home del usuario o donde apunte `SNANA_HOME`, mismo layout real que NLHPC).
+Descargados a la máquina de desarrollo del usuario para la validación real de Fase 77.
+
+**Validado con corridas reales**: `run_simsed_poc.py` para `PISN-STELLA-HECORE`
+(`ngentot_override=50`) corre de punta a punta con la copia local recién generada -- 14 templates
+cargados, simulación, `SEARCHEFF` (10/50 detectados), QC completo, sin errores.
+
+### Conclusión Fase 75
+
+El bloqueo de datos reales para las 3 clases piloto queda resuelto y empaquetado (~35MB total, nada
+parecido a los GB de `.DUMP`/FITS que la comparación contra SNANA sí necesitaría). El mecanismo
+(`vendor_snana_class.py`) queda listo para las 16 clases restantes bajo demanda, sin código nuevo.
+
+### Archivos de esta fase
+
+Nuevo: `vendor_snana_class.py`. Modificado: `run_simsed_poc.py`
+(`CLASS_CONFIGS["PISN-STELLA-HECORE"]["simsed_dir"]`). Generado en NLHPC (no commiteado, mismo
+criterio que `poc_output_*/`): `simsed_pisnstellahecore_local/`, `searcheff_local/`,
+`lightcurvelynx_local_data_pilot.zip`, `run_SNANA_pilot.zip`. `NOTES.md`: esta entrada.

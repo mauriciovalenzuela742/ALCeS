@@ -3731,6 +3731,31 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           corrida real de producción corrió de punta a punta sin errores nuevos.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">75</span>
+        <div class="step-body">
+          <p><strong><code>vendor_snana_class.py</code> reemplaza 5 scripts de vendoring casi
+          idénticos por uno parametrizado, y empaqueta datos reales para las 3 clases piloto de
+          instalación local.</strong> De 6 clases con vendoring ya intentado antes, ninguna copia
+          generada había llegado a commitearse; las otras 8 clases SIMSED del catálogo ni siquiera
+          tenían un script que las empaquetara. Un único comando
+          (<code>vendor_snana_class.py &lt;clase&gt;</code>) reemplaza el patrón de "un script por
+          clase" — agregar una clase nueva es correr el comando, no escribir código.</p>
+          <p>Bug real encontrado al vendorizar <code>PISN-STELLA-HECORE</code> (clase nueva, primera
+          vez empaquetada): el glob genérico asumía una extensión de archivo que esta clase no usa
+          (convención de nombre real distinta) — 0 archivos copiados en el primer intento. Corregido
+          para leer los nombres reales declarados en <code>SED.INFO</code> y resolver el archivo que
+          efectivamente existe en disco, misma lógica que ya usa LightCurveLynx internamente.
+          <code>CLASS_CONFIGS["PISN-STELLA-HECORE"]</code> actualizado para usar la copia local
+          (mismo patrón ya establecido para otras 2 clases).</p>
+          <p>Datos reales empaquetados y verificados (~35MB en 2 bundles, nada parecido a los GB que
+          la comparación contra SNANA necesitaría): <code>SNIa</code>/SALT2,
+          <code>SNIa-91bg</code> y <code>PISN-STELLA-HECORE</code> (SIMSED) + los 2 archivos de
+          configuración de <code>SEARCHEFF</code>. Validado con una corrida real de producción
+          (<code>PISN-STELLA-HECORE</code>, 14 templates cargados, detección real, QC completo) usando
+          la copia recién vendorizada.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
