@@ -163,12 +163,16 @@ def object_level_detected(phot_df_with_flag: pd.DataFrame, *, snid_col: str = "S
 
 
 if __name__ == "__main__":
+    # Fase 74: SNANA_HOME resuelto por local_env.py (portabilidad -- antes
+    # hardcodeado a "/home/mvalenzuela", ver ese archivo para el porqué).
+    from local_env import SNANA_HOME
+
     curves = parse_searcheff_pipeline(
-        "/home/mvalenzuela/run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
+        str(SNANA_HOME / "run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT")
     )
     print("bandas parseadas:", sorted(curves.keys()))
     for band, (snr, eff) in curves.items():
         print(f"  {band}: {len(snr)} puntos, SNR [{snr.min():.1f},{snr.max():.1f}], "
               f"eff en SNR=5.0 -> {np.interp(5.0, snr, eff):.3f}")
-    min_epochs = parse_pipeline_logic("/home/mvalenzuela/run_SNANA/LSST_PIPELINE_LOGIC.DAT")
+    min_epochs = parse_pipeline_logic(str(SNANA_HOME / "run_SNANA/LSST_PIPELINE_LOGIC.DAT"))
     print("min_epochs trigger:", min_epochs)

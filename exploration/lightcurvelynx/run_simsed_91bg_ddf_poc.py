@@ -53,13 +53,16 @@ from snana_params import (
 )
 from searcheff import parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency
 
-sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
+# Fase 74: REPO_ROOT/SNANA_HOME resueltos por local_env.py (portabilidad --
+# antes hardcodeado a "/home/mvalenzuela"/"/home/mvalenzuela/AUTOSIM", ver
+# ese archivo para el porqué).
+from local_env import SNANA_HOME, REPO_ROOT
+sys.path.insert(0, str(REPO_ROOT))
 from pipeline.simlib.formatobs import format_obs  # noqa: E402
 from lightcurvelynx.astro_utils.mag_flux import mag2flux  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-SNANA_HOME = Path("/home/mvalenzuela")
-OPSIM_DB = SNANA_HOME / "AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db"
+OPSIM_DB = REPO_ROOT / "data/opsim/baseline_v5.3.1_10yrs.db"
 SIMSED_DIR = HERE / "simsed_91bg_local"  # ver setup_simsed_91bg_local.py (fix de SED.INFO)
 SEARCHEFF_PIPELINE_FILE = SNANA_HOME / "run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
 SEARCHEFF_LOGIC_FILE = SNANA_HOME / "run_SNANA/LSST_PIPELINE_LOGIC.DAT"
@@ -262,7 +265,7 @@ def main():
         "snr_p90": float(snr_sim.quantile(0.9)),
     }, indent=2))
 
-    sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
+    sys.path.insert(0, str(REPO_ROOT))
     from pipeline.postproc import qc
     qc_dir = OUT_DIR / "qc"
     paths = qc.run_all_qc(head_df_detected, phot_df, qc_dir, "LightCurveLynx_SNIa91bg_DDF_poc", dump_df=dump_df)

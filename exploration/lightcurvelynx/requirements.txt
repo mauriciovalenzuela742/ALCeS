@@ -2,7 +2,19 @@
 #   module load python/3.12.3-legacy-skylake
 #   cd exploration/lightcurvelynx && python3 -m venv venv
 #   source venv/bin/activate
-#   pip install "lightcurvelynx[all]"
+#   pip install "lightcurvelynx[all]" sncosmo
 #
 # Version instalada y usada para el spike de Fase 0 (ver NOTES.md):
 lightcurvelynx==0.5.2
+
+# Fase 74: dependencia real de run_snia_ddf_poc.py (sncosmo.SALT2Source) --
+# se instalo a mano en NLHPC en su momento pero nunca quedo documentada aqui.
+sncosmo
+
+# Ya usados en el venv real de NLHPC desde fases anteriores (analyze_phot_df.ipynb,
+# lectura/graficado de phot_df.parquet, QC) -- documentados aqui para que una
+# instalacion nueva (Fase 74, port local) no tenga que adivinarlos.
+pandas
+pyarrow
+matplotlib
+pyyaml

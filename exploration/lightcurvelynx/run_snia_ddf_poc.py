@@ -72,7 +72,11 @@ from lightcurvelynx.simulate import simulate_lightcurves
 from lightcurvelynx.survey_info import SurveyInfo
 from lightcurvelynx.utils.extrapolate import LinearDecay, ZeroPadding
 
-sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
+# Fase 74: REPO_ROOT/SNANA_HOME resueltos por local_env.py (portabilidad --
+# antes hardcodeado a "/home/mvalenzuela"/"/home/mvalenzuela/AUTOSIM", ver
+# ese archivo para el porqué).
+from local_env import SNANA_HOME, REPO_ROOT
+sys.path.insert(0, str(REPO_ROOT))
 from pipeline.simlib.formatobs import format_obs  # noqa: E402
 
 from snana_params import (
@@ -88,8 +92,9 @@ from searcheff import (
 from qc_lightcurves_notebook import plot_notebook_style_lightcurves
 
 HERE = Path(__file__).resolve().parent
-SNANA_HOME = Path("/home/mvalenzuela")
-OPSIM_DB = SNANA_HOME / "AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db"
+# OPSIM_DB vive dentro del repo real (data/opsim/), no bajo SNANA_HOME --
+# REPO_ROOT ya resuelve a la raíz real sin importar el nombre de carpeta.
+OPSIM_DB = REPO_ROOT / "data/opsim/baseline_v5.3.1_10yrs.db"
 SALT2_LOCAL_DIR = HERE / "salt2_h17_local"
 SEARCHEFF_PIPELINE_FILE = SNANA_HOME / "run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
 SEARCHEFF_LOGIC_FILE = SNANA_HOME / "run_SNANA/LSST_PIPELINE_LOGIC.DAT"
@@ -415,7 +420,7 @@ def main(seed_index: int = 0, wfd: bool = False):
     }, indent=2))
 
     # -- QC reusando pipeline.postproc.qc sin modificar --
-    sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
+    sys.path.insert(0, str(REPO_ROOT))
     from pipeline.postproc import qc
 
     qc_dir = out_dir / "qc"

@@ -42,6 +42,8 @@ import pandas as pd
 
 from lightcurvelynx.models.sed_template_model import SIMSEDModel
 from lightcurvelynx.astro_utils.passbands import PassbandGroup
+# Fase 74: SNANA_HOME resuelto por local_env.py (portabilidad).
+from local_env import SNANA_HOME
 
 HERE = Path(__file__).resolve().parent
 LOGDIR = HERE / "fase11_simsed_zgrid"
@@ -65,7 +67,7 @@ CLASS_CONFIGS = {
     ),
     "SLSN-I-MOSFIT": dict(
         log_path=LOGDIR / "debug_SLSNIMOSFIT.log",
-        simsed_dir="/home/mvalenzuela/run_SNANA/plasticc_models/SIMSED.SLSN-I-MOSFIT",
+        simsed_dir=str(SNANA_HOME / "run_SNANA/plasticc_models/SIMSED.SLSN-I-MOSFIT"),
         z_anchor=0.02,
         logzbin=0.1,
         band="r",

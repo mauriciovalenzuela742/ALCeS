@@ -28,9 +28,11 @@ import urllib.request
 from pathlib import Path
 
 import pandas as pd
+# Fase 74: REPO_ROOT resuelto por local_env.py (portabilidad).
+from local_env import REPO_ROOT
 
 HERE = Path(__file__).resolve().parent
-OPSIM_DB = Path("/home/mvalenzuela/AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db")
+OPSIM_DB = REPO_ROOT / "data/opsim/baseline_v5.3.1_10yrs.db"
 GRID_DEG = 8.0
 OUT_CSV = HERE / "wfd_mwebv_grid.csv"
 

@@ -27,11 +27,13 @@ sys.path.insert(0, ".")
 from compare_brightness import read_snana_dump
 from run_simsed_poc import CLASS_CONFIGS
 from snana_params import filter_ddf_field_contamination
+# Fase 74: SNANA_HOME/REPO_ROOT resueltos por local_env.py (portabilidad).
+from local_env import SNANA_HOME, REPO_ROOT
 import pandas as pd
 import numpy as np
 
-OPSIM_DB = "/home/mvalenzuela/AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db"
-DATASIM_DIR = "/home/mvalenzuela/DATASIM_LSST_1/DDF/SIMDv8"
+OPSIM_DB = str(REPO_ROOT / "data/opsim/baseline_v5.3.1_10yrs.db")
+DATASIM_DIR = str(SNANA_HOME / "DATASIM_LSST_1/DDF/SIMDv8")
 
 DUMP_FOLDER_OVERRIDES = {
     "TDE-MOSFIT": "TDE",

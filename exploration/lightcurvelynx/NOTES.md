@@ -8797,3 +8797,77 @@ automatización real y documentado para seguir iterando.
 Modificado: `HOWTO.md` (sección `5-bis` nueva, conteos de fases desactualizados corregidos,
 sincronizado a NLHPC). `NOTES.md`: esta entrada. Sin cambios en `pipeline/`, `sweep_compile.py`,
 `sweep_worker.py`, ni `sweep_publish_dataset.py`.
+
+## Fase 74 -- portabilidad de rutas: `local_env.py` reemplaza el hardcode real a `/home/mvalenzuela`
+en 16 archivos, primer paso para instalar la generación de simulaciones fuera de NLHPC
+
+### Motivación
+
+El profesor pidió poder instalar esta metodología en su propio computador -- no la investigación de
+comparación contra SNANA (cerrada, Fases 64-73), sino la generación de simulaciones + automatización,
+para producir datasets reales que eventualmente entreguen al equipo de ML. Investigación real
+confirmó el bloqueo más mecánico: **21 archivos** de `exploration/lightcurvelynx/` tienen
+`SNANA_HOME = Path("/home/mvalenzuela")` y/o `sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")`
+hardcodeados -- asumen que el proyecto solo corre en la cuenta real del usuario en NLHPC. También se
+confirmó algo importante para el alcance: **los 3 scripts de producción
+(`run_simsed_poc.py`/`run_non1ased_poc.py`/`run_snia_ddf_poc.py`) no necesitan los datos de salida
+reales de SNANA** (`.DUMP`/FITS, decenas de GB, específicos de la campaña) -- solo archivos de
+configuración/plantillas (chicos a medianos): el `.db` de OpSim (~743MB, descargable públicamente sin
+cuenta NLHPC vía `pipeline/fetch_opsim.py` ya existente), 2 archivos `.DAT` de `SEARCHEFF` (texto
+plano), archivos `.INPUT` (texto plano), y las librerías de templates SED de SIMSED/NON1ASED.
+
+### Cambio real
+
+Nuevo módulo compartido `local_env.py`:
+
+```python
+SNANA_HOME = Path(os.environ.get("SNANA_HOME", str(Path.home())))
+REPO_ROOT = Path(__file__).resolve().parents[2]
+```
+
+`SNANA_HOME` cae al home real del usuario si no se exporta la variable de entorno -- en NLHPC eso ya
+es `/home/mvalenzuela`, cero cambio de comportamiento sin tocar nada allá. `REPO_ROOT` se calcula
+desde la ubicación real de `local_env.py`, no de un string fijo -- funciona sin importar el nombre o
+ubicación de la carpeta donde se clonó el repo (antes asumía literalmente `/home/mvalenzuela/AUTOSIM`).
+
+Aplicado en **16 de los 21 archivos** (mismo patrón mecánico, no distinto por archivo): los 3 scripts
+de producción, `searcheff.py`, `run_simsed_91bg_ddf_poc.py`, `run_dask_poc.py`, y los 6 scripts de
+comparación (`compare_*.py`, `fase11_zgrid_compare.py`, `bench_snia.py`, `build_wfd_mwebv_grid.py`,
+`test_opsim_load.py`, `check_opsim_schema.py`) -- estos últimos no forman parte del alcance pedido
+(siguen dependiendo de datos reales de SNANA solo en NLHPC), pero el fix es mecánico y barato, y evita
+un código base a dos velocidades. **Los 5 archivos `setup_*_local.py` (`setup_salt2_local.py`,
+`setup_simsed_91bg_local.py`, `setup_knbulla19_local.py`, `setup_bullansed_local.py`,
+`setup_tdebbfit_local.py`) quedan sin tocar a propósito** -- Fase 75 los reemplaza por un único
+script generalizado, no tenía sentido arreglar código que se va a reemplazar la fase siguiente.
+
+También se agregó `sncosmo` a `requirements.txt` -- dependencia real de `run_snia_ddf_poc.py`
+(`sncosmo.SALT2Source`) que se había instalado a mano en NLHPC en su momento pero nunca quedó
+documentada, un hueco real encontrado al auditar el camino de instalación completo. Se documentaron
+también `pandas`/`pyarrow`/`matplotlib`/`pyyaml` (ya en uso, nunca declarados).
+
+### Validación real, en ambos lados
+
+- **Windows** (máquina de desarrollo del usuario, el caso real que motiva esta fase):
+  `local_env.SNANA_HOME`/`REPO_ROOT` resuelven a rutas Windows reales y correctas
+  (`C:\Users\HOME`/`C:\Users\HOME\Claude\proyects\ALCeS`) sin ninguna configuración.
+- **NLHPC**: confirmado con un assert real que `SNANA_HOME`/`REPO_ROOT` siguen resolviendo
+  exactamente a `/home/mvalenzuela`/`/home/mvalenzuela/AUTOSIM` sin exportar nada -- cero regresión.
+  Corrida real de `run_simsed_poc.py` (`CaRT`, `ngentot=50`) tras subir los 16 archivos: corre de
+  punta a punta (simulación, aplanado, SEARCHEFF, persistencia) sin errores nuevos.
+
+### Conclusión Fase 74
+
+El bloqueo más mecánico de portar la generación de simulaciones a una máquina fuera de NLHPC queda
+resuelto, validado en ambos extremos reales (Windows y NLHPC), sin cambiar el comportamiento en
+producción. Sienta la base para Fase 75 (empaquetar datos reales de SNANA para instalación local) y
+Fase 76 (reemplazar SLURM por un runner local).
+
+### Archivos de esta fase
+
+Nuevo: `local_env.py`. Modificados (16): `run_simsed_poc.py`, `run_non1ased_poc.py`,
+`run_snia_ddf_poc.py`, `searcheff.py`, `run_simsed_91bg_ddf_poc.py`, `run_dask_poc.py`,
+`compare_lightcurve_shape.py`, `compare_brightness_truth.py`, `compare_brightness_truth_binned.py`,
+`compare_brightness_truth_salt2.py`, `bench_snia.py`, `build_wfd_mwebv_grid.py`,
+`fase11_zgrid_compare.py`, `compare_noise_formulas.py`, `test_opsim_load.py`,
+`check_opsim_schema.py`, `requirements.txt` (`sncosmo`/`pandas`/`pyarrow`/`matplotlib`/`pyyaml`
+agregados). `NOTES.md`: esta entrada.

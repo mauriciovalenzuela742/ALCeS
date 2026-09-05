@@ -51,13 +51,14 @@ from run_simsed_poc import (
     CLASS_CONFIGS, host_extinction_mag_offset, passband_mean_wavelengths,
     LSST_PASSBAND_TABLE_DIR,
 )
+# Fase 74: SNANA_HOME resuelto por local_env.py (portabilidad).
+from local_env import SNANA_HOME
 from searcheff import (
     parse_searcheff_pipeline, parse_pipeline_logic, apply_detection_efficiency,
     group_into_epochs, PHOTFLAG_DETECT,
 )
 
 HERE = Path(__file__).resolve().parent
-SNANA_HOME = Path("/home/mvalenzuela")
 SEARCHEFF_PIPELINE_FILE = SNANA_HOME / "run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
 SEARCHEFF_LOGIC_FILE = SNANA_HOME / "run_SNANA/LSST_PIPELINE_LOGIC.DAT"
 

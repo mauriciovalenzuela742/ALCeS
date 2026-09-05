@@ -41,10 +41,11 @@ from lightcurvelynx.survey_info import SurveyInfo
 from lightcurvelynx.utils.extrapolate import LinearDecay, ZeroPadding
 
 from snana_params import build_dndz_powerlaw2_cdf, make_dndz_sampler, make_bifurcated_normal_sampler, read_salt2_info, SizeAwareFunctionNode
+# Fase 74: REPO_ROOT resuelto por local_env.py (portabilidad).
+from local_env import REPO_ROOT
 
 HERE = Path(__file__).resolve().parent
-SNANA_HOME = Path("/home/mvalenzuela")
-OPSIM_DB = SNANA_HOME / "AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db"
+OPSIM_DB = REPO_ROOT / "data/opsim/baseline_v5.3.1_10yrs.db"
 SALT2_LOCAL_DIR = HERE / "salt2_h17_local"
 
 GENRANGE_REDSHIFT = (0.011, 1.2)

@@ -3711,6 +3711,26 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           documentado.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">74</span>
+        <div class="step-body">
+          <p><strong>Portabilidad de rutas — primer paso para instalar la generación de simulaciones
+          fuera de NLHPC, a pedido del profesor.</strong> No la investigación de comparación contra
+          SNANA (cerrada) sino la generación + automatización, para producir datasets reales que
+          eventualmente entreguen al equipo de ML. Se confirmó algo clave: los 3 scripts de
+          producción no necesitan los datos de salida reales de SNANA (decenas de GB, específicos de
+          la campaña) — solo configuración/plantillas chicas a medianas, incluido un
+          <code>.db</code> de OpSim (~743MB) que ya es descargable públicamente sin cuenta NLHPC.</p>
+          <p>El bloqueo real más mecánico: 21 archivos con
+          <code>SNANA_HOME = Path("/home/mvalenzuela")</code> hardcodeado. Nuevo módulo compartido
+          (<code>local_env.py</code>) que resuelve la ruta real del repo dinámicamente y cae al home
+          del usuario si no se configura nada — aplicado en 16 archivos (los 3 de producción y el
+          resto del código de comparación, por consistencia). Validado en ambos extremos reales: en
+          Windows resuelve rutas Windows correctas sin configuración; en NLHPC se confirmó con un
+          assert real que sigue resolviendo exactamente igual que antes (cero regresión), y una
+          corrida real de producción corrió de punta a punta sin errores nuevos.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

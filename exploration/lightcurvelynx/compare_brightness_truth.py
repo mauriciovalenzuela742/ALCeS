@@ -63,14 +63,16 @@ from lightcurvelynx.astro_utils.passbands import PassbandGroup
 from lightcurvelynx.obstable.opsim import OpSim
 from lightcurvelynx.simulate import compute_noise_free_lightcurves
 
-sys.path.insert(0, "/home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx")
+# Fase 74: REPO_ROOT resuelto por local_env.py (portabilidad).
+from local_env import REPO_ROOT
+sys.path.insert(0, str(REPO_ROOT / "exploration/lightcurvelynx"))
 from run_simsed_poc import (  # noqa: E402
     CLASS_CONFIGS, build_source_model, snana_noise_columns, restlambda_gate,
     passband_mean_wavelengths, host_extinction_mag_offset, LSST_PASSBAND_TABLE_DIR,
 )
 
-HERE = Path("/home/mvalenzuela/AUTOSIM/exploration/lightcurvelynx")
-OPSIM_DB = Path("/home/mvalenzuela/AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db")
+HERE = REPO_ROOT / "exploration/lightcurvelynx"
+OPSIM_DB = REPO_ROOT / "data/opsim/baseline_v5.3.1_10yrs.db"
 NGENTOT = 2000
 SEED_BASE = 20260815  # deliberadamente distinto del SEED_BASE de run_simsed_poc.py
                        # (20260813) -- realizacion independiente, no pisa las

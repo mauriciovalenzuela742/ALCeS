@@ -76,12 +76,15 @@ from searcheff import (
 # copiado 3 veces.
 from qc_lightcurves_notebook import plot_notebook_style_lightcurves
 
-sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
+# Fase 74: REPO_ROOT/SNANA_HOME resueltos por local_env.py (portabilidad --
+# antes hardcodeado a "/home/mvalenzuela"/"/home/mvalenzuela/AUTOSIM", ver
+# ese archivo para el porqué).
+from local_env import SNANA_HOME, REPO_ROOT
+sys.path.insert(0, str(REPO_ROOT))
 from pipeline.simlib.formatobs import format_obs  # noqa: E402
 from lightcurvelynx.astro_utils.mag_flux import mag2flux  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-SNANA_HOME = Path("/home/mvalenzuela")
 OPSIM_DB = SNANA_HOME / "AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db"
 SEARCHEFF_PIPELINE_FILE = SNANA_HOME / "run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
 SEARCHEFF_LOGIC_FILE = SNANA_HOME / "run_SNANA/LSST_PIPELINE_LOGIC.DAT"
@@ -1010,7 +1013,7 @@ def main(class_key: str, ngentot_override: int | None = None, seed_index: int = 
         "snr_p90": float(snr_sim.quantile(0.9)),
     }, indent=2))
 
-    sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
+    sys.path.insert(0, str(REPO_ROOT))
     from pipeline.postproc import qc
     qc_dir = out_dir / "qc"
     if len(head_df_detected) > 0:

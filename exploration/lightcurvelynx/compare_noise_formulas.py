@@ -26,13 +26,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, "/home/mvalenzuela/AUTOSIM")
+# Fase 74: REPO_ROOT resuelto por local_env.py (portabilidad).
+from local_env import REPO_ROOT
+sys.path.insert(0, str(REPO_ROOT))
 from pipeline.simlib.formatobs import format_obs  # noqa: E402
 
 from lightcurvelynx.astro_utils.mag_flux import mag2flux  # noqa: E402
 from lightcurvelynx.obstable.opsim import OpSim  # noqa: E402
 
-OPSIM_DB = Path("/home/mvalenzuela/AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db")
+OPSIM_DB = REPO_ROOT / "data/opsim/baseline_v5.3.1_10yrs.db"
 PIXSIZE = 0.2  # arcsec/pixel, LSSTCam
 
 

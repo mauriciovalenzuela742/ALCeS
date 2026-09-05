@@ -11,10 +11,12 @@ from lightcurvelynx.obstable.opsim import OpSim
 from lightcurvelynx.simulate import simulate_lightcurves
 from lightcurvelynx.survey_info import SurveyInfo
 from lightcurvelynx.utils.extrapolate import LinearDecay
+# Fase 74: REPO_ROOT resuelto por local_env.py (portabilidad).
+from local_env import REPO_ROOT
 
 t_start = time.time()
 
-con = sqlite3.connect("/home/mvalenzuela/AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db")
+con = sqlite3.connect(str(REPO_ROOT / "data/opsim/baseline_v5.3.1_10yrs.db"))
 df = pd.read_sql_query("SELECT * FROM observations", con)
 obs_table = OpSim(df)
 print(f"[{time.time()-t_start:.1f}s] OpSim loaded: {len(obs_table)} obs")
