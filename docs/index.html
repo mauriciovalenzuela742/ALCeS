@@ -3756,6 +3756,29 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           la copia recién vendorizada.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">76</span>
+        <div class="step-body">
+          <p><strong><code>sweep_run_local.py</code> reemplaza SLURM por un runner local para el
+          sistema de sweeps — sin tocar el esquema de hash/manifiesto de Fase 66.</strong> El "deploy
+          de un click" pedido por el profesor depende de <code>sbatch</code>/<code>sacct</code>/
+          <code>SLURM_ARRAY_TASK_ID</code> — sin equivalente en un laptop. Compila el sweep igual que
+          siempre, pero en vez de generar <code>.sbatch</code>, corre cada fila del manifiesto vía
+          <code>ProcessPoolExecutor</code> llamando directo a la misma función que ya usa el
+          <code>.sbatch</code> real (<code>sweep_worker.run_one()</code>, sin cambios) — respeta el
+          mismo <code>max_concurrent</code> del YAML, ahora como número de procesos en paralelo en
+          vez de throttle de array.</p>
+          <p>Hallazgo real, no hizo falta escribir nada más: <code>sweep_monitor.py</code> y
+          <code>sweep_aggregate.py</code> (Fase 66) ya funcionan <strong>sin ningún cambio</strong>
+          para sweeps corridos localmente — leen <code>run_hash.json</code> primero (la fuente
+          autoritativa, la escribe el worker sea cual sea el backend), y el <code>sacct</code> de
+          respaldo simplemente no encuentra el binario en una máquina local y sigue de largo. El plan
+          original consideraba un script de estado aparte; no hizo falta. Validado con una corrida
+          real en NLHPC sin usar SLURM (2 clases piloto, 2 workers en paralelo real, ambas
+          <code>done</code>, verificado con <code>sweep_monitor.py</code>/<code>sweep_aggregate.py</code>
+          sin modificar).</p>
+        </div>
+      </li>
     </ol>
     </div>
 

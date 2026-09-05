@@ -1,0 +1,32 @@
+# Fase 76/77: sweep trivial para validar el runner local (sweep_run_local.py,
+# sin SLURM) -- 2 clases piloto de instalación local (SNIa-91bg,
+# PISN-STELLA-HECORE), ngentot chico, para probar compile/worker/monitor de
+# punta a punta sin gastar cómputo real. No usar para ciencia.
+sweep_name: "_smoke_local"
+description: >-
+  Sweep trivial de 2 corridas para validar el runner local sin SLURM
+  (sweep_run_local.py, Fase 76) con las clases piloto de instalación local.
+
+seeds: [0]
+
+modes:
+  - wfd: false
+    simsed_t0_mode: "bolometric_peak"
+
+classes:
+  - SNIa-91bg
+  - PISN-STELLA-HECORE
+
+ngentot_overrides:
+  SNIa-91bg: 30
+  PISN-STELLA-HECORE: 30
+
+resources:
+  default: {mem: "8G", time: "00:15:00", cpus: 2}
+  overrides: {}
+
+max_concurrent:
+  default: 2
+  override: 1
+
+partition: "general"

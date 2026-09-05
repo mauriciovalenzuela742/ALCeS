@@ -8944,3 +8944,54 @@ Nuevo: `vendor_snana_class.py`. Modificado: `run_simsed_poc.py`
 (`CLASS_CONFIGS["PISN-STELLA-HECORE"]["simsed_dir"]`). Generado en NLHPC (no commiteado, mismo
 criterio que `poc_output_*/`): `simsed_pisnstellahecore_local/`, `searcheff_local/`,
 `lightcurvelynx_local_data_pilot.zip`, `run_SNANA_pilot.zip`. `NOTES.md`: esta entrada.
+
+## Fase 76 -- `sweep_run_local.py` reemplaza SLURM por un runner local para el sistema de sweeps,
+sin tocar el esquema de hash/manifiesto de Fase 66
+
+### Motivación
+
+Con las rutas (Fase 74) y los datos (Fase 75) portables, quedaba el último bloqueo real: el "deploy
+de un click" del sistema de sweeps (Fase 66) depende de `sbatch`/`sacct`/`SLURM_ARRAY_TASK_ID` -- no
+hay equivalente en un laptop sin cluster.
+
+### Cambio real
+
+`sweep_run_local.py` nuevo: compila el sweep igual que `sweep_launch.py` (reusa
+`sweep_compile.compile_sweep()` tal cual, sin tocarlo), pero en vez de generar `.sbatch` y someter a
+`sbatch`, corre cada fila del manifiesto vía `concurrent.futures.ProcessPoolExecutor` llamando
+directo a `sweep_worker.run_one(manifest_path, index)` -- la misma función que ya usa el `.sbatch`
+real vía `SLURM_ARRAY_TASK_ID`, sin cambios. Procesa tier por tier (no todos a la vez), respetando el
+`max_concurrent` real de cada tier del YAML -- mismo campo, mismo significado que el throttle
+`--array=lo-hi%K` de SLURM. `--workers N` sobreescribe el número de workers para todos los tiers por
+igual (en una máquina local no existe la noción de "nodo aparte" para un tier "heavy").
+
+**Hallazgo real, no hubo que escribir nada más**: `sweep_monitor.py` (Fase 66) ya funciona sin
+ningún cambio para sweeps corridos localmente -- lee `run_hash.json` primero (fuente autoritativa,
+la escribe el worker sea cual sea el backend) y `sacct` es solo un fallback que en una máquina local
+simplemente no encuentra el binario (`sacct_states()` ya atrapa `FileNotFoundError`) y sigue de
+largo. Lo mismo para `sweep_aggregate.py` -- consolida el `parquet` final sin cambios. El plan
+original consideraba escribir un `sweep_status_local.py` aparte; no hizo falta.
+
+### Validación real, en NLHPC (sin usar SLURM, corrida directa en el login node)
+
+Nuevo `sweeps/_smoke_local.yaml` (2 clases piloto, `SNIa-91bg` + `PISN-STELLA-HECORE`, `ngentot=30`
+c/u, `max_concurrent.default=2`) corrido con `python3 sweep_run_local.py sweeps/_smoke_local.yaml`
+-- compiló el manifiesto, corrió las 2 corridas **en paralelo real** (2 workers simultáneos,
+confirmado por los timestamps intercalados en el log real), ambas terminaron `status=done` sin
+fallos. `sweep_monitor.py _smoke_local` y `sweep_aggregate.py _smoke_local` corridos después,
+ambos sin modificar, reportan el resultado real correctamente (`resumen: done=2`,
+`aggregated_summary.parquet` con 2 filas).
+
+### Conclusión Fase 76
+
+El sistema de sweeps completo (compilar, correr, monitorear, agregar) queda operativo sin SLURM,
+validado con corridas reales en paralelo, sin tocar `sweep_hash.py`/`sweep_compile.py` y sin
+necesitar cambios en `sweep_monitor.py`/`sweep_aggregate.py` -- el diseño de Fase 66 (manifiesto
+agnóstico de backend, `run_hash.json` como fuente de verdad) resultó ser más portable de lo
+anticipado. Queda pendiente la prueba real en una máquina sin acceso a NLHPC en absoluto (Fase 77).
+
+### Archivos de esta fase
+
+Nuevo: `sweep_run_local.py`, `sweeps/_smoke_local.yaml`. Sin cambios en `sweep_hash.py`,
+`sweep_compile.py`, `sweep_monitor.py`, `sweep_aggregate.py`, `sweep_worker.py`. `NOTES.md`: esta
+entrada.
