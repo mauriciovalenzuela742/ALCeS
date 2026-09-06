@@ -9248,3 +9248,58 @@ comportamiento por defecto de los sweeps exploratorios existentes.
 
 Modificado: `sweep_compile.py` (`manifest["keep_phot"]`), `sweep_worker.py` (lee `keep_phot`,
 `phot_df_kept` en `run_hash.json`). `NOTES.md`: esta entrada.
+
+## Fase 82 -- `sweep_export_by_class.py`: conector real de ML (parquet por clase)
+
+### Motivación
+
+El profesor especificó el formato real de entrega al equipo de ML: "en parquet y por clase".
+Esto reemplaza el `ingestion_format: null` deliberado que `sweep_publish_dataset.py` mantenía desde
+la Fase 66/73 -- documentado explícitamente en su propio docstring/README generado como "el formato
+aún no está definido". El propio código ya anticipaba este momento: el README generado decía
+literalmente "si el formato real de ALeRCE necesita fotometría cruda por objeto, es una decisión de
+una fase posterior que cambiaría la política de borrado" -- esa fase es esta.
+
+### Cambio real
+
+`sweep_export_by_class.py` nuevo: `export_by_class(sweep_names, out_dir)` reusa
+`sweep_publish_dataset.load_sweep_done_rows()` (ya filtra por `status="done"` leyendo el
+`run_hash.json` real de cada corrida, no el campo `status` de `manifest.json`, que nunca se
+reescribe). Para cada corrida con `phot_df.parquet` real en disco (las de sweeps con
+`keep_phot=true`, Fase 81), une `head_df.parquet` (`REDSHIFT_HELIO`/`SNTYPE`/`DETECTED`) sobre
+`phot_df.parquet` por `SNID`, tagueando procedencia (`class_key`/`run_hash`/`source_sweep`/
+`seed_index`/`wfd`). Concatena por `class_key` a través de sweeps, escribe
+`datasets/<hash>/by_class/<clase>.parquet` vía `sweep_hash.write_dataframe_atomic` (reusado, no
+reinventado). Corridas sin fotometría preservada se omiten con una advertencia contada, no un
+error -- un export parcial sigue siendo útil.
+
+`sweep_publish_dataset.py::publish_dataset()` llama a `export_by_class()` (import local, evita un
+ciclo real de importación con `load_sweep_done_rows`) y reemplaza el `ingestion_format=None`
+hardcodeado por `"parquet_by_class_v1"` cuando hay al menos una clase exportada -- versionado
+explícito para poder cambiarlo si el formato real de ALeRCE termina siendo distinto. Si ninguna
+corrida de origen preservó fotometría, queda `ingestion_format=null` con un
+`ingestion_format_pending_reason` explícito -- publicar sigue funcionando igual, solo sin el
+export por clase. El manifiesto agrega `by_class_files`/`by_class_schema_version`; el `README.md`
+generado ya no dice "el formato aún no está definido" cuando sí existe.
+
+### Validación real
+
+3 sweeps reales en NLHPC: 2 con `keep_phot=true` (`SNIa-91bg`, `PISN-STELLA-HECORE`) y uno sin
+(`SNIa-91bg`, semilla distinta). Publicando los 2 primeros juntos:
+`datasets/<hash>/by_class/{SNIa-91bg,PISN-STELLA-HECORE}.parquet` reales, 176,601 y 195,592 filas
+respectivamente (columnas: fotometría completa + contexto + procedencia, 17 columnas),
+`manifest.json["ingestion_format"] == "parquet_by_class_v1"`. Publicando el tercero solo:
+`ingestion_format=null` + `ingestion_format_pending_reason` explicando por qué, con la advertencia
+contada real ("1/1 corridas sin phot_df.parquet") -- sin fallar.
+
+### Conclusión Fase 82
+
+El conector real de ML queda implementado y validado con datos reales, no un stub -- el hueco que
+`sweep_publish_dataset.py` dejó deliberadamente abierto desde la Fase 66 (a la espera de que el
+profesor definiera el formato) queda cerrado con el formato que el profesor efectivamente pidió.
+
+### Archivos de esta fase
+
+Nuevo: `sweep_export_by_class.py`. Modificado: `sweep_publish_dataset.py` (`export_by_class()`,
+`ingestion_format` real, manifiesto y README actualizados, docstring del módulo). `NOTES.md`: esta
+entrada.

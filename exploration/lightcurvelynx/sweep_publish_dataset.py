@@ -1,16 +1,20 @@
 """
-Fase 66: punto de enganche para un futuro entrenamiento de clasificador --
-SIN implementar el conector real (el formato que espera ALeRCE/el equipo
-del profesor todavia no esta definido, confirmado con el usuario).
+Fase 66: punto de enganche para un futuro entrenamiento de clasificador.
+Fase 82: conector real implementado -- el profesor especifico el formato
+(parquet, por clase), reemplazando el `ingestion_format: null` deliberado
+que este modulo mantuvo desde la Fase 66/73 mientras el formato real no
+estaba definido.
 
 Junta el `aggregated_summary.parquet` de uno o mas sweeps ya corridos
 (solo corridas con status="done") en un directorio de dataset versionado
-por su propio hash (`datasets/<hash>/`), con un manifiesto propio y un
-`consolidated.parquet` (tabla agregada POR CORRIDA -- no fotometria cruda,
-esa ya se borra por diseno de sweep_worker.py). El manifiesto incluye
-`ingestion_format: null` a proposito: un futuro conversor debe leer desde
-aca sin tocar sweep_runs/ ni el resto del sistema, y el campo null deja
-explicito en el propio dato que ese paso sigue pendiente.
+por su propio hash (`datasets/<hash>/`), con un manifiesto propio,
+`consolidated.parquet` (tabla agregada POR CORRIDA -- metricas, no
+fotometria) y, si alguna corrida de origen tenia `keep_phot=true` (Fase
+81), `by_class/<clase>.parquet` real (ver `sweep_export_by_class.py`) con
+`ingestion_format: "parquet_by_class_v1"` en el manifiesto. Si ninguna
+corrida preservo fotometria, `ingestion_format` queda `null` con un
+`ingestion_format_pending_reason` explicito -- publicar sigue funcionando,
+solo sin el export por clase.
 
 Uso:
     python3 sweep_publish_dataset.py --sweeps <sweep1> [<sweep2> ...]
@@ -84,6 +88,24 @@ def publish_dataset(sweep_names: list[str], triggered_by: str = "cli") -> Path:
 
     sweep_hash.write_dataframe_atomic(table_path, consolidated)
 
+    # Fase 82: conector real de ML -- parquet por clase, a partir de la
+    # fotometria cruda real de las corridas que la preservaron
+    # (keep_phot=true, Fase 81). Import local para evitar un ciclo real de
+    # importacion (sweep_export_by_class importa load_sweep_done_rows de
+    # este mismo modulo) -- mismo patron que ya usa load_sweep_done_rows()
+    # con sweep_aggregate mas arriba.
+    from sweep_export_by_class import export_by_class
+    by_class_paths = export_by_class(sweep_names, out_dir)
+
+    if by_class_paths:
+        ingestion_format = "parquet_by_class_v1"
+        ingestion_format_pending_reason = None
+    else:
+        ingestion_format = None
+        ingestion_format_pending_reason = (
+            "ninguna corrida de origen tenia keep_phot=true -- sin fotometria cruda que exportar"
+        )
+
     manifest = dict(
         dataset_hash=dataset_hash,
         dataset_hash_full=dataset_hash_full,
@@ -93,31 +115,50 @@ def publish_dataset(sweep_names: list[str], triggered_by: str = "cli") -> Path:
         code_hash_by_sweep=code_hash_by_sweep,
         n_runs=len(consolidated),
         table_file="consolidated.parquet",
-        # Deliberadamente null -- el formato de ingesta al entrenamiento de
-        # ALeRCE aun no esta definido (confirmado con el usuario). Este
-        # campo queda como evidencia explicita, en el propio dato, de que
-        # ese paso sigue pendiente -- no se adivina un formato.
-        ingestion_format=None,
+        # Fase 82: version explicita en el nombre a proposito -- si el
+        # formato real de ALeRCE termina siendo distinto, esto cambia a
+        # "parquet_by_class_v2" (o lo que corresponda) sin ambiguedad sobre
+        # que datasets ya publicados usan cual version.
+        ingestion_format=ingestion_format,
+        ingestion_format_pending_reason=ingestion_format_pending_reason,
+        by_class_schema_version=1 if by_class_paths else None,
+        by_class_files={k: f"by_class/{k}.parquet" for k in by_class_paths} if by_class_paths else {},
     )
     sweep_hash.write_json_atomic(manifest_path, manifest)
 
+    if by_class_paths:
+        by_class_note = (
+            "**Fotometria cruda real disponible, organizada por clase** en `by_class/"
+            "<clase>.parquet` (`ingestion_format: \"parquet_by_class_v1\"`) -- una fila por "
+            "observacion real (mismas columnas que `phot_df.parquet`: `SNID`/`MJD`/`FLT`/"
+            "`FLUXCAL`/`FLUXCALERR`/`FLUXTRUE`/`MAG`/`PHOTFLAG`) mas contexto de `head_df.parquet` "
+            "(`REDSHIFT_HELIO`/`SNTYPE`/`DETECTED`) y procedencia (`class_key`/`run_hash`/"
+            "`source_sweep`/`seed_index`/`wfd`). Solo incluye corridas de sweeps con "
+            "`keep_phot=true` (Fase 81) -- ver `manifest.json[\"by_class_files\"]` para la lista "
+            "real de clases exportadas.\n"
+        )
+    else:
+        by_class_note = (
+            "**El formato de ingesta por clase (parquet, Fase 82) todavia no aplica a este "
+            f"dataset**: {ingestion_format_pending_reason}. Relanzar el/los sweep(s) de origen "
+            "con `keep_phot: true` y volver a publicar para obtener `by_class/`.\n"
+        )
+
     readme_path.write_text(
-        "# Dataset publicado (Fase 66)\n\n"
+        "# Dataset publicado (Fase 66, conector de Fase 82)\n\n"
         f"`dataset_hash`: `{dataset_hash}` (`{dataset_hash_full}`)\n\n"
         f"Sweeps de origen: {', '.join(sorted(sweep_names))}\n\n"
         f"{len(consolidated)} corridas (solo status=done).\n\n"
-        "**El formato de ingesta al entrenamiento de ALeRCE aun no esta definido.** "
-        "Este directorio es el punto de enganche -- un futuro conversor debe leer "
-        "`manifest.json` + `consolidated.parquet` desde aca, sin tocar `sweep_runs/` "
-        "ni el resto del sistema de automatizacion. `consolidated.parquet` es la tabla "
-        "agregada POR CORRIDA (metricas de `summary.json` + `run_hash`), no fotometria "
-        "cruda -- esa se borra por diseno despues de cada corrida (ver `sweep_worker.py`). "
-        "Si el formato real de ALeRCE necesita fotometria cruda por objeto, es una "
-        "decision de una fase posterior que cambiaria la politica de borrado.\n",
+        f"{by_class_note}\n"
+        "`consolidated.parquet` es la tabla agregada POR CORRIDA (metricas de `summary.json` + "
+        "`run_hash`) -- util para comparar corridas entre si, no reemplaza la fotometria de "
+        "`by_class/`. Este directorio es el punto de enganche real -- un conversor externo debe "
+        "leer desde aca, sin tocar `sweep_runs/` ni el resto del sistema de automatizacion.\n",
         encoding="utf-8",
     )
 
-    print(f"\n  dataset publicado: {out_dir} ({len(consolidated)} corridas, hash={dataset_hash})")
+    print(f"\n  dataset publicado: {out_dir} ({len(consolidated)} corridas, hash={dataset_hash}, "
+          f"ingestion_format={ingestion_format})")
 
     record_event(
         "publish_dataset", triggered_by=triggered_by, source_sweeps=sorted(sweep_names),

@@ -3872,6 +3872,26 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           <code>phot_df.parquet</code> sobrevivió solo en el que tenía <code>keep_phot=true</code>.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">82</span>
+        <div class="step-body">
+          <p><strong><code>sweep_export_by_class.py</code> — conector real de ML: parquet
+          organizado por clase, tal como lo pidió el profesor.</strong> Reemplaza el
+          <code>ingestion_format: null</code> deliberado que <code>sweep_publish_dataset.py</code>
+          mantenía desde la Fase 66/73 mientras el formato real no estaba definido — el propio
+          README generado ya anticipaba este momento: <em>"si el formato real de ALeRCE necesita
+          fotometría cruda por objeto, es una decisión de una fase posterior que cambiaría la
+          política de borrado"</em>.</p>
+          <p>Une <code>head_df.parquet</code> sobre <code>phot_df.parquet</code> por
+          <code>SNID</code> para cada corrida con fotometría preservada (<code>keep_phot=true</code>,
+          Fase 81), concatena por clase. Validado con datos reales: publicando 2 sweeps con
+          fotometría preservada, <code>by_class/{SNIa-91bg,PISN-STELLA-HECORE}.parquet</code>
+          resultaron con 176,601 y 195,592 filas reales y
+          <code>ingestion_format="parquet_by_class_v1"</code>; publicando un sweep sin fotometría
+          preservada, el sistema sigue funcionando (<code>ingestion_format=null</code> con la razón
+          explícita), sin fallar.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
