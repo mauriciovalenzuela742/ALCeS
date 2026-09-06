@@ -8995,3 +8995,74 @@ anticipado. Queda pendiente la prueba real en una máquina sin acceso a NLHPC en
 Nuevo: `sweep_run_local.py`, `sweeps/_smoke_local.yaml`. Sin cambios en `sweep_hash.py`,
 `sweep_compile.py`, `sweep_monitor.py`, `sweep_aggregate.py`, `sweep_worker.py`. `NOTES.md`: esta
 entrada.
+
+## Fase 77 -- Validación real en una máquina Windows sin NLHPC: 2 bugs reales encontrados y
+corregidos, instalación completa confirmada, corrida final validada en NLHPC por espacio en disco
+
+### Motivación
+
+Fases 74-76 portaron rutas, datos y el runner de sweeps, pero todo el trabajo se había *diseñado*
+sin correrlo nunca en una máquina que no fuera NLHPC. El plan exigía explícitamente probar de punta
+a punta en un entorno Windows real antes de documentar nada para el profesor -- "no se resuelve por
+adivinanza".
+
+### Instalación real: 2 bugs de Windows encontrados corriendo, no supuestos
+
+`pip install -r requirements.txt` en un venv nuevo (Python 3.14.6, único disponible en esta
+máquina -- NLHPC usa 3.12.3) falló compilando `sncosmo` (dependencia dura de `lightcurvelynx`, no
+opcional): `error: Unable to find a compatible Visual Studio installation`, pese a tener Visual
+Studio Build Tools 2022 con `cl.exe` real instalado. Investigado a fondo (no aceptado como "Windows
+simplemente no sirve"): `setuptools._distutils.compilers.C.msvc._get_vc_env()` invoca
+`vcvarsall.bat`, que a su vez llama a `vswhere.exe` -- pero `vswhere.exe` no estaba en el PATH del
+proceso que lanza pip, y el mensaje de error resultante ("no se reconoce como comando") se mezclaba
+con la salida que `_get_vc_env()` decodifica como UTF-16LE, rompiendo el parseo y devolviendo un
+entorno vacío. **Fix real de una línea**: agregar `C:\Program Files (x86)\Microsoft Visual
+Studio\Installer` (donde vive `vswhere.exe`) al `PATH` antes de instalar -- confirmado con
+`sncosmo-2.13.0` compilando y `pip install -r requirements.txt` completo (`lightcurvelynx==0.5.2`,
+`sncosmo`, `pandas`, `pyarrow`, `matplotlib`, `pyyaml`) instalado e importable sin errores.
+
+**Segundo bug real, distinto**: corriendo el smoke sweep (`sweep_run_local.py
+sweeps/_smoke_local.yaml`) con los datos vendorizados (Fase 75) y el `.db` de OpSim recién
+descargado (`pipeline/fetch_opsim.py`, público, ~743MB), ambas clases piloto SIMSED
+(`SNIa-91bg`, `PISN-STELLA-HECORE`) fallaron con `sqlite3.OperationalError: unable to open database
+file`. Causa real: `run_simsed_poc.py` (línea 88) era el único de los 4 scripts de producción que la
+Fase 74 NO terminó de portar -- seguía con `OPSIM_DB = SNANA_HOME / "AUTOSIM/data/opsim/..."` en vez
+de `REPO_ROOT / "data/opsim/..."` (patrón ya aplicado en los otros 3). En NLHPC coincidía por
+casualidad (el repo vive exactamente en `~/AUTOSIM`), enmascarando el bug ahí; en cualquier otra
+máquina (`SNANA_HOME` = home del usuario, repo en cualquier otra carpeta) rompe. Corregido con el
+mismo patrón de una línea.
+
+### Restricción real de espacio en disco -- validación final trasladada a NLHPC
+
+A mitad de la Fase 77 el notebook de desarrollo se quedó sin espacio (~1.1GB libres tras el `.db`
+de OpSim + el venv de prueba con `lightcurvelynx`/`astropy`/`scipy`/`sncosmo`). Criterio aplicado:
+NLHPC ya tiene todos estos datos -- no hace falta retener una copia local persistente en la máquina
+de desarrollo solo para validar el método una vez. Se liberó el espacio (borrado el `.db` de
+OpSim descargado, el venv de prueba completo, y el instalador de Miniforge descartado -- ~1.7GB
+liberados en total) y la validación final de los 2 bugs corregidos se hizo directamente en NLHPC
+(`scp` del fix, sin usar `git pull` -- `~/AUTOSIM` en NLHPC es una copia sincronizada por `scp`, no
+un clon git, confirmado al intentar `git pull` ahí y obtener "not a git repository").
+
+**Corrida real de confirmación** (`sweep_launch.py sweeps/_smoke_local.yaml`, vía `sbatch`,
+job=12761794 -- notar: sin cargar el módulo `SNANA/11.05p`, que en este intento downgradeaba
+OpenSSL 3.3.0→1.1 y rompía la importación de `pyarrow` en el venv; `run_simsed_poc.py` no invoca
+binarios de SNANA directamente, solo lee sus archivos de config, así que no lo necesita cargado):
+ambas corridas terminaron `status=done`, sin fallos (`sweep_monitor.py _smoke_local` →
+`resumen: done=2`).
+
+### Conclusión Fase 77
+
+El flujo de instalación local queda confirmado como real y viable en Windows nativo, con 2 gotchas
+genuinos documentados (no supuestos) y sus fixes ya aplicados y validados: el PATH de `vswhere.exe`
+para compilar `sncosmo`, y el `OPSIM_DB` de `run_simsed_poc.py`. La corrida de confirmación final se
+hizo en NLHPC en vez de repetirla en el notebook de desarrollo, por la restricción real de espacio
+encontrada -- criterio documentado para la Fase 78: la máquina del profesor sí necesita el `.db` de
+OpSim completo (~750MB) para generar localmente, pero un entorno de desarrollo/prueba compartido no
+necesita retenerlo después de validar.
+
+### Archivos de esta fase
+
+Modificado: `run_simsed_poc.py` (`OPSIM_DB`). `requirements.txt`: sin cambios (ya correcto desde
+Fase 74). `NOTES.md`: esta entrada. No se generaron archivos nuevos en el repo -- el venv de prueba,
+el `.db` de OpSim y el instalador de Miniforge fueron todos artefactos ephemeral de esta fase,
+borrados al terminar.

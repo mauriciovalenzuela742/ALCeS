@@ -19,3 +19,8 @@ exploration/lightcurvelynx/poc_output*/**/*.parquet
 # se versiona, los artefactos que genera no.
 exploration/lightcurvelynx/sweep_runs/
 exploration/lightcurvelynx/datasets/
+# Fase 75: bundles de datos vendorizados (vendor_snana_class.py) para el
+# port local -- config/plantillas reales de SNANA, no codigo; mismo criterio
+# que poc_output*/ arriba (se generan/descargan, no se versionan). Se
+# distribuyen empaquetados (lightcurvelynx_local_data_pilot.zip) fuera de git.
+exploration/lightcurvelynx/*_local/

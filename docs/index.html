@@ -3779,6 +3779,32 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           sin modificar).</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">77</span>
+        <div class="step-body">
+          <p><strong>Validación real en Windows sin NLHPC: 2 bugs encontrados corriendo, no
+          supuestos, ambos corregidos.</strong> <code>pip install -r requirements.txt</code>
+          fallaba compilando <code>sncosmo</code> (dependencia dura de <code>lightcurvelynx</code>)
+          con <em>"Unable to find a compatible Visual Studio installation"</em> pese a tener el
+          compilador real instalado — causa raíz: <code>vswhere.exe</code> no estaba en el
+          <code>PATH</code> del proceso, y el error resultante rompía el parseo UTF-16LE que usa
+          <code>setuptools</code> para capturar el entorno de <code>vcvarsall.bat</code>. Fix de una
+          línea: agregar el directorio del instalador de Visual Studio al <code>PATH</code>.</p>
+          <p>Segundo bug: el smoke sweep fallaba con <code>sqlite3.OperationalError: unable to open
+          database file</code> para las 2 clases piloto SIMSED. Causa real: <code>run_simsed_poc.py</code>
+          era el único de los 4 scripts de producción que la Fase 74 no terminó de portar — seguía
+          apuntando a <code>SNANA_HOME / "AUTOSIM/data/opsim/..."</code> en vez de
+          <code>REPO_ROOT / "data/opsim/..."</code>. En NLHPC coincidía por casualidad (el repo vive
+          en <code>~/AUTOSIM</code>), enmascarando el bug ahí.</p>
+          <p>A mitad de la fase el notebook de desarrollo se quedó sin espacio en disco (el
+          <code>.db</code> de OpSim + el venv de prueba). Criterio aplicado: NLHPC ya tiene estos
+          datos, no hace falta retenerlos en una máquina de desarrollo solo para validar una vez —
+          se liberó el espacio y la corrida de confirmación final se hizo en NLHPC (<code>scp</code>
+          del fix, ya que <code>~/AUTOSIM</code> ahí es una copia sincronizada por <code>scp</code>,
+          no un clon git), vía <code>sbatch</code>: ambas clases piloto terminaron
+          <code>status=done</code>, sin fallos.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
