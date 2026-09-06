@@ -9066,3 +9066,37 @@ Modificado: `run_simsed_poc.py` (`OPSIM_DB`). `requirements.txt`: sin cambios (y
 Fase 74). `NOTES.md`: esta entrada. No se generaron archivos nuevos en el repo -- el venv de prueba,
 el `.db` de OpSim y el instalador de Miniforge fueron todos artefactos ephemeral de esta fase,
 borrados al terminar.
+
+## Fase 78 -- `HOWTO_LOCAL.md`: documentación de instalación local, cierra el plan de Fases 74-78
+
+### Motivación
+
+Con las Fases 74-77 validando que el método completo (rutas, datos, sweeps, instalación) corre de
+punta a punta en una máquina sin NLHPC, faltaba el último paso del plan: un documento que alguien
+que no vio ninguna de estas fases pueda seguir de punta a punta, sin adivinar nada.
+
+### Cambio real
+
+`HOWTO_LOCAL.md` nuevo, hermano de `HOWTO.md` (que sigue documentando el flujo real de NLHPC, no se
+reemplaza). Cubre: qué incluye este camino y qué no (explícito, para no generar expectativas
+equivocadas -- la comparación contra SNANA y las 16 clases sin vendoring quedan fuera); requisitos
+reales verificados (Python 3.12 o 3.14, ~750MB de disco para el `.db` de OpSim, Visual Studio Build
+Tools en Windows para compilar `sncosmo`); instalación de dependencias con el gotcha real de
+`vswhere.exe`/`PATH` documentado tal cual se encontró en Fase 77 (no genérico); cómo obtener el
+bundle de datos de las 3 clases piloto y el `.db` de OpSim (con la nota real del
+`UnicodeEncodeError` cosmético de Fase 77); el smoke test (`sweep_run_local.py
+sweeps/_smoke_local.yaml`) como paso de confianza obligatorio antes de un barrido real; cómo correr
+un barrido real y agregar una clase nueva (`vendor_snana_class.py <clase>`, un comando, sin código
+nuevo).
+
+### Conclusión Fase 78
+
+Cierra el plan "Portar la generación de simulaciones LightCurveLynx + automatización a una máquina
+local" (Fases 74-78). El profesor puede instalar y generar datasets reales en su propio computador
+sin acceso a NLHPC, con 3 clases piloto ya listas y un mecanismo documentado para agregar el resto
+bajo demanda. La comparación contra SNANA (la investigación científica, Fases 0-73) permanece
+exclusiva de NLHPC, sin cambios.
+
+### Archivos de esta fase
+
+Nuevo: `HOWTO_LOCAL.md`. `NOTES.md`: esta entrada.

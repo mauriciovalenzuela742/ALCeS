@@ -3805,6 +3805,23 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           <code>status=done</code>, sin fallos.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">78</span>
+        <div class="step-body">
+          <p><strong><code>HOWTO_LOCAL.md</code> — documentación de instalación local, cierra el
+          plan de Fases 74-78.</strong> Hermano de <code>HOWTO.md</code> (que sigue documentando el
+          flujo real de NLHPC, no se reemplaza): qué incluye este camino local y qué no (explícito
+          — la comparación contra SNANA y las 16 clases sin vendoring quedan fuera), requisitos
+          reales verificados (Python 3.12/3.14, ~750MB de disco para el <code>.db</code> de OpSim,
+          Visual Studio Build Tools en Windows), el gotcha real de <code>vswhere.exe</code>/PATH
+          documentado tal cual se encontró en la Fase 77, el smoke test como paso de confianza
+          obligatorio, y cómo agregar una clase nueva (<code>vendor_snana_class.py &lt;clase&gt;</code>,
+          un comando, sin código nuevo).</p>
+          <p>Con esto el profesor puede instalar y generar datasets reales en su propio computador
+          sin acceso a NLHPC, con 3 clases piloto ya listas — la comparación contra SNANA (la
+          investigación científica) permanece exclusiva de NLHPC, sin cambios.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
