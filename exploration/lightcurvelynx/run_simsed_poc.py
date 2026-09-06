@@ -85,7 +85,7 @@ from pipeline.simlib.formatobs import format_obs  # noqa: E402
 from lightcurvelynx.astro_utils.mag_flux import mag2flux  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-OPSIM_DB = SNANA_HOME / "AUTOSIM/data/opsim/baseline_v5.3.1_10yrs.db"
+OPSIM_DB = REPO_ROOT / "data/opsim/baseline_v5.3.1_10yrs.db"
 SEARCHEFF_PIPELINE_FILE = SNANA_HOME / "run_SNANA/LSST_SEARCHEFF_PIPELINE.DAT"
 SEARCHEFF_LOGIC_FILE = SNANA_HOME / "run_SNANA/LSST_PIPELINE_LOGIC.DAT"
 PIXSIZE = 0.2
