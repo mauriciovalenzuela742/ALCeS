@@ -9100,3 +9100,55 @@ exclusiva de NLHPC, sin cambios.
 ### Archivos de esta fase
 
 Nuevo: `HOWTO_LOCAL.md`. `NOTES.md`: esta entrada.
+
+## Fase 79 -- `sweep_generate.py`: backend generador de sweeps
+
+### Motivación
+
+Con la instalación local resuelta (Fases 74-78), el profesor pidió el siguiente nivel de
+automatización: "backend que genere scripts". Investigación real confirmó el hueco exacto: autoría
+de `sweeps/*.yaml` era 100% manual (cero `yaml.dump` en todo el repo antes de esta fase,
+`HOWTO.md` decía literalmente "copiar un YAML existente como plantilla").
+
+### Cambio real
+
+`sweep_generate.py` nuevo: `generate_sweep(sweep_name, classes, seeds, ngentot_overrides, modes,
+resources, max_concurrent, partition, keep_phot, description, force)` escribe un
+`sweeps/<nombre>.yaml` con exactamente el mismo esquema que `sweep_compile.py` ya espera (mismo
+orden de claves que `sweeps/_smoke_local.yaml`) -- no compila ni lanza nada, ese sigue siendo un
+paso separado y explícito.
+
+`available_classes()` no es una lista hardcodeada -- intersección real entre `CLASS_CONFIGS`
+(import de `run_simsed_poc.py`) y `Path(cfg["simsed_dir"]).exists()` no vacío, así que se
+auto-actualiza a medida que `vendor_snana_class.py` empaquete más clases. Corrido en NLHPC (donde
+existe la data completa de las 15 clases SIMSED) devuelve las 15; corrido en una máquina local con
+solo el bundle de la Fase 75 devolvería solo las 2 clases SIMSED vendorizadas ahí.
+
+`validate_classes()` distingue 2 causas raíz reales con 2 mensajes distintos: clase que no existe
+en el catálogo (`CLASS_CONFIGS`) vs. clase real del catálogo pero sin datos vendorizados
+localmente -- confirmado con un test real (el segundo caso se simuló acotando
+`available_classes()`, ya que en NLHPC las 15 clases están disponibles y ese caso no ocurre
+naturalmente ahí).
+
+**Bug real encontrado y corregido en el camino**: la primera versión de `--list-classes` seguía
+exigiendo `--name`/`--classes`/`--seeds` como argumentos obligatorios de `argparse`, así que listar
+las clases disponibles sin querer generar nada todavía fallaba con "arguments are required".
+Corregido validando esos 3 argumentos a mano solo cuando `--list-classes` no está presente.
+
+### Validación real
+
+Generado un sweep real (`SNIa-91bg` + `PISN-STELLA-HECORE`, `ngentot=30` c/u, `keep_phot=true`) vía
+`python3 sweep_generate.py --name ... --classes ... --seeds 0 --ngentot ... --keep-phot`, y
+compilado con el `sweep_compile.py` real sin modificar -- mismo `code_hash`, mismo formato de
+manifiesto que un YAML escrito a mano. Artefactos de prueba borrados después.
+
+### Conclusión Fase 79
+
+El backend generador de sweeps queda operativo y validado con una corrida real de punta a punta
+(generar → compilar), con las 2 rutas de error reales distinguidas explícitamente. `sweep_history`
+(Fase 80, todavía no escrito) se importa con un shim de respaldo (no-op) para no bloquear esta fase
+en la siguiente -- se conecta de verdad en la Fase 80.
+
+### Archivos de esta fase
+
+Nuevo: `sweep_generate.py`. `NOTES.md`: esta entrada.

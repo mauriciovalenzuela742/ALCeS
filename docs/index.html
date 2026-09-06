@@ -3822,6 +3822,24 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           investigación científica) permanece exclusiva de NLHPC, sin cambios.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">79</span>
+        <div class="step-body">
+          <p><strong><code>sweep_generate.py</code> — backend generador de sweeps, primer paso del
+          pedido del profesor de automatizar más allá de la instalación local.</strong> Antes de
+          esta fase, escribir un <code>sweeps/*.yaml</code> era 100% manual (cero
+          <code>yaml.dump</code> en todo el repo). <code>generate_sweep()</code> escribe un YAML
+          real con el mismo esquema exacto que <code>sweep_compile.py</code> ya espera —
+          <code>available_classes()</code> no es una lista fija, es la intersección real entre el
+          catálogo (<code>CLASS_CONFIGS</code>) y qué clases tienen datos vendorizados en la
+          máquina donde corre, así que se auto-actualiza sola.</p>
+          <p><code>validate_classes()</code> distingue 2 causas de error reales con 2 mensajes
+          distintos (clase que no existe vs. clase real sin vendorizar localmente) — validado con
+          una corrida real: generar un sweep de 2 clases piloto y compilarlo con
+          <code>sweep_compile.py</code> sin modificar dio exactamente el mismo formato de
+          manifiesto que un YAML escrito a mano.</p>
+        </div>
+      </li>
     </ol>
     </div>
 
