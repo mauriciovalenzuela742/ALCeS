@@ -146,6 +146,27 @@ def read_json(path: Path | str):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def append_jsonl(path: Path | str, record: dict) -> None:
+    """Agrega UNA linea a un archivo JSON Lines -- distinto de
+    write_json_atomic() a proposito (Fase 80): ahi se REEMPLAZA el archivo
+    entero (un manifiesto/snapshot fresco cada vez); aca se AGREGA, nunca
+    se reescriben lineas ya escritas -- es el mecanismo real detras de
+    generation_history.jsonl, el historial reproducible que acumula a
+    traves de multiples sweeps/publicaciones a lo largo del tiempo (algo
+    que ningun manifest.json/run_hash.json hace, cada uno es un snapshot
+    autocontenido de su propio evento).
+
+    flush()+fsync() por la misma razon que write_json_atomic(): no dejar
+    una linea a medio escribir si el proceso muere a mitad de camino."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(record, default=str, sort_keys=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(line + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
 def write_dataframe_atomic(path: Path | str, df) -> Path:
     """Escribe un DataFrame a parquet de forma atomica (mismo patron que
     write_json_atomic): to_parquet() al archivo temporal, luego

@@ -29,12 +29,7 @@ import yaml
 
 from run_simsed_poc import CLASS_CONFIGS, HERE
 from sweep_compile import NGENTOT_WARN_THRESHOLD
-
-try:
-    from sweep_history import record_event
-except ImportError:  # Fase 80 todavia no existe en un checkout parcial
-    def record_event(*a, **kw):  # noqa: D401 -- shim, ver sweep_history.py
-        return None
+from sweep_history import record_event
 
 SWEEPS_DIR = HERE / "sweeps"
 SWEEP_NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")

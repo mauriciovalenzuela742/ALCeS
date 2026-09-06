@@ -3840,6 +3840,23 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           manifiesto que un YAML escrito a mano.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">80</span>
+        <div class="step-body">
+          <p><strong><code>generation_history.jsonl</code> — historial reproducible append-only,
+          el "JSON como historial" que pidió el profesor.</strong> Nada de lo existente cumplía
+          esto: <code>manifest.json</code>/<code>run_hash.json</code>/el manifiesto de un dataset
+          publicado son todos snapshots frescos y autocontenidos de un solo evento — nada se
+          acumulaba a través de múltiples generar/compilar/correr/publicar a lo largo del tiempo.
+          <code>sweep_hash.append_jsonl()</code> (agrega una línea, nunca reescribe las anteriores)
+          + <code>sweep_history.record_event()</code> quedan instrumentados en los 4 puntos de
+          decisión reales — no en cada corrida individual, eso ya vive en
+          <code>run_hash.json</code>.</p>
+          <p>Validado con una corrida real de punta a punta en NLHPC (generar → compilar → correr
+          → publicar): el historial terminó con exactamente 4 líneas nuevas, JSON válido cada una,
+          en el orden cronológico correcto.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

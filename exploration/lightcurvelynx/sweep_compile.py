@@ -25,6 +25,7 @@ from pathlib import Path
 import yaml
 
 import sweep_hash
+from sweep_history import record_event
 from run_simsed_poc import CLASS_CONFIGS, HERE, NGENTOT_LC
 
 SWEEP_RUNS_DIR = HERE / "sweep_runs"
@@ -146,7 +147,7 @@ python3 sweep_worker.py --manifest sweep_runs/{sweep_name}/manifest.json --index
 """
 
 
-def compile_sweep(yaml_path: Path, force: bool = False) -> Path:
+def compile_sweep(yaml_path: Path, force: bool = False, triggered_by: str = "cli") -> Path:
     yaml_path = Path(yaml_path)
     sweep_cfg = load_sweep_yaml(yaml_path)
     sweep_name = sweep_cfg["sweep_name"]
@@ -208,6 +209,12 @@ def compile_sweep(yaml_path: Path, force: bool = False) -> Path:
     )
     sweep_hash.write_json_atomic(manifest_path, manifest)
     print(f"\n  manifest: {manifest_path} ({len(rows)} corridas, {len(array_scripts)} tier(s))")
+
+    record_event(
+        "compile_sweep", triggered_by=triggered_by, sweep_name=sweep_name,
+        code_hash=code_hash_value, n_runs=len(rows),
+        manifest_sha256=sweep_hash.sha256_hex(manifest_path.read_bytes()),
+    )
     return manifest_path
 
 

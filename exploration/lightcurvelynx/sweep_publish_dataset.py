@@ -27,6 +27,7 @@ import pandas as pd
 import sweep_hash
 from run_simsed_poc import HERE
 from sweep_compile import SWEEP_RUNS_DIR
+from sweep_history import record_event
 
 DATASETS_DIR = HERE / "datasets"
 DATASET_SCHEMA_VERSION = 1
@@ -47,7 +48,7 @@ def load_sweep_done_rows(sweep_name: str) -> tuple[pd.DataFrame, str]:
     return df_done, manifest["code_hash"]
 
 
-def publish_dataset(sweep_names: list[str]) -> Path:
+def publish_dataset(sweep_names: list[str], triggered_by: str = "cli") -> Path:
     frames = []
     code_hash_by_sweep: dict[str, str] = {}
     for sweep_name in sweep_names:
@@ -117,6 +118,11 @@ def publish_dataset(sweep_names: list[str]) -> Path:
     )
 
     print(f"\n  dataset publicado: {out_dir} ({len(consolidated)} corridas, hash={dataset_hash})")
+
+    record_event(
+        "publish_dataset", triggered_by=triggered_by, source_sweeps=sorted(sweep_names),
+        dataset_hash=dataset_hash, ingestion_format=manifest["ingestion_format"],
+    )
     return out_dir
 
 

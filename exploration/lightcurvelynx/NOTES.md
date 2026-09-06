@@ -9152,3 +9152,57 @@ en la siguiente -- se conecta de verdad en la Fase 80.
 ### Archivos de esta fase
 
 Nuevo: `sweep_generate.py`. `NOTES.md`: esta entrada.
+
+## Fase 80 -- `generation_history.jsonl`: historial reproducible append-only
+
+### Motivación
+
+El profesor pidió "un JSON lo más reproducible posible, como un historial de..., para que
+cualquier otra persona tome el código y pueda seguir". Investigación real confirmó que nada de lo
+existente cumple esto: `manifest.json`/`run_hash.json`/`datasets/<hash>/manifest.json` son todos
+snapshots frescos y autocontenidos de un solo evento -- nada se acumula a través de múltiples
+generar/compilar/correr/publicar a lo largo del tiempo. La única "historia" real es `NOTES.md`,
+prosa de miles de líneas, no legible por máquina.
+
+### Cambio real
+
+`sweep_hash.append_jsonl(path, record)` nuevo -- distinto de `write_json_atomic()` a propósito: ahí
+se reemplaza el archivo entero (un snapshot fresco), acá se agrega una línea, nunca se reescriben
+líneas existentes (mismo patrón de `flush()`+`fsync()` que ya usa `write_json_atomic` para no dejar
+una línea a medio escribir si el proceso muere a mitad de camino).
+
+`sweep_history.py` nuevo, delgado: `record_event(event_type, *, triggered_by="cli", **fields)`
+arma `event_id`/`timestamp`/`event_type`/`triggered_by` + los campos dados y llama
+`sweep_hash.append_jsonl` sobre `generation_history.jsonl` (gitignorado, mismo criterio que
+`sweep_runs/`/`datasets/`); `read_history(limit=None)` lee tolerando líneas corruptas (salta con
+advertencia en vez de tumbar toda la lectura).
+
+Instrumentación quirúrgica en los 4 puntos de decisión reales (no en cada corrida individual --
+eso ya vive completo en `run_hash.json`, duplicarlo violaría el criterio de no inventar mecanismos
+paralelos): `sweep_generate.generate_sweep()`, `sweep_compile.compile_sweep()`,
+`sweep_run_local.run_sweep_local()`, `sweep_publish_dataset.publish_dataset()` -- cada uno ahora
+acepta `triggered_by: str = "cli"` (el webapp de Fase 83 pasará `"webapp"`) y registra un evento al
+terminar.
+
+### Validación real
+
+Ciclo completo real en NLHPC (`generate_sweep` → `compile_sweep` → `run_sweep_local` →
+`publish_dataset`, una clase piloto real, `ngentot=30`): `generation_history.jsonl` terminó con
+exactamente 4 líneas, cada una JSON válido, en orden cronológico correcto
+(`generate_sweep`→`compile_sweep`→`run_local`→`publish_dataset`). `ingestion_format` sigue en
+`null` en el evento de publicación -- esperado, `keep_phot` todavía no se conecta de verdad a
+`sweep_worker.py` (eso es la Fase 81, siguiente).
+
+### Conclusión Fase 80
+
+El historial reproducible queda operativo y validado con una corrida real de punta a punta -- el
+mecanismo conecta automáticamente cada acción futura (generar, compilar, correr, publicar) sin
+intervención manual, cumpliendo el pedido real del profesor de una traza que cualquier otra persona
+pueda seguir.
+
+### Archivos de esta fase
+
+Nuevo: `sweep_history.py`. Modificado: `sweep_hash.py` (`append_jsonl`), `sweep_generate.py`
+(import directo, ya no shim), `sweep_compile.py`, `sweep_run_local.py`,
+`sweep_publish_dataset.py` (instrumentación de `record_event` + parámetro `triggered_by`).
+`.gitignore` (`generation_history.jsonl`). `NOTES.md`: esta entrada.

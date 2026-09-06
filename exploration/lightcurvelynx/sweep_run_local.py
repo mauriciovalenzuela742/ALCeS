@@ -40,10 +40,11 @@ import yaml
 
 import sweep_hash
 from sweep_compile import SWEEP_RUNS_DIR, compile_sweep
+from sweep_history import record_event
 from sweep_worker import run_one
 
 
-def run_sweep_local(yaml_path: Path, workers_override: int | None = None) -> int:
+def run_sweep_local(yaml_path: Path, workers_override: int | None = None, triggered_by: str = "cli") -> int:
     yaml_path = Path(yaml_path)
     sweep_name = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))["sweep_name"]
     manifest_path = SWEEP_RUNS_DIR / sweep_name / "manifest.json"
@@ -89,6 +90,11 @@ def run_sweep_local(yaml_path: Path, workers_override: int | None = None) -> int
 
     print(f"\n  {n_ok}/{manifest['n_runs']} corridas terminaron 'done', {n_fail} con fallo")
     print(f"  ver detalle: python3 sweep_monitor.py {sweep_name}")
+
+    record_event(
+        "run_local", triggered_by=triggered_by, sweep_name=sweep_name,
+        n_ok=n_ok, n_fail=n_fail,
+    )
     return 0 if n_fail == 0 else 1
 
 
