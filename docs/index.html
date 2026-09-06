@@ -3857,6 +3857,21 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           en el orden cronológico correcto.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">81</span>
+        <div class="step-body">
+          <p><strong><code>keep_phot</code> — opt-in para preservar fotometría cruda, desbloquea
+          el conector real de ML.</strong> <code>sweep_worker.py</code> borraba
+          <code>phot_df.parquet</code> siempre, después de cada corrida (mitigación de cuota de
+          disco) — incompatible con un export de training-set real que necesita esa fotometría.
+          Nuevo campo de nivel-sweep en el YAML, copiado al manifiesto pero deliberadamente
+          <strong>fuera</strong> del hash de identidad de la corrida (es política de
+          almacenamiento, no un parámetro físico de la simulación).</p>
+          <p>Validado con 2 sweeps reales idénticos salvo <code>keep_phot</code>: mismo
+          <code>run_hash</code> en ambos (confirmando que no afecta la identidad), pero
+          <code>phot_df.parquet</code> sobrevivió solo en el que tenía <code>keep_phot=true</code>.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

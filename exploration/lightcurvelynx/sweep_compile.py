@@ -206,6 +206,11 @@ def compile_sweep(yaml_path: Path, force: bool = False, triggered_by: str = "cli
         max_concurrent=max_concurrent,
         array_scripts=array_scripts,
         runs=rows,
+        # Fase 81: politica de almacenamiento de nivel-sweep, NO entra en
+        # sweep_hash.run_hash() -- cambiar esto no debe cambiar la
+        # identidad de una corrida ya existente, es sobre que se conserva
+        # en disco despues, no sobre el resultado fisico de la simulacion.
+        keep_phot=bool(sweep_cfg.get("keep_phot", False)),
     )
     sweep_hash.write_json_atomic(manifest_path, manifest)
     print(f"\n  manifest: {manifest_path} ({len(rows)} corridas, {len(array_scripts)} tier(s))")

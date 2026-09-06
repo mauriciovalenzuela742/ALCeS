@@ -9206,3 +9206,45 @@ Nuevo: `sweep_history.py`. Modificado: `sweep_hash.py` (`append_jsonl`), `sweep_
 (import directo, ya no shim), `sweep_compile.py`, `sweep_run_local.py`,
 `sweep_publish_dataset.py` (instrumentación de `record_event` + parámetro `triggered_by`).
 `.gitignore` (`generation_history.jsonl`). `NOTES.md`: esta entrada.
+
+## Fase 81 -- `keep_phot`: opt-in para preservar fotometría cruda
+
+### Motivación
+
+`sweep_worker.py::cleanup_phot_df()` borra `phot_df.parquet` SIEMPRE, después de cada corrida
+(mitigación de cuota de disco, Fase 8/59/65). Esto es incompatible con un export de training-set
+real (Fase 82) que necesita fotometría cruda por objeto -- había que hacerlo opt-in, sin tocar el
+comportamiento por defecto de los sweeps exploratorios de siempre.
+
+### Cambio real
+
+Campo YAML de nivel-sweep `keep_phot: true|false` (default `false`, ya soportado en
+`sweep_generate.py` desde la Fase 79). `sweep_compile.py::compile_sweep()` lo copia al manifiesto
+(`manifest["keep_phot"]`) -- deliberadamente **no** entra en el payload de `sweep_hash.run_hash()`:
+es política de almacenamiento, no un parámetro físico de la simulación, así que cambiarlo no debe
+cambiar la identidad de una corrida.
+
+`sweep_worker.py::run_one()` lee `keep_phot` del manifiesto completo (no de la fila `row` -- evita
+que se cuele por error en el hash de la corrida) y cambia la línea exacta del `finally`:
+`cleaned = False if keep_phot else cleanup_phot_df(output_dir)`. Se agrega `phot_df_kept` a
+`run_hash.json`, junto al `phot_df_cleaned` que ya existía.
+
+### Validación real
+
+Dos sweeps reales, idénticos salvo `keep_phot` (uno `true`, uno `false`), misma clase/semilla/
+`ngentot`: compilados por separado, confirmado que ambos producen el **mismo `run_hash`**
+(`bbb5d89485ca` en los dos) -- `keep_phot` no cambia la identidad de la corrida. Corridos ambos vía
+`sweep_run_local.py`: `phot_df.parquet` sobrevivió únicamente en el sweep con `keep_phot=true`
+(`phot_df_kept=true`/`phot_df_cleaned=false`); el otro terminó con `phot_df_kept=false`/
+`phot_df_cleaned=true`, comportamiento idéntico al de antes de esta fase.
+
+### Conclusión Fase 81
+
+El opt-in queda operativo y validado con una corrida real doble -- desbloquea la Fase 82 (el
+conector real de ML necesita justamente esta fotometría cruda preservada) sin cambiar en nada el
+comportamiento por defecto de los sweeps exploratorios existentes.
+
+### Archivos de esta fase
+
+Modificado: `sweep_compile.py` (`manifest["keep_phot"]`), `sweep_worker.py` (lee `keep_phot`,
+`phot_df_kept` en `run_hash.json`). `NOTES.md`: esta entrada.

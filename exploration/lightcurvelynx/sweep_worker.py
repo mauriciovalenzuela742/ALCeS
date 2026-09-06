@@ -52,6 +52,10 @@ def cleanup_phot_df(output_dir: Path) -> bool:
 def run_one(manifest_path: Path, index: int) -> int:
     manifest = sweep_hash.read_json(manifest_path)
     sweep_name = manifest["sweep_name"]
+    # Fase 81: opt-in de nivel-sweep leido del manifiesto completo (no de
+    # `row`) -- evita que se cuele por error en el payload de run_hash(),
+    # es politica de almacenamiento, no un parametro fisico de la corrida.
+    keep_phot = manifest.get("keep_phot", False)
     sweep_dir = manifest_path.parent
     row = resolve_run(manifest, index)
 
@@ -103,12 +107,14 @@ def run_one(manifest_path: Path, index: int) -> int:
         status = "failed"
         error = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
     finally:
-        cleaned = cleanup_phot_df(output_dir)
+        # Fase 81: si el sweep pidio keep_phot=true, no se borra -- el
+        # export por clase (Fase 82) necesita la fotometria cruda real.
+        cleaned = False if keep_phot else cleanup_phot_df(output_dir)
 
     finished_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     sweep_hash.write_json_atomic(run_hash_path, {
         **common, "status": status, "started_at": started_at, "finished_at": finished_at,
-        "error": error, "phot_df_cleaned": cleaned,
+        "error": error, "phot_df_cleaned": cleaned, "phot_df_kept": keep_phot,
     })
     print(f"[{finished_at}] index={index} run_hash={row['run_hash']} status={status}"
           + (f" ({error.splitlines()[0]})" if error else ""))
