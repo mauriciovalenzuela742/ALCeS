@@ -3930,6 +3930,20 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           historial) funcionó de punta a punta sin errores en la consola.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">85</span>
+        <div class="step-body">
+          <p><strong><code>HOWTO_WEBAPP.md</code> — cierra el plan de Fases 79-85.</strong> Las 3
+          brechas reales identificadas al inicio quedan resueltas y validadas con datos reales:
+          (1) backend generador (<code>sweep_generate.py</code>, Fase 79), (2) historial
+          reproducible (<code>generation_history.jsonl</code>, Fase 80), (3) conector de ML —
+          parquet por clase (<code>sweep_export_by_class.py</code> sobre <code>keep_phot</code>,
+          Fases 81-82). Más "el botón" en sentido literal: una app web local completa (Flask,
+          Fases 83-84), validada de punta a punta en un navegador real.</p>
+          <p>El entrenamiento/despliegue de modelos queda explícitamente fuera de alcance — el
+          pipeline propio de ALeRCE, una decisión y un esfuerzo de ingeniería separados.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

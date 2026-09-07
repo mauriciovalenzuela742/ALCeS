@@ -9408,3 +9408,42 @@ revisar el historial, todo desde el navegador sin tocar la terminal ni recargar 
 Modificado: `webapp/templates/sweep_status.html` (polling JS), `webapp/templates/index.html`
 (sección avanzado), `webapp/app.py` (`resources`/`max_concurrent` desde el formulario). `NOTES.md`:
 esta entrada.
+
+## Fase 85 -- `HOWTO_WEBAPP.md` + cierre del plan (Fases 79-85)
+
+### Motivación
+
+Con el backend generador, el historial reproducible, el conector de ML y la interfaz web
+completos y validados (Fases 79-84), faltaba el documento que le permita a alguien que no vio
+ninguna de estas fases usar "el botón" de punta a punta.
+
+### Cambio real
+
+`HOWTO_WEBAPP.md` nuevo, hermano de `HOWTO.md`/`HOWTO_LOCAL.md`: qué es la app y qué no (no agrega
+capacidad de simulación nueva, no es multiusuario, no entrena modelos), cómo levantarla (incluido
+el túnel SSH para probarla desde NLHPC), el flujo real generar→lanzar→ver progreso en
+vivo→agregar→publicar, cómo leer el historial, y cómo interpretar `ingestion_format` en la página
+de un dataset publicado (`parquet_by_class_v1` real vs. `null` con la razón explícita).
+
+### Conclusión Fase 85 -- cierre del plan
+
+Cierra el plan "Backend generador de sweeps + interfaz web local + conector ML (parquet por
+clase)" (Fases 79-85). Las 3 brechas reales identificadas al inicio quedan resueltas y validadas
+con datos reales, no solo diseñadas en papel:
+
+1. **Backend que genere scripts** -- `sweep_generate.py` (Fase 79), validado generando y
+   compilando un sweep real idéntico en forma a uno escrito a mano.
+2. **Historial reproducible** -- `generation_history.jsonl` (Fase 80), validado con un ciclo
+   completo real de 4 eventos en orden cronológico.
+3. **Conector de ML (parquet por clase)** -- `sweep_export_by_class.py` (Fase 82), sobre
+   `keep_phot` (Fase 81), validado con datos reales de 2 clases piloto (176,601 y 195,592 filas de
+   fotometría real).
+
+Más "el botón" en sentido literal: una app web local (Flask, Fase 83) con un frontend completo
+(estado en vivo sin recargar, Fase 84), validada de punta a punta en un navegador real, no solo por
+`curl`. El entrenamiento/despliegue de modelos queda explícitamente fuera de alcance -- el pipeline
+propio de ALeRCE, una decisión y un esfuerzo de ingeniería separados.
+
+### Archivos de esta fase
+
+Nuevo: `HOWTO_WEBAPP.md`. `NOTES.md`: esta entrada.
