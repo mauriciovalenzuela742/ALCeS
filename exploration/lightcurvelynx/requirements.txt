@@ -18,3 +18,8 @@ pandas
 pyarrow
 matplotlib
 pyyaml
+
+# Fase 83: webapp/app.py -- "el boton" local pedido por el profesor. Una
+# sola dependencia liviana (sin uvicorn/pydantic/starlette de FastAPI --
+# todo lo que llama es sincrono/bloqueante, el modelo async no aporta nada).
+flask

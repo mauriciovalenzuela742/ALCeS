@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block heading %}Sweep: {{ name }}{% endblock %}
+{% block content %}
+<p>
+  {% if running %}
+    <strong>corriendo…</strong> <span class="hint">(recargar la página para actualizar el estado)</span>
+  {% else %}
+    <form method="post" action="{{ url_for('sweep_run', name=name) }}" style="display:inline">
+      <label>workers: <input type="number" name="workers" min="1" style="width:4rem" placeholder="auto"></label>
+      <button type="submit">Lanzar</button>
+    </form>
+  {% endif %}
+  {% if all_done %}
+    <form method="post" action="{{ url_for('sweep_aggregate_route', name=name) }}" style="display:inline">
+      <button type="submit">Agregar</button>
+    </form>
+    <form method="post" action="{{ url_for('sweep_publish_route', name=name) }}" style="display:inline">
+      <button type="submit">Publicar</button>
+    </form>
+  {% endif %}
+</p>
+{% if aggregated %}<p class="hint">Ya agregado (<code>aggregated_summary.parquet</code> existe).</p>{% endif %}
+
+<table>
+  <thead><tr><th>Idx</th><th>run_hash</th><th>Clase</th><th>Semilla</th><th>Estado</th><th>Detalle</th><th>QC</th></tr></thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.index }}</td>
+      <td><code>{{ r.run_hash }}</code></td>
+      <td>{{ r.class_key }}</td>
+      <td>{{ r.seed_index }}</td>
+      <td class="status-{{ r.status }}">{{ r.status }}</td>
+      <td>{{ r.detail }}</td>
+      <td class="qc-links">
+        {% for f in r.qc_files %}
+          <a href="{{ url_for('qc_image', sweep=name, run_hash=r.run_hash, filename=f) }}" target="_blank">{{ f.split('qc_')[-1].replace('.png','') }}</a>
+        {% endfor %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3>YAML generado</h3>
+<pre>{{ yaml_text }}</pre>
+{% endblock %}

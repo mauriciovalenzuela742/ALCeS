@@ -3892,6 +3892,25 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           explícita), sin fallar.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">83</span>
+        <div class="step-body">
+          <p><strong><code>webapp/app.py</code> — "el botón": backend Flask local, la interfaz que
+          pidió el profesor para interactuar con todo el sistema sin tocar la terminal.</strong>
+          <code>docs/index.html</code> se descartó a propósito como vehículo — es una página 100%
+          estática en GitHub Pages, sin capacidad de ejecutar nada del lado servidor. Todas las
+          rutas importan directo las funciones reales de <code>sweep_*.py</code> — nunca
+          <code>subprocess</code>/shell-out — y <code>run_hash.json</code> sigue siendo la única
+          fuente de verdad de estado, sin inventar un mecanismo nuevo.</p>
+          <p>Validado con un recorrido real completo contra la app corriendo en NLHPC: generar →
+          compilar → lanzar (corre en segundo plano, sin bloquear el servidor) → ver estado
+          <code>done</code> con enlaces reales a los 4 QC (nombres de archivo dinámicos, un
+          hallazgo real corregido en el camino) → agregar → publicar → ver el dataset resultante →
+          ver el historial con <code>triggered_by="webapp"</code>. Un incidente real de proceso
+          (Flask murió junto con su log efímero en <code>/tmp</code>) no afectó el trabajo ya
+          hecho — la corrida real había completado antes, confirmado en el filesystem.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

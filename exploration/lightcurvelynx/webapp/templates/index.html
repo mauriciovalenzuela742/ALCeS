@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<form method="post" action="{{ url_for('generate') }}">
+  <div class="field-row">
+    <label>Nombre del sweep: <input type="text" name="sweep_name" required pattern="[A-Za-z0-9_-]{1,64}" placeholder="p.ej. training_set_v1"></label>
+  </div>
+  <div class="field-row">
+    <label>Descripción: <input type="text" name="description" size="60" placeholder="opcional"></label>
+  </div>
+
+  <fieldset>
+    <legend>Clases disponibles (vendorizadas en esta máquina)</legend>
+    {% if classes %}
+      {% for c in classes %}
+        <div class="class-row">
+          <label><input type="checkbox" name="classes" value="{{ c }}"> {{ c }}</label>
+          <label>ngentot: <input type="number" name="ngentot_{{ c }}" placeholder="default del catálogo" min="1" style="width:9rem"></label>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="hint">No hay clases vendorizadas en esta máquina todavía — ver <code>HOWTO_LOCAL.md</code>
+      secciones 4 y 8 (<code>vendor_snana_class.py &lt;clase&gt;</code> en NLHPC).</p>
+    {% endif %}
+  </fieldset>
+
+  <div class="field-row">
+    <label>Semillas (separadas por coma): <input type="text" name="seeds" value="0"></label>
+  </div>
+  <div class="field-row">
+    <label><input type="checkbox" name="wfd"> WFD (footprint completo, en vez de DDF)</label>
+  </div>
+  <div class="field-row">
+    <label><input type="checkbox" name="keep_phot"> Preservar fotometría cruda</label>
+    <div class="hint">Necesario para exportar por clase al equipo de ML (Fase 81/82) — usa más
+    espacio de disco, verificar headroom antes de un barrido grande.</div>
+  </div>
+
+  <button type="submit">Generar</button>
+</form>
+{% endblock %}

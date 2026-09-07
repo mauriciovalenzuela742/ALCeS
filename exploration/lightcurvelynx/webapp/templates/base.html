@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}LightCurveLynx{% endblock %}</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1a1a2e; line-height: 1.5; }
+  h1 { font-size: 1.3rem; margin-bottom: 0.3rem; }
+  nav { margin-bottom: 1.2rem; }
+  nav a { margin-right: 1.2rem; color: #0f8f86; text-decoration: none; font-weight: 600; }
+  nav a:hover { text-decoration: underline; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid #d8dce0; padding: 0.4rem 0.6rem; text-align: left; }
+  th { background: #f4f6f7; }
+  .flash { background: #fff3cd; border: 1px solid #ffe69c; padding: 0.6rem 1rem; margin: 1rem 0; border-radius: 4px; }
+  .status-done { color: #0a7d3c; font-weight: 600; }
+  .status-failed, .status-FAILED, .status-UNKNOWN { color: #b3261e; font-weight: 600; }
+  .status-running, .status-RUNNING, .status-PENDING, .status-NOT_SUBMITTED { color: #8a6100; font-weight: 600; }
+  fieldset { margin: 1rem 0; border: 1px solid #d8dce0; border-radius: 6px; }
+  legend { font-weight: 600; padding: 0 0.4rem; }
+  code { background: #f4f6f7; padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #f4f6f7; padding: 0.8rem; overflow-x: auto; border-radius: 4px; font-size: 0.82rem; }
+  button, input[type=submit] { cursor: pointer; background: #0f8f86; color: #fff; border: none; border-radius: 4px; padding: 0.5rem 1rem; font-size: 0.9rem; }
+  button:hover { background: #0c766f; }
+  input[type=text], input[type=number] { padding: 0.3rem 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
+  .field-row { margin: 0.6rem 0; }
+  .class-row { display: flex; align-items: center; gap: 0.8rem; margin: 0.3rem 0; }
+  .hint { color: #666; font-size: 0.85rem; }
+  .qc-links a { margin-right: 0.6rem; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="{{ url_for('index') }}">Generar sweep</a>
+  <a href="{{ url_for('history') }}">Historial</a>
+</nav>
+<h1>{% block heading %}LightCurveLynx — generador de sweeps{% endblock %}</h1>
+{% with messages = get_flashed_messages() %}
+  {% if messages %}{% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}{% endif %}
+{% endwith %}
+{% block content %}{% endblock %}
+</body>
+</html>

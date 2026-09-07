@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block heading %}Dataset: {{ manifest.dataset_hash }}{% endblock %}
+{% block content %}
+<p><strong>ingestion_format:</strong> <code>{{ manifest.ingestion_format or "null" }}</code>
+{% if manifest.ingestion_format_pending_reason %}<span class="hint">— {{ manifest.ingestion_format_pending_reason }}</span>{% endif %}
+</p>
+<p>Sweeps de origen: {{ manifest.source_sweeps | join(", ") }} — {{ manifest.n_runs }} corridas.</p>
+
+{% if by_class_shapes %}
+<h3>Fotometría por clase (<code>by_class/*.parquet</code>)</h3>
+<table>
+  <thead><tr><th>Clase</th><th>Filas</th><th>Columnas</th><th>Archivo</th></tr></thead>
+  <tbody>
+    {% for class_key, shape in by_class_shapes.items() %}
+    <tr>
+      <td>{{ class_key }}</td><td>{{ "{:,}".format(shape[0]) }}</td><td>{{ shape[1] }}</td>
+      <td><code>{{ manifest.by_class_files[class_key] }}</code></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="hint">Sin fotometría por clase en este dataset — ninguna corrida de origen tenía
+<code>keep_phot=true</code>. Relanzar el sweep con esa opción y volver a publicar.</p>
+{% endif %}
+{% endblock %}

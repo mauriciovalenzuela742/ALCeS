@@ -9303,3 +9303,63 @@ profesor definiera el formato) queda cerrado con el formato que el profesor efec
 Nuevo: `sweep_export_by_class.py`. Modificado: `sweep_publish_dataset.py` (`export_by_class()`,
 `ingestion_format` real, manifiesto y README actualizados, docstring del módulo). `NOTES.md`: esta
 entrada.
+
+## Fase 83 -- `webapp/app.py`: "el botón" -- backend Flask local
+
+### Motivación
+
+Con el backend de generación/historial/conector resuelto (Fases 79-82), faltaba "el botón" en
+sentido literal que pidió el profesor: una interfaz para interactuar con todo eso sin tocar la
+terminal. `docs/index.html` (el dashboard publicado) se investigó y descartó a propósito: es una
+página 100% estática en GitHub Pages, sin capacidad de ejecutar nada del lado servidor -- necesitaba
+un vehículo nuevo.
+
+### Cambio real
+
+`webapp/app.py` nuevo (Flask, justificación real: `requirements.txt` no tenía ningún framework web,
+Flask agrega una sola dependencia liviana, y todo lo que llama ya es síncrono/bloqueante -- el
+modelo async de FastAPI no aporta nada acá). Todas las rutas importan directo las funciones reales
+de `sweep_*.py` -- nunca `subprocess`/shell-out: `/` (formulario, clases vía
+`sweep_generate.available_classes()`), `/generate` (`generate_sweep` → `compile_sweep`),
+`/sweep/<name>` (estado + YAML), `/sweep/<name>/run` (lanza `run_sweep_local` en un
+`threading.Thread` de fondo -- no bloquea Flask, guard en memoria solo para no lanzar el mismo
+sweep 2 veces), `/sweep/<name>/status` (JSON vía `sweep_monitor.monitor_sweep`, sin mecanismo de
+estado nuevo), `/aggregate`, `/publish`, `/history`, `/qc/<sweep>/<hash>/<archivo>` (sirve los PNG
+que `pipeline.postproc.qc` ya genera), `/datasets/<hash>`. Host `127.0.0.1` siempre -- un solo
+usuario local.
+
+**Hallazgo real en el camino**: los nombres de archivo de QC son dinámicos (prefijo real
+`LightCurveLynx_<clase>_<WFD|DDF>_poc_qc_*.png`, no un nombre fijo) -- el diseño original asumía
+nombres constantes; corregido listando los `.png` reales del directorio `qc/` de cada corrida en
+vez de adivinar.
+
+### Validación real
+
+Recorrido completo real contra la app corriendo en NLHPC (`curl`, simulando exactamente lo que
+manda un formulario real): `POST /generate` (clase piloto real, ngentot=20) → redirect a
+`/sweep/_fase83_test` con el manifiesto ya compilado → `POST /sweep/.../run` → la corrida real
+terminó `status=done` en su `run_hash.json` (confirmado en el filesystem, independiente del proceso
+Flask) → la página de estado mostró `done` con los 4 enlaces reales de QC (nombres dinámicos
+correctos) → una imagen QC real sirvió con `HTTP 200` (73,771 bytes) → `POST /aggregate` y
+`POST /publish` funcionaron, redirigiendo a `/datasets/<hash>` real → la página del dataset mostró
+`ingestion_format=null` con la razón explícita (este sweep de prueba no usó `keep_phot`) →
+`/history` mostró los 4 eventos reales (`generate_sweep`/`compile_sweep`/`run_local`/
+`publish_dataset`) con `triggered_by="webapp"`.
+
+**Incidente real durante la prueba**: el proceso de Flask murió junto con su archivo de log en
+`/tmp` (efímero en NLHPC) cuando una sesión SSH de polling separada fue terminada por el entorno --
+la corrida real en sí ya había completado antes de eso (confirmado por su `run_hash.json`), así que
+no se perdió trabajo, solo el proceso servidor. Reiniciado con `setsid`+`nohup` para mayor
+resiliencia, y el resto de la validación continuó sin problema sobre la misma corrida ya completada.
+
+### Conclusión Fase 83
+
+El backend web queda operativo y validado con un recorrido real de punta a punta -- generar,
+compilar, lanzar, monitorear, agregar, publicar y ver el dataset resultante, todo desde HTTP en vez
+de la terminal. Las plantillas HTML (Fase 84) ya existen en forma funcional; la Fase 84 las pule
+(polling en vivo sin recargar la página, mejoras de UX) en vez de partir de cero.
+
+### Archivos de esta fase
+
+Nuevo: `webapp/app.py`, `webapp/templates/{base,index,sweep_status,history,dataset}.html`.
+Modificado: `requirements.txt` (`flask`). `NOTES.md`: esta entrada.
