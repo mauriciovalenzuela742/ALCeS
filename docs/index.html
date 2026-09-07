@@ -295,6 +295,29 @@
   .lcl-subpanel { display: none; }
   .lcl-subpanel.active { display: block; }
 
+  /* Fase 85: boton real (no pestaña) hacia HOWTO_WEBAPP.md -- "el boton"
+     que arma el sistema de Fases 79-84 vive en el propio repo, no en este
+     dashboard estatico (GitHub Pages no puede correr la app Flask). */
+  .cta-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 4px;
+    padding: 10px 18px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    transition: filter 0.15s, transform 0.15s;
+  }
+  .cta-button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .cta-button .cta-arrow { transition: transform 0.15s; }
+  .cta-button:hover .cta-arrow { transform: translateX(3px); }
+
   /* ---------------------------------------------------------- fact strip */
   .facts {
     display: grid;
@@ -1226,6 +1249,10 @@ python -m pipeline.run_campaign --launch build/&lt;campaña&gt;</pre>
     <code>SIMGEN_INCLUDE_*.INPUT</code>, comparada contra los baselines DDF reales de <code>full_v5.3_10yrs</code> —
     no forma parte del pipeline de producción. Detalle completo, con hallazgos honestos en ambas direcciones
     (confirmados y refutados), en <code>exploration/lightcurvelynx/NOTES.md</code>.</p>
+
+    <a class="cta-button" href="https://github.com/mauriciovalenzuela742/ALCeS/blob/main/exploration/lightcurvelynx/HOWTO_WEBAPP.md" target="_blank" rel="noopener">
+      🖱️ Usar la interfaz web ("el botón") — HOWTO_WEBAPP.md <span class="cta-arrow">→</span>
+    </a>
 
     <nav class="lcl-subnav" id="lclSubnav"></nav>
 
