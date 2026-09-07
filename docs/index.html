@@ -3971,6 +3971,22 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           pipeline propio de ALeRCE, una decisión y un esfuerzo de ingeniería separados.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">86</span>
+        <div class="step-body">
+          <p><strong>DDF y WFD como casillas independientes — pedido real probando la app en
+          vivo.</strong> El formulario tenía un solo checkbox (toggle binario DDF/WFD), aunque
+          <code>sweep_compile.py</code> ya soporta generar ambas estrategias en el mismo sweep
+          desde la Fase 66 — solo la interfaz no lo exponía. Ahora son 2 casillas independientes;
+          se agregó una columna "Estrategia" a la tabla de estado para distinguir las filas cuando
+          ambas están marcadas.</p>
+          <p>Incidente real en el camino: la primera prueba en vivo no generó las 2 corridas
+          esperadas — diagnosticado con <code>md5sum</code> que el <code>app.py</code> sincronizado
+          a NLHPC había quedado desactualizado por una sincronización previa cortada a mitad de
+          camino. Re-sincronizado y confirmado con una segunda prueba real: 2 filas,
+          <code>run_hash</code> distintos, columna "Estrategia" correcta.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

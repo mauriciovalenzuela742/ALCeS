@@ -22,13 +22,14 @@
 {% if aggregated %}<p class="hint">Ya agregado (<code>aggregated_summary.parquet</code> existe).</p>{% endif %}
 
 <table id="status-table">
-  <thead><tr><th>Idx</th><th>run_hash</th><th>Clase</th><th>Semilla</th><th>Estado</th><th>Detalle</th><th>QC</th></tr></thead>
+  <thead><tr><th>Idx</th><th>run_hash</th><th>Clase</th><th>Estrategia</th><th>Semilla</th><th>Estado</th><th>Detalle</th><th>QC</th></tr></thead>
   <tbody>
     {% for r in rows %}
     <tr data-index="{{ r.index }}">
       <td>{{ r.index }}</td>
       <td><code>{{ r.run_hash }}</code></td>
       <td>{{ r.class_key }}</td>
+      <td>{{ "WFD" if r.wfd else "DDF" }}</td>
       <td>{{ r.seed_index }}</td>
       <td class="status-cell status-{{ r.status }}">{{ r.status }}</td>
       <td class="detail-cell">{{ r.detail }}</td>

@@ -89,7 +89,7 @@ def monitor_sweep(sweep_name: str) -> list[dict]:
         st = run_status(sweep_dir, r, sacct)
         rows.append(dict(
             index=r["index"], run_hash=r["run_hash"], class_key=r["class_key"],
-            seed_index=r["seed_index"], tier=r["tier"], **st,
+            seed_index=r["seed_index"], tier=r["tier"], wfd=r.get("wfd", False), **st,
         ))
     return rows
 

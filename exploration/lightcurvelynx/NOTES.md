@@ -9447,3 +9447,46 @@ propio de ALeRCE, una decisión y un esfuerzo de ingeniería separados.
 ### Archivos de esta fase
 
 Nuevo: `HOWTO_WEBAPP.md`. `NOTES.md`: esta entrada.
+
+## Fase 86 -- DDF y WFD como casillas independientes (pedido real del usuario probando la app)
+
+### Motivación
+
+El formulario (Fase 84) tenía un solo checkbox "WFD (footprint completo, en vez de DDF)" -- un
+toggle binario que obligaba a elegir una sola estrategia por sweep, aunque
+`sweep_compile.py::build_runs()` ya soporta una LISTA de `modes` (generar DDF y WFD en el mismo
+sweep) desde la Fase 66. El usuario, probando la app real, pidió exponer esa capacidad ya existente
+como 2 casillas independientes.
+
+### Cambio real
+
+`index.html`: 2 checkboxes (`mode_ddf`, `mode_wfd`, DDF marcado por default) en vez de 1. `app.py`:
+arma `modes` como lista según cuáles estén marcadas -- si ninguna, error explícito ("elegir al
+menos una estrategia"). `sweep_monitor.py::monitor_sweep()` no exponía `wfd` por fila -- con 2
+modos por sweep ahora posibles, 2 filas podían verse idénticas (misma clase/semilla) sin forma de
+distinguirlas; se agregó el campo. `sweep_status.html`: nueva columna "Estrategia" (DDF/WFD).
+
+**Incidente real durante la prueba en vivo**: la primera vez que se probó, el YAML generado seguía
+con un solo `mode` pese a marcar las 2 casillas en el navegador -- diagnosticado comparando
+checksums: el `app.py` sincronizado a NLHPC había quedado desactualizado por una sincronización
+previa incompleta (una carrera con un `pkill` que cortó la sesión SSH a mitad de un comando
+encadenado). Confirmado con `md5sum` en ambos lados, re-sincronizado, reiniciado el proceso -- la
+segunda prueba real dio 2 filas (`DDF`/`WFD`, `run_hash` distintos) como se esperaba.
+
+### Validación real
+
+Generado un sweep real con `PISN-STELLA-HECORE` y ambas casillas marcadas, en el navegador real
+(no `curl`): 2 filas en la tabla de estado, `run_hash` distinto para cada una, columna
+"Estrategia" mostrando `DDF`/`WFD` correctamente, YAML generado con 2 entradas reales en `modes`.
+
+### Conclusión Fase 86
+
+Expone una capacidad que el generador ya tenía (sweeps multi-modo) pero que la interfaz no dejaba
+usar. El incidente de sincronización queda documentado como recordatorio real: verificar `md5sum`
+tras sincronizar a NLHPC antes de asumir que un cambio ya está activo, especialmente después de
+interrumpir una sesión SSH a mitad de un comando encadenado.
+
+### Archivos de esta fase
+
+Modificado: `webapp/templates/index.html`, `webapp/templates/sweep_status.html`, `webapp/app.py`,
+`sweep_monitor.py` (campo `wfd` en `monitor_sweep()`). `NOTES.md`: esta entrada.

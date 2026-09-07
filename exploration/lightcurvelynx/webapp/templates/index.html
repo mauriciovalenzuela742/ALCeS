@@ -27,7 +27,11 @@
     <label>Semillas (separadas por coma): <input type="text" name="seeds" value="0"></label>
   </div>
   <div class="field-row">
-    <label><input type="checkbox" name="wfd"> WFD (footprint completo, en vez de DDF)</label>
+    <label><input type="checkbox" name="mode_ddf" checked> DDF (campos fijos)</label>
+    <label><input type="checkbox" name="mode_wfd"> WFD (footprint completo)</label>
+    <div class="hint">Marcar las dos genera corridas para ambas estrategias dentro del mismo
+    sweep (un <code>mode</code> por cada una, ver <code>sweep_compile.py::build_runs()</code>) —
+    no hace falta generar 2 sweeps separados.</div>
   </div>
   <div class="field-row">
     <label><input type="checkbox" name="keep_phot"> Preservar fotometría cruda</label>

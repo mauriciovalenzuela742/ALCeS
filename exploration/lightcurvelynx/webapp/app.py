@@ -84,6 +84,19 @@ def generate():
                 flash(f"ngentot invalido para '{class_key}': '{raw}'")
                 return redirect(url_for("index"))
 
+    # DDF y WFD son casillas independientes -- marcar las dos genera un
+    # `mode` por cada una en el mismo sweep (sweep_compile.py::build_runs()
+    # ya itera sobre una lista de modos, esto no es una capacidad nueva,
+    # solo se estaba exponiendo como un solo toggle antes).
+    modes = []
+    if "mode_ddf" in form:
+        modes.append({"wfd": False, "simsed_t0_mode": "bolometric_peak"})
+    if "mode_wfd" in form:
+        modes.append({"wfd": True, "simsed_t0_mode": "bolometric_peak"})
+    if not modes:
+        flash("elegir al menos una estrategia -- DDF, WFD, o ambas")
+        return redirect(url_for("index"))
+
     # Fase 84: seccion "avanzado" del formulario -- mismos campos y mismos
     # defaults que generate_sweep() ya usa internamente si se omiten, asi
     # que el formulario nunca envia algo mas restrictivo de lo que el YAML
@@ -106,7 +119,7 @@ def generate():
             classes=classes,
             seeds=seeds,
             ngentot_overrides=ngentot_overrides,
-            modes=[{"wfd": "wfd" in form, "simsed_t0_mode": "bolometric_peak"}],
+            modes=modes,
             resources=resources,
             max_concurrent=max_concurrent,
             keep_phot="keep_phot" in form,
