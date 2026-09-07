@@ -9544,3 +9544,69 @@ Nuevo: `webapp/templates/sweeps_list.html`, `webapp/templates/run_summary.html`.
 `sweep_status`/`sweep_status_json`), `webapp/templates/base.html` (nav), `webapp/templates/
 history.html` (link real), `webapp/templates/sweep_status.html` (nota de resultados + columna).
 `NOTES.md`: esta entrada.
+
+## Fase 88 -- el botón "Lanzar" ahora somete a SLURM real cuando hay `sbatch` (bug real reportado por el usuario)
+
+### Motivación
+
+El usuario encontró un bug real y serio: el botón "Lanzar" del webapp SIEMPRE llamaba a
+`sweep_run_local.run_sweep_local()` (el runner sin SLURM, Fase 76, pensado para la máquina del
+profesor sin cluster) -- incluso corriendo la app en el login node de NLHPC. Un sweep de prueba del
+usuario (`test3`, `KN-K17` con `ngentot=1000000`, 200x el umbral histórico de advertencia del
+proyecto) terminó corriendo directo en el login node, violando la convención ya establecida del
+proyecto ("nunca correr nada pesado en el login node, todo va por `sbatch`").
+
+### Cambio real
+
+`webapp/app.py::slurm_available()` nuevo: `shutil.which("sbatch") is not None`. `/sweep/<name>/run`
+ahora bifurca en base a esto: si hay SLURM, llama a `sweep_launch.launch_sweep()` (Fase 66, sin
+cambios en su lógica real de submit) -- solo somete el/los array(s) y vuelve de inmediato, el
+cómputo real corre en nodos de cómputo vía el scheduler, nunca en este proceso ni en el login node.
+Si no hay SLURM (la máquina del profesor, sin cluster), sigue el camino de la Fase 76-83 sin
+cambios (hilo de fondo + `sweep_run_local.py`).
+
+`sweep_launch.py` no tenía `record_event()` (se escribió en Fase 66, antes de que existiera el
+historial de Fase 80) -- agregado, mismo patrón que el resto de `sweep_*.py`.
+
+`sweep_status()`/`sweep_status.html`: el concepto de "ya lanzado" pasa de depender solo del hilo en
+memoria (`RUNNING`, que no existe para el camino SLURM) a una condición general sobre el estado real
+(`any(status != "NOT_SUBMITTED")`) -- vale para los dos caminos por igual. El texto del botón indica
+explícitamente cuál de los dos va a usar antes de hacer click.
+
+**Bug real encontrado probando el fix**: el polling en vivo (Fase 84) trataba `"UNKNOWN"` como
+estado terminal -- pero `UNKNOWN` es exactamente lo que reporta `sweep_monitor.py` en los primeros
+segundos después de un `sbatch` real, mientras `sacct` todavía no indexa el job nuevo (una condición
+transitoria y normal, no un error). Con el runner local este caso casi nunca pasaba (nunca
+consultaba `sacct`); con SLURM como camino real ahora primario, cortaba el polling justo después de
+lanzar. Corregido: `TERMINAL` ya no incluye `"UNKNOWN"`, solo `"done"`/`"failed"` (los dos estados
+reales que escribe `run_hash.json`).
+
+### Validación real
+
+Corrida real de punta a punta: generado un sweep chico (`PISN-STELLA-HECORE`, `ngentot=20`),
+lanzado con el botón -- confirmado en `squeue` un job real (`12777936_0`, partición `largemem`,
+nodo `fn002`) corriendo en un nodo de cómputo real, NO en el login node. Terminó
+`status=done` en `run_hash.json` (`node: "fn002"`, `slurm_job_id: "12777936"`), reflejado
+correctamente en la página sin recargar (los 4 QC reales + link "resumen"). `test3` (el sweep
+atascado) corregido a `status=failed` con un error explícito documentando qué pasó -- el proceso ya
+estaba muerto (murió al reiniciarse Flask durante la Fase 87), esta corrección solo evita que
+quedara mostrando "running" para siempre.
+
+**Incidente real durante la limpieza de esta fase**: al borrar los artefactos de prueba propios, se
+borró por error `generation_history.jsonl` completo -- que ya tenía eventos reales del usuario
+(`test1`/`test2`/`test3`), sin respaldo posible. Lección real aplicada de inmediato: ese archivo es
+dato compartido en vivo, no un artefacto de prueba -- las limpiezas futuras de esta sesión solo
+borran los sweeps/YAMLs generados para probar, nunca el historial completo.
+
+### Conclusión Fase 88
+
+El botón "Lanzar" queda corregido para hacer lo que el proyecto siempre exigió: nada pesado en el
+login node, todo vía `sbatch` cuando SLURM está disponible. El runner local (Fase 76) sigue intacto
+para la máquina del profesor, que no tiene cluster.
+
+### Archivos de esta fase
+
+Modificado: `sweep_launch.py` (`record_event`), `webapp/app.py` (`slurm_available()`, bifurcación
+real en `sweep_run()`, `launched` en `sweep_status()`), `webapp/templates/sweep_status.html`
+(mensaje según camino real, fix de `TERMINAL`), `webapp/templates/history.html` (detalle de
+`launch_sweep`). `NOTES.md`: esta entrada.

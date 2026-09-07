@@ -19,7 +19,8 @@
       <td>
         {% if e.event_type == 'generate_sweep' %}{{ e.classes }} × semillas {{ e.seeds }}{% endif %}
         {% if e.event_type == 'compile_sweep' %}{{ e.n_runs }} corrida(s){% endif %}
-        {% if e.event_type == 'run_local' %}{{ e.n_ok }} ok / {{ e.n_fail }} fallo(s){% endif %}
+        {% if e.event_type == 'launch_sweep' %}{{ e.n_ok }}/{{ e.n_arrays }} array(s) sometidos a SLURM ({{ e.slurm_job_ids | join(", ") }}){% endif %}
+        {% if e.event_type == 'run_local' %}{{ e.n_ok }} ok / {{ e.n_fail }} fallo(s) (sin SLURM){% endif %}
         {% if e.event_type == 'publish_dataset' %}<a href="{{ url_for('dataset_view', dataset_hash=e.dataset_hash) }}">{{ e.dataset_hash }}</a> ({{ e.ingestion_format or 'sin formato por clase' }}){% endif %}
       </td>
     </tr>

@@ -2,13 +2,20 @@
 {% block heading %}Sweep: {{ name }}{% endblock %}
 {% block content %}
 <p id="run-controls">
-  {% if running %}
-    <strong id="running-label">corriendo…</strong> <span class="hint">(el estado se actualiza solo abajo)</span>
+  {% if launched or running %}
+    <strong id="running-label">{{ "corriendo…" if running else "sometido -- el estado se actualiza solo abajo" }}</strong>
+    <span class="hint">(el estado se actualiza solo abajo)</span>
   {% else %}
     <form method="post" action="{{ url_for('sweep_run', name=name) }}" style="display:inline">
+      {% if not slurm %}
       <label>workers: <input type="number" name="workers" min="1" style="width:4rem" placeholder="auto"></label>
+      {% endif %}
       <button type="submit">Lanzar</button>
     </form>
+    <span class="hint">
+      {% if slurm %}se somete a SLURM real (<code>sbatch</code>) -- el cómputo corre en nodos de cómputo, nunca en este servidor.
+      {% else %}sin SLURM en esta máquina -- corre en un hilo de fondo de este mismo proceso (ver <code>HOWTO_LOCAL.md</code>).{% endif %}
+    </span>
   {% endif %}
 </p>
 <p id="agg-pub-actions" {% if not all_done %}style="display:none"{% endif %}>
@@ -62,7 +69,14 @@ ven abajo. Click en "resumen" por fila para ver las métricas reales y la ruta c
 // estado nuevo) -- reemplaza el "recargar la pagina a mano" de la Fase 83.
 // Se detiene solo cuando todas las filas llegan a un estado terminal.
 const SWEEP_NAME = {{ name | tojson }};
-const TERMINAL = new Set(["done", "failed", "UNKNOWN"]);
+// Fase 88: "UNKNOWN" (sweep_monitor.py) sale justo despues de someter a
+// SLURM real -- sacct todavia no indexo el job nuevo, es transitorio y
+// casi siempre se resuelve solo en la siguiente vuelta de polling. Antes
+// de esta fase el runner local nunca pasaba por sacct, asi que este caso
+// era realmente raro; ahora que sbatch es el camino real, tratarlo como
+// terminal cortaba el polling justo cuando mas hace falta. NO es
+// terminal -- solo "done"/"failed" (escritos por run_hash.json real) lo son.
+const TERMINAL = new Set(["done", "failed"]);
 
 function statusClass(status) {
   return "status-" + status;

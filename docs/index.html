@@ -4005,6 +4005,25 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           <code>sbatch</code>, contradiciendo la convención ya establecida del proyecto.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">88</span>
+        <div class="step-body">
+          <p><strong>El botón "Lanzar" ahora somete a SLURM real (<code>sbatch</code>) cuando está
+          disponible — bug real reportado por el usuario.</strong> El botón siempre llamaba al
+          runner local (Fase 76, pensado para la máquina del profesor sin cluster), incluso
+          corriendo en el login node de NLHPC — el sweep de prueba de la Fase 87
+          (<code>ngentot=1000000</code>) terminó corriendo ahí. <code>slurm_available()</code>
+          nuevo detecta si hay <code>sbatch</code> en el sistema; si lo hay, usa
+          <code>sweep_launch.launch_sweep()</code> (Fase 66, sin cambios) — el cómputo real pasa a
+          nodos de cómputo vía SLURM, nunca al login node ni al proceso del servidor.</p>
+          <p>Bug real encontrado probando el fix: el polling en vivo trataba <code>UNKNOWN</code>
+          como estado terminal — pero es justo lo que <code>sweep_monitor.py</code> reporta los
+          primeros segundos tras un <code>sbatch</code> real, mientras <code>sacct</code> todavía no
+          indexa el job. Corregido. Validado con una corrida real de punta a punta: job real
+          confirmado en <code>squeue</code> corriendo en un nodo de cómputo (no el login node),
+          terminado <code>status=done</code> reflejado en vivo sin recargar.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

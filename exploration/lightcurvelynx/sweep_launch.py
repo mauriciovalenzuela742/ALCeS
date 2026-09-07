@@ -26,6 +26,7 @@ from pathlib import Path
 import yaml
 
 import sweep_hash
+from sweep_history import record_event
 from run_simsed_poc import HERE
 from sweep_compile import SWEEP_RUNS_DIR, compile_sweep
 
@@ -36,7 +37,7 @@ from sweep_compile import SWEEP_RUNS_DIR, compile_sweep
 AUTOSIM_ROOT = HERE.parent.parent
 
 
-def launch_sweep(yaml_path: Path, dry_run: bool = False) -> int:
+def launch_sweep(yaml_path: Path, dry_run: bool = False, triggered_by: str = "cli") -> int:
     yaml_path = Path(yaml_path)
     sweep_name = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))["sweep_name"]
     manifest_path = SWEEP_RUNS_DIR / sweep_name / "manifest.json"
@@ -91,6 +92,13 @@ def launch_sweep(yaml_path: Path, dry_run: bool = False) -> int:
     n_ok = sum(1 for a in array_scripts if a.get("slurm_array_job_id"))
     print(f"\n  {n_ok}/{len(array_scripts)} arrays sometidos correctamente")
     print(f"  monitorear con: python3 sweep_monitor.py {sweep_name}")
+
+    if not dry_run:
+        record_event(
+            "launch_sweep", triggered_by=triggered_by, sweep_name=sweep_name,
+            n_arrays=len(array_scripts), n_ok=n_ok,
+            slurm_job_ids=[a.get("slurm_array_job_id") for a in array_scripts],
+        )
     return rc_total
 
 

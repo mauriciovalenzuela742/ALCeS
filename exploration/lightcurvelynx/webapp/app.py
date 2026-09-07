@@ -27,6 +27,7 @@ Uso:
 """
 from __future__ import annotations
 
+import shutil
 import sys
 import threading
 from pathlib import Path
@@ -43,6 +44,7 @@ import sweep_aggregate
 import sweep_compile
 import sweep_generate
 import sweep_history
+import sweep_launch
 import sweep_monitor
 import sweep_publish_dataset
 import sweep_run_local
@@ -56,7 +58,19 @@ app.secret_key = "lightcurvelynx-webapp-local"  # solo para flash() -- app local
 # es fuente de verdad de estado (esa sigue siendo run_hash.json via
 # sweep_monitor.monitor_sweep). Se pierde al reiniciar el proceso, y eso
 # esta bien: si el proceso Flask murio, el hilo de ejecucion tambien.
+# Solo aplica al runner LOCAL (sin SLURM, ver sweep_run() abajo) -- una
+# corrida real vía sbatch no depende de que este proceso siga vivo.
 RUNNING: dict[str, threading.Thread] = {}
+
+
+def slurm_available() -> bool:
+    """Fase 88: si `sbatch` esta en PATH, estamos en un login node de
+    SLURM (NLHPC) y el computo real DEBE ir por ahi -- nunca en este mismo
+    proceso (ver NOTES.md: "nunca correr nada pesado en el login node").
+    El runner local (sweep_run_local.py, Fase 76) sigue existiendo para la
+    maquina del profesor, que no tiene SLURM -- ahi esta funcion da False
+    y el boton "Lanzar" usa ese camino, tal como esta disenado."""
+    return shutil.which("sbatch") is not None
 
 
 @app.route("/")
@@ -185,6 +199,13 @@ def sweep_status(name):
     return render_template(
         "sweep_status.html", name=name, rows=rows, all_done=all_done,
         running=name in RUNNING and RUNNING[name].is_alive(),
+        # Fase 88: "ya lanzado" en sentido general -- vale tanto para el
+        # runner local (estado "running") como para SLURM real (cualquier
+        # estado real de sacct: PENDING/RUNNING/COMPLETED/...), sin
+        # depender del hilo en memoria (que no existe para el camino
+        # sbatch, ver sweep_run()).
+        launched=any(r["status"] != "NOT_SUBMITTED" for r in rows),
+        slurm=slurm_available(),
         yaml_text=yaml_path.read_text(encoding="utf-8") if yaml_path.exists() else "",
         aggregated=agg_path.exists(),
         # Fase 87: donde quedan los archivos reales en disco -- pedido
@@ -195,11 +216,28 @@ def sweep_status(name):
 
 @app.route("/sweep/<name>/run", methods=["POST"])
 def sweep_run(name):
+    yaml_path = sweep_generate.SWEEPS_DIR / f"{name}.yaml"
+
+    if slurm_available():
+        # Fase 88: submit real a SLURM -- launch_sweep() solo corre
+        # `sbatch` y vuelve de inmediato (segundos); el computo real pasa
+        # a nodos de computo via el scheduler, nunca en este proceso ni en
+        # el login node. No hace falta hilo de fondo: no hay nada que
+        # bloquee mientras tanto.
+        rc = sweep_launch.launch_sweep(yaml_path, triggered_by="webapp")
+        if rc != 0:
+            flash(f"'{name}': fallo al someter alguno de los arrays a SLURM -- revisar salida del servidor")
+        else:
+            flash(f"'{name}' sometido a SLURM (sbatch) -- el estado se actualiza abajo")
+        return redirect(url_for("sweep_status", name=name))
+
+    # Sin SLURM (p.ej. la maquina local del profesor, sin cluster -- ver
+    # HOWTO_LOCAL.md/Fase 76): unico caso real donde correr en este mismo
+    # proceso es correcto, porque no hay otro lado donde correr.
     if name in RUNNING and RUNNING[name].is_alive():
         flash(f"'{name}' ya esta corriendo -- no se lanza dos veces en paralelo")
         return redirect(url_for("sweep_status", name=name))
 
-    yaml_path = sweep_generate.SWEEPS_DIR / f"{name}.yaml"
     workers = request.form.get("workers", "").strip()
     workers_override = int(workers) if workers.isdigit() else None
 
@@ -209,7 +247,7 @@ def sweep_run(name):
     thread = threading.Thread(target=_run, daemon=True)
     RUNNING[name] = thread
     thread.start()
-    flash(f"'{name}' lanzado en segundo plano -- el estado se actualiza abajo")
+    flash(f"'{name}' lanzado en segundo plano (sin SLURM en esta maquina) -- el estado se actualiza abajo")
     return redirect(url_for("sweep_status", name=name))
 
 
