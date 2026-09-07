@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block heading %}Resultados: {{ name }} / {{ run_hash }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('sweep_status', name=name) }}">← volver al sweep</a></p>
+
+<p><strong>Archivos reales en disco</strong> (en la máquina donde corre esta app):</p>
+<pre>{{ run_dir }}/
+{% for f in files %}  {{ f }}
+{% endfor %}</pre>
+<p class="hint">Estos archivos no se sirven por la web salvo los <code>.png</code> de QC —
+para copiarlos a otro lado (por ejemplo, para el equipo de ML) usar <code>scp</code>/<code>rsync</code>
+desde una terminal apuntando a esa ruta, o publicar el sweep completo (botón "Publicar") para
+consolidarlo en <code>datasets/&lt;hash&gt;/</code>.</p>
+
+<h3>summary.json (métricas reales de esta corrida)</h3>
+<table>
+  <tbody>
+    {% for k, v in summary.items() %}
+    <tr><td><code>{{ k }}</code></td><td>{{ v }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

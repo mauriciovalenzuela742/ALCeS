@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block heading %}Sweeps{% endblock %}
+{% block content %}
+<p class="hint">Todos los sweeps ya compilados en esta máquina — para volver a uno después de
+salir de su página, sin tener que recordar el nombre. Cada uno vive en disco en
+<code>{{ sweep_runs_dir }}/&lt;nombre&gt;/</code>.</p>
+
+<table>
+  <thead><tr><th>Sweep</th><th>Compilado</th><th>Corridas</th><th>Estado</th><th>Fotometría</th></tr></thead>
+  <tbody>
+    {% for s in sweeps %}
+    <tr>
+      <td><a href="{{ url_for('sweep_status', name=s.name) }}"><code>{{ s.name }}</code></a></td>
+      <td>{{ s.compiled_at }}</td>
+      <td>{{ s.n_runs }}</td>
+      <td>
+        {% if s.n_done == s.n_runs %}<span class="status-done">{{ s.n_done }}/{{ s.n_runs }} done</span>
+        {% elif s.n_failed > 0 %}<span class="status-failed">{{ s.n_done }} done, {{ s.n_failed }} failed</span>
+        {% else %}<span class="status-running">{{ s.n_done }}/{{ s.n_runs }} done</span>{% endif %}
+      </td>
+      <td>{{ "preservada (keep_phot)" if s.keep_phot else "—" }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="hint">Sin sweeps todavía — <a href="{{ url_for('index') }}">generar uno</a>.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

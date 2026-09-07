@@ -10,7 +10,11 @@
     <tr>
       <td>{{ e.timestamp }}</td>
       <td>{{ e.event_type }}</td>
-      <td>{{ e.sweep_name or e.source_sweeps or '' }}</td>
+      <td>
+        {% if e.sweep_name %}<a href="{{ url_for('sweep_status', name=e.sweep_name) }}"><code>{{ e.sweep_name }}</code></a>
+        {% elif e.source_sweeps %}{{ e.source_sweeps | join(", ") }}
+        {% endif %}
+      </td>
       <td>{{ e.triggered_by }}</td>
       <td>
         {% if e.event_type == 'generate_sweep' %}{{ e.classes }} × semillas {{ e.seeds }}{% endif %}

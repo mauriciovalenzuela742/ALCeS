@@ -9490,3 +9490,57 @@ interrumpir una sesión SSH a mitad de un comando encadenado.
 
 Modificado: `webapp/templates/index.html`, `webapp/templates/sweep_status.html`, `webapp/app.py`,
 `sweep_monitor.py` (campo `wfd` en `monitor_sweep()`). `NOTES.md`: esta entrada.
+
+## Fase 87 -- lista de sweeps + enlaces reales + "dónde quedan los resultados" (usuario probando la app en vivo)
+
+### Motivación
+
+El usuario, generando sweeps reales con la app (`test1`, `test2`, `test3`), reportó 2 huecos reales
+de navegación: (1) la única forma de volver a la página de un sweep después de salir de ahí era
+recordar su nombre a mano -- no había ninguna lista; (2) no quedaba claro dónde revisar los
+resultados reales de una corrida ni ver el detalle del YAML de un evento del historial.
+
+### Cambio real
+
+`GET /sweeps` nuevo: lista todos los sweeps ya compilados (escanea `SWEEP_RUNS_DIR` directo, sin
+estado nuevo), con nombre, fecha de compilación, conteo de corridas y estado agregado -- agregado a
+la barra de navegación. `history.html`: el nombre del sweep ahora es un link real a
+`/sweep/<name>` (antes texto plano) -- resuelve "ver los detalles del YAML del evento" sin duplicar
+el YAML en el historial (la fuente de verdad sigue siendo el archivo real).
+
+`GET /sweep/<name>/run/<hash>/summary` nuevo: muestra el `summary.json` real de una corrida
+(métricas reales) más la lista de archivos reales en su carpeta y la ruta completa en disco --
+responde directamente "no entiendo cómo revisar eso". `sweep_status.html` gana una nota explícita
+("Dónde quedan los resultados: ... `sweep_runs/<name>/runs/<hash>/` ...") y una columna
+"Resultados" con el link "resumen" cuando `summary.json` ya existe (actualizada también en vivo por
+el polling de la Fase 84, no solo al cargar la página).
+
+### Validación real
+
+Probado contra la app real corriendo en NLHPC, con navegador (no solo `curl`): `/sweeps` lista los
+5 sweeps reales ya compilados en esta máquina (incluidos los 3 que generó el usuario mientras
+probaba, uno de ellos -- `test3`, `KN-K17` con `ngentot=1000000` -- todavía corriendo); los links
+del historial llevan de verdad a `/sweep/<name>`; sin errores en consola.
+
+**Hallazgo real, no relacionado a esta fase pero encontrado en el camino**: `test3` corría
+`ngentot=1000000` para `KN-K17` -- 200x el umbral de advertencia histórico del proyecto
+(`NGENTOT_WARN_THRESHOLD=5000`) -- vía `sweep_run_local.py`, que ejecuta directo en el proceso
+(sin `sbatch`), en el **login node** de NLHPC. Esto contradice la convención ya establecida del
+proyecto ("nunca correr nada pesado en el login node"). Queda documentado como riesgo real a
+comunicar al usuario -- no se aborta la corrida desde este cambio, es una decisión del usuario, pero
+la Fase 84 ya muestra la advertencia de `NGENTOT_WARN_THRESHOLD` solo en la consola del servidor al
+generar, no de forma visible en el formulario -- candidato real para una fase futura si se repite.
+
+### Conclusión Fase 87
+
+Los 2 huecos de navegación reportados quedan resueltos con mecanismos que reusan lo que ya existe
+(escanear `sweep_runs/` real, leer `summary.json` real) -- sin inventar un registro paralelo de
+sweeps ni duplicar el contenido del YAML fuera de su archivo real.
+
+### Archivos de esta fase
+
+Nuevo: `webapp/templates/sweeps_list.html`, `webapp/templates/run_summary.html`. Modificado:
+`webapp/app.py` (`/sweeps`, `/sweep/<name>/run/<hash>/summary`, `sweep_dir`/`has_summary` en
+`sweep_status`/`sweep_status_json`), `webapp/templates/base.html` (nav), `webapp/templates/
+history.html` (link real), `webapp/templates/sweep_status.html` (nota de resultados + columna).
+`NOTES.md`: esta entrada.

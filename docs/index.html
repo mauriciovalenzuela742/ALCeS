@@ -3987,6 +3987,24 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           <code>run_hash</code> distintos, columna "Estrategia" correcta.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">87</span>
+        <div class="step-body">
+          <p><strong>Lista de sweeps + enlaces reales + "dónde quedan los resultados" — pedido del
+          usuario probando la app en vivo.</strong> Dos huecos reales de navegación: no había forma
+          de volver a un sweep sin recordar su nombre, y no era claro dónde revisar los resultados
+          reales. <code>GET /sweeps</code> nuevo (escanea <code>sweep_runs/</code> real, sin estado
+          nuevo) lista todos los sweeps compilados; el historial ahora enlaza cada sweep a su
+          página real; y cada corrida tiene un link "resumen" (<code>summary.json</code> real +
+          ruta completa en disco) que responde directamente "no entiendo cómo revisar eso".</p>
+          <p>Validado en el navegador contra la app real: <code>/sweeps</code> listó los 5 sweeps
+          ya compilados en la máquina (3 generados por el usuario mientras probaba). Hallazgo real
+          encontrado en el camino, no relacionado a esta fase: uno de esos sweeps de prueba corría
+          <code>ngentot=1000000</code> para una clase — 200x el umbral histórico de advertencia del
+          proyecto — vía el runner local, es decir en el login node de NLHPC sin pasar por
+          <code>sbatch</code>, contradiciendo la convención ya establecida del proyecto.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

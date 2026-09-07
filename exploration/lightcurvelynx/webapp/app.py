@@ -64,6 +64,33 @@ def index():
     return render_template("index.html", classes=sweep_generate.available_classes())
 
 
+@app.route("/sweeps")
+def sweeps_list():
+    """Fase 87: lista todos los sweeps ya compilados -- resuelve un hueco
+    real de navegacion (la unica forma de volver a la pagina de un sweep
+    despues de salir de ahi era recordar su nombre a mano, o encontrarlo
+    en el Historial). Escanea SWEEP_RUNS_DIR directo -- ningun estado
+    nuevo, los manifiestos ya existen en disco."""
+    import sweep_hash as sh
+    sweeps = []
+    if SWEEP_RUNS_DIR.is_dir():
+        for d in sorted(SWEEP_RUNS_DIR.iterdir()):
+            manifest_path = d / "manifest.json"
+            if not manifest_path.exists():
+                continue
+            manifest = sh.read_json(manifest_path)
+            rows = sweep_monitor.monitor_sweep(d.name)
+            n_done = sum(1 for r in rows if r["status"] == "done")
+            n_failed = sum(1 for r in rows if r["status"] == "failed")
+            sweeps.append(dict(
+                name=d.name, compiled_at=manifest.get("compiled_at", ""),
+                n_runs=manifest.get("n_runs", len(rows)), n_done=n_done, n_failed=n_failed,
+                keep_phot=manifest.get("keep_phot", False),
+            ))
+    sweeps.sort(key=lambda s: s["compiled_at"], reverse=True)
+    return render_template("sweeps_list.html", sweeps=sweeps, sweep_runs_dir=str(SWEEP_RUNS_DIR))
+
+
 @app.route("/generate", methods=["POST"])
 def generate():
     form = request.form
@@ -150,14 +177,19 @@ def sweep_status(name):
     # pipeline/postproc/qc.py::run_all_qc + run_simsed_poc.py) -- se listan
     # los .png reales en vez de adivinar un nombre fijo.
     for r in rows:
-        qc_dir = SWEEP_RUNS_DIR / name / "runs" / r["run_hash"] / "qc"
+        run_dir = SWEEP_RUNS_DIR / name / "runs" / r["run_hash"]
+        qc_dir = run_dir / "qc"
         r["qc_files"] = sorted(p.name for p in qc_dir.glob("*.png")) if qc_dir.is_dir() else []
+        r["has_summary"] = (run_dir / "summary.json").exists()
 
     return render_template(
         "sweep_status.html", name=name, rows=rows, all_done=all_done,
         running=name in RUNNING and RUNNING[name].is_alive(),
         yaml_text=yaml_path.read_text(encoding="utf-8") if yaml_path.exists() else "",
         aggregated=agg_path.exists(),
+        # Fase 87: donde quedan los archivos reales en disco -- pedido
+        # explicito del usuario ("no entiendo como poder revisar eso").
+        sweep_dir=str(SWEEP_RUNS_DIR / name),
     )
 
 
@@ -185,9 +217,31 @@ def sweep_run(name):
 def sweep_status_json(name):
     rows = sweep_monitor.monitor_sweep(name)
     for r in rows:
-        qc_dir = SWEEP_RUNS_DIR / name / "runs" / r["run_hash"] / "qc"
+        run_dir = SWEEP_RUNS_DIR / name / "runs" / r["run_hash"]
+        qc_dir = run_dir / "qc"
         r["qc_files"] = sorted(p.name for p in qc_dir.glob("*.png")) if qc_dir.is_dir() else []
+        r["has_summary"] = (run_dir / "summary.json").exists()
     return jsonify(rows)
+
+
+@app.route("/sweep/<name>/run/<run_hash>/summary")
+def run_summary(name, run_hash):
+    """Fase 87: 'donde quedaron los resultados' en una pagina real, sin
+    tocar la terminal -- lee summary.json (las metricas reales de esa
+    corrida, ver run_simsed_poc.py::main) y muestra la ruta real en disco
+    de todos los archivos de la corrida."""
+    import sweep_hash as sh
+    run_dir = SWEEP_RUNS_DIR / name / "runs" / run_hash
+    summary_path = run_dir / "summary.json"
+    if not summary_path.exists():
+        flash(f"'{run_hash}' todavia no tiene summary.json -- la corrida no ha terminado")
+        return redirect(url_for("sweep_status", name=name))
+    summary = sh.read_json(summary_path)
+    files = sorted(p.name for p in run_dir.iterdir() if p.is_file())
+    return render_template(
+        "run_summary.html", name=name, run_hash=run_hash, summary=summary,
+        run_dir=str(run_dir), files=files,
+    )
 
 
 @app.route("/sweep/<name>/aggregate", methods=["POST"])

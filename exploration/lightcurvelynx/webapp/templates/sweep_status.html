@@ -21,8 +21,14 @@
 </p>
 {% if aggregated %}<p class="hint">Ya agregado (<code>aggregated_summary.parquet</code> existe).</p>{% endif %}
 
+<p class="hint"><strong>Dónde quedan los resultados:</strong> cada corrida escribe sus archivos
+reales en <code>{{ sweep_dir }}/runs/&lt;run_hash&gt;/</code> (en la máquina donde corre esta app)
+— <code>head_df.parquet</code>, <code>phot_df.parquet</code> (solo si esta corrida tenía
+<code>keep_phot=true</code>), <code>summary.json</code>, y las imágenes de <code>qc/</code> que se
+ven abajo. Click en "resumen" por fila para ver las métricas reales y la ruta completa.</p>
+
 <table id="status-table">
-  <thead><tr><th>Idx</th><th>run_hash</th><th>Clase</th><th>Estrategia</th><th>Semilla</th><th>Estado</th><th>Detalle</th><th>QC</th></tr></thead>
+  <thead><tr><th>Idx</th><th>run_hash</th><th>Clase</th><th>Estrategia</th><th>Semilla</th><th>Estado</th><th>Detalle</th><th>QC</th><th>Resultados</th></tr></thead>
   <tbody>
     {% for r in rows %}
     <tr data-index="{{ r.index }}">
@@ -37,6 +43,9 @@
         {% for f in r.qc_files %}
           <a href="{{ url_for('qc_image', sweep=name, run_hash=r.run_hash, filename=f) }}" target="_blank">{{ f.split('qc_')[-1].replace('.png','') }}</a>
         {% endfor %}
+      </td>
+      <td class="summary-cell">
+        {% if r.has_summary %}<a href="{{ url_for('run_summary', name=name, run_hash=r.run_hash) }}">resumen</a>{% endif %}
       </td>
     </tr>
     {% endfor %}
@@ -81,6 +90,10 @@ async function pollOnce() {
     statusCell.className = "status-cell " + statusClass(row.status);
     tr.querySelector(".detail-cell").textContent = row.detail || "";
     tr.querySelector(".qc-cell").innerHTML = qcLinksHtml(row);
+    if (row.has_summary) {
+      tr.querySelector(".summary-cell").innerHTML =
+        `<a href="/sweep/${SWEEP_NAME}/run/${row.run_hash}/summary">resumen</a>`;
+    }
     if (!TERMINAL.has(row.status)) allTerminal = false;
     if (row.status !== "done") allDone = false;
   }
