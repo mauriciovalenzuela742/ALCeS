@@ -35,6 +35,18 @@
     espacio de disco, verificar headroom antes de un barrido grande.</div>
   </div>
 
+  <details>
+    <summary>Avanzado (recursos por corrida)</summary>
+    <div class="field-row">
+      <label>Memoria: <input type="text" name="mem" value="8G" style="width:5rem"></label>
+      <label>Tiempo (sbatch): <input type="text" name="time" value="00:15:00" style="width:7rem"></label>
+      <label>CPUs: <input type="number" name="cpus" value="2" min="1" style="width:4rem"></label>
+      <label>Máx. en paralelo: <input type="number" name="max_concurrent" value="2" min="1" style="width:4rem"></label>
+    </div>
+    <p class="hint">Mismo significado que en un YAML escrito a mano (ver <code>HOWTO.md</code>) —
+    defaults razonables para una corrida chica de prueba, no para un barrido grande real.</p>
+  </details>
+
   <button type="submit">Generar</button>
 </form>
 {% endblock %}

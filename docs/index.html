@@ -3911,6 +3911,25 @@ sbatch execute_analyze_notebook.sbatch     # jupyter nbconvert --execute en un j
           hecho — la corrida real había completado antes, confirmado en el filesystem.</p>
         </div>
       </li>
+      <li>
+        <span class="step-n">84</span>
+        <div class="step-body">
+          <p><strong>Frontend completo: estado en vivo sin recargar, sección "avanzado", y
+          verificación real en un navegador de verdad.</strong> <code>sweep_status.html</code>
+          reemplaza el "recargar la página a mano" de la Fase 83 por un polling real en JS vanilla
+          (<code>fetch()</code> a <code>/sweep/&lt;name&gt;/status</code> cada 3s) que actualiza
+          estado/detalle/QC de cada fila en el DOM y revela "Agregar"/"Publicar" en cuanto todo
+          termina — sin inventar un mecanismo de estado nuevo, sigue siendo
+          <code>run_hash.json</code>. El formulario suma una sección "Avanzado" para
+          memoria/tiempo/CPUs/paralelismo.</p>
+          <p>Validado en un <strong>navegador real</strong> (no solo <code>curl</code>), vía un
+          túnel SSH a la app corriendo en NLHPC: formulario con las 15 clases reales listadas,
+          generó y lanzó una corrida real, el estado pasó de <code>NOT_SUBMITTED</code> a
+          <code>running</code> a <code>done</code> sin recargar, una imagen QC real se abrió
+          (1482×960px, HTTP 200), y el recorrido completo (agregar → publicar → dataset →
+          historial) funcionó de punta a punta sin errores en la consola.</p>
+        </div>
+      </li>
     </ol>
     </div>
 

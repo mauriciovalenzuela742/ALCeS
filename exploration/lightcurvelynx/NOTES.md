@@ -9363,3 +9363,48 @@ de la terminal. Las plantillas HTML (Fase 84) ya existen en forma funcional; la 
 
 Nuevo: `webapp/app.py`, `webapp/templates/{base,index,sweep_status,history,dataset}.html`.
 Modificado: `requirements.txt` (`flask`). `NOTES.md`: esta entrada.
+
+## Fase 84 -- Frontend: polling en vivo, sección avanzada, verificación real en navegador
+
+### Motivación
+
+La Fase 83 dejó las plantillas funcionales pero con "recargar la página a mano" como única forma
+de ver el progreso de una corrida. El plan pedía específicamente estado en vivo sin recargar, más
+una sección "avanzado" para recursos/`max_concurrent` que la Fase 83 no exponía en el formulario.
+
+### Cambio real
+
+`sweep_status.html`: reemplazado el hint "recargar la página" por un polling real en JS vanilla
+(`fetch()` a `/sweep/<name>/status` cada 3s) que actualiza en el DOM la celda de estado, el detalle
+y los enlaces de QC de cada fila sin recargar -- se detiene solo cuando todas las filas llegan a un
+estado terminal (`done`/`failed`/`UNKNOWN`), y revela los botones "Agregar"/"Publicar" (ocultos por
+CSS hasta ese momento) en cuanto todas quedan `done`. Sigue sin inventar un mecanismo de estado
+nuevo -- el JSON que consume es exactamente `sweep_monitor.monitor_sweep()`.
+
+`index.html`: sección `<details>` "Avanzado" con memoria/tiempo/CPUs/máx.-en-paralelo, mismos
+defaults que `sweep_generate.py` ya usa si se omiten. `app.py::generate()` ahora arma
+`resources`/`max_concurrent` reales desde esos campos del formulario.
+
+### Validación real
+
+Recorrido completo real en el **navegador** (no solo `curl`) contra la app corriendo en NLHPC, vía
+un túnel SSH (`ssh -L 5000:127.0.0.1:5000 nlhpc`) desde la máquina de desarrollo: formulario real
+con las 15 clases reales de NLHPC listadas, generó `PISN-STELLA-HECORE` (ngentot=20) real, lanzó la
+corrida con el botón, el estado pasó de `NOT_SUBMITTED` a `running` a `done` en la página sin
+recargar (confirmado programáticamente vía `fetch()` en la consola del navegador, además de
+visualmente), los 4 enlaces de QC reales aparecieron y uno se abrió mostrando una imagen PNG real
+(1482×960px, servida con `HTTP 200`). "Agregar" y "Publicar" funcionaron con sus mensajes flash
+reales, la página del dataset mostró correctamente el caso sin fotometría (`ingestion_format=null`,
+razón explícita), y `/history` mostró los 4 eventos reales en orden cronológico inverso, todos con
+`triggered_by="webapp"`. Sin errores en la consola del navegador.
+
+### Conclusión Fase 84
+
+"El botón" queda completo: generar, lanzar, ver progreso en vivo, ver QC, agregar, publicar y
+revisar el historial, todo desde el navegador sin tocar la terminal ni recargar la página a mano.
+
+### Archivos de esta fase
+
+Modificado: `webapp/templates/sweep_status.html` (polling JS), `webapp/templates/index.html`
+(sección avanzado), `webapp/app.py` (`resources`/`max_concurrent` desde el formulario). `NOTES.md`:
+esta entrada.

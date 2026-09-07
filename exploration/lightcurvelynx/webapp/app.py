@@ -84,6 +84,22 @@ def generate():
                 flash(f"ngentot invalido para '{class_key}': '{raw}'")
                 return redirect(url_for("index"))
 
+    # Fase 84: seccion "avanzado" del formulario -- mismos campos y mismos
+    # defaults que generate_sweep() ya usa internamente si se omiten, asi
+    # que el formulario nunca envia algo mas restrictivo de lo que el YAML
+    # tendria por default (ver sweep_generate.py).
+    try:
+        cpus = int(form.get("cpus") or 2)
+        max_conc = int(form.get("max_concurrent") or 2)
+    except ValueError:
+        flash("valores de 'CPUs' o 'Máx. en paralelo' invalidos -- deben ser numeros enteros")
+        return redirect(url_for("index"))
+    resources = {
+        "default": {"mem": form.get("mem") or "8G", "time": form.get("time") or "00:15:00", "cpus": cpus},
+        "overrides": {},
+    }
+    max_concurrent = {"default": max_conc}
+
     try:
         yaml_path = sweep_generate.generate_sweep(
             sweep_name=form.get("sweep_name", ""),
@@ -91,6 +107,8 @@ def generate():
             seeds=seeds,
             ngentot_overrides=ngentot_overrides,
             modes=[{"wfd": "wfd" in form, "simsed_t0_mode": "bolometric_peak"}],
+            resources=resources,
+            max_concurrent=max_concurrent,
             keep_phot="keep_phot" in form,
             description=form.get("description", ""),
             triggered_by="webapp",

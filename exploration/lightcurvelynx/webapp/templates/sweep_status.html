@@ -1,38 +1,38 @@
 {% extends "base.html" %}
 {% block heading %}Sweep: {{ name }}{% endblock %}
 {% block content %}
-<p>
+<p id="run-controls">
   {% if running %}
-    <strong>corriendo…</strong> <span class="hint">(recargar la página para actualizar el estado)</span>
+    <strong id="running-label">corriendo…</strong> <span class="hint">(el estado se actualiza solo abajo)</span>
   {% else %}
     <form method="post" action="{{ url_for('sweep_run', name=name) }}" style="display:inline">
       <label>workers: <input type="number" name="workers" min="1" style="width:4rem" placeholder="auto"></label>
       <button type="submit">Lanzar</button>
     </form>
   {% endif %}
-  {% if all_done %}
-    <form method="post" action="{{ url_for('sweep_aggregate_route', name=name) }}" style="display:inline">
-      <button type="submit">Agregar</button>
-    </form>
-    <form method="post" action="{{ url_for('sweep_publish_route', name=name) }}" style="display:inline">
-      <button type="submit">Publicar</button>
-    </form>
-  {% endif %}
+</p>
+<p id="agg-pub-actions" {% if not all_done %}style="display:none"{% endif %}>
+  <form method="post" action="{{ url_for('sweep_aggregate_route', name=name) }}" style="display:inline">
+    <button type="submit">Agregar</button>
+  </form>
+  <form method="post" action="{{ url_for('sweep_publish_route', name=name) }}" style="display:inline">
+    <button type="submit">Publicar</button>
+  </form>
 </p>
 {% if aggregated %}<p class="hint">Ya agregado (<code>aggregated_summary.parquet</code> existe).</p>{% endif %}
 
-<table>
+<table id="status-table">
   <thead><tr><th>Idx</th><th>run_hash</th><th>Clase</th><th>Semilla</th><th>Estado</th><th>Detalle</th><th>QC</th></tr></thead>
   <tbody>
     {% for r in rows %}
-    <tr>
+    <tr data-index="{{ r.index }}">
       <td>{{ r.index }}</td>
       <td><code>{{ r.run_hash }}</code></td>
       <td>{{ r.class_key }}</td>
       <td>{{ r.seed_index }}</td>
-      <td class="status-{{ r.status }}">{{ r.status }}</td>
-      <td>{{ r.detail }}</td>
-      <td class="qc-links">
+      <td class="status-cell status-{{ r.status }}">{{ r.status }}</td>
+      <td class="detail-cell">{{ r.detail }}</td>
+      <td class="qc-cell qc-links">
         {% for f in r.qc_files %}
           <a href="{{ url_for('qc_image', sweep=name, run_hash=r.run_hash, filename=f) }}" target="_blank">{{ f.split('qc_')[-1].replace('.png','') }}</a>
         {% endfor %}
@@ -41,7 +41,68 @@
     {% endfor %}
   </tbody>
 </table>
+<p id="poll-hint" class="hint"></p>
 
 <h3>YAML generado</h3>
 <pre>{{ yaml_text }}</pre>
+
+<script>
+// Fase 84: polling en vivo de /sweep/<name>/status (JSON, via
+// sweep_monitor.monitor_sweep -- run_hash.json real, sin mecanismo de
+// estado nuevo) -- reemplaza el "recargar la pagina a mano" de la Fase 83.
+// Se detiene solo cuando todas las filas llegan a un estado terminal.
+const SWEEP_NAME = {{ name | tojson }};
+const TERMINAL = new Set(["done", "failed", "UNKNOWN"]);
+
+function statusClass(status) {
+  return "status-" + status;
+}
+
+function qcLinksHtml(row) {
+  return row.qc_files.map(f => {
+    const label = f.split("qc_").pop().replace(".png", "");
+    const url = `/qc/${SWEEP_NAME}/${row.run_hash}/${f}`;
+    return `<a href="${url}" target="_blank">${label}</a>`;
+  }).join(" ");
+}
+
+async function pollOnce() {
+  const res = await fetch(`/sweep/${SWEEP_NAME}/status`);
+  if (!res.ok) return true;  // detener si el servidor ya no responde bien
+  const rows = await res.json();
+  let allTerminal = rows.length > 0;
+  let allDone = rows.length > 0;
+  for (const row of rows) {
+    const tr = document.querySelector(`tr[data-index="${row.index}"]`);
+    if (!tr) continue;
+    const statusCell = tr.querySelector(".status-cell");
+    statusCell.textContent = row.status;
+    statusCell.className = "status-cell " + statusClass(row.status);
+    tr.querySelector(".detail-cell").textContent = row.detail || "";
+    tr.querySelector(".qc-cell").innerHTML = qcLinksHtml(row);
+    if (!TERMINAL.has(row.status)) allTerminal = false;
+    if (row.status !== "done") allDone = false;
+  }
+  if (allDone) {
+    document.getElementById("agg-pub-actions").style.display = "";
+  }
+  return allTerminal;
+}
+
+(async function pollLoop() {
+  const hint = document.getElementById("poll-hint");
+  const runningLabel = document.getElementById("running-label");
+  // Solo vale la pena hacer polling si algo no esta en estado terminal
+  // todavia -- evita golpear el servidor con fetch() de por vida en un
+  // sweep que ya termino hace rato.
+  let done = await pollOnce();
+  while (!done) {
+    hint.textContent = "actualizando estado cada 3s…";
+    await new Promise(r => setTimeout(r, 3000));
+    done = await pollOnce();
+  }
+  hint.textContent = "";
+  if (runningLabel) runningLabel.textContent = "terminado -- recargar para relanzar si hace falta";
+})();
+</script>
 {% endblock %}
