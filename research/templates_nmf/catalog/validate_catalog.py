@@ -40,7 +40,7 @@ ENUMS = {
 
 REF_RE = re.compile(
     r"^(arXiv:(\d{4}\.\d{4,5}|[a-z-]+(\.[A-Z]{2})?/\d{7})"  # arXiv nuevo o antiguo
-    r"|\d{4}[A-Za-z&.]{5}[\d.]{4}[A-Za-z.]\d{4}[A-Z]"        # bibcode ADS (19 caracteres)
+    r"|\d{4}[A-Za-z&.]{5}[\d.]{4}[A-Za-z.][\d.]{4}[A-Z.]"    # bibcode ADS (19 caracteres)
     r"|10\.\d{4,9}/\S+)$"                                    # DOI
 )
 RANGE_RE = re.compile(r"^[+-]?\d+(\.\d+)?:[+-]?\d+(\.\d+)?$")
@@ -77,7 +77,8 @@ def check(df):
         ).startswith("http://"):
             errors.append(f"{tag}: access_url no es una URL")
         refs = [r.strip() for r in str(row["reference"]).split(";") if r.strip()]
-        if not refs or any(not REF_RE.match(r) for r in refs):
+        # Un archivo (TNS, por ejemplo) puede no tener paper de referencia.
+        if (not refs and row["kind"] != "archive") or any(not REF_RE.match(r) for r in refs):
             errors.append(f"{tag}: reference con formato no reconocido: {row['reference']!r}")
         for col in ("phase_range_d", "wave_range_A"):
             v = row[col]
