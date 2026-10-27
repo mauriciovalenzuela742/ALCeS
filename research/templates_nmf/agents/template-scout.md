@@ -40,3 +40,18 @@ Tu trabajo es **encontrar y registrar fuentes**, no descargar datos masivos ni c
    en `notes` con `access_method=api` u `on_request`.
 7. Una fila por fuente. Si un paper publica fotometría y espectros por separado, puede ser una
    sola fila con `data_type=both`.
+
+## Etapa 2: inventario por objeto
+Cuando te pidan el inventario por objeto de una fuente ya registrada en `sources.csv`:
+1. Lee `research/templates_nmf/catalog/OBJECTS_SCHEMA.md`.
+2. Escribe `research/templates_nmf/catalog/objects/scripts/<source_id>.py`, que descarga las
+   tablas públicas (con `urllib.request` de la librería estándar, porque `requests` no está instalado; VizieR por `vizier.cds.unistra.fr/viz-bin/asu-tsv`
+   funciona aunque WebFetch falle; también tarballs y GitHub) a
+   `objects/raw/<source_id>/` y escribe `objects/parts/<source_id>.csv`.
+   - Aquí **sí** se descargan tablas y fotometría, con un límite de unos 200 MB por fuente.
+     Si es más grande, cuenta desde los metadatos y anótalo.
+   - El script debe poder correrse de nuevo y dar lo mismo. Nada de filas escritas a mano.
+3. Córrelo y revisa el resultado: número de objetos igual al del paper, redshift y bandas
+   razonables. Anota diferencias en `objects/scripts/<source_id>.md`.
+4. Las reglas 1, 2 y 6 de arriba siguen valiendo: si la fuente no da un dato, la columna queda
+   vacía.

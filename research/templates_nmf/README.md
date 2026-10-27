@@ -18,6 +18,15 @@ nuevos en `pipeline/models.yaml` y no modifican los existentes ni el simulador.
   ```
 - Las filas con `verified` distinto de `yes` necesitan revisión humana antes de usarse.
 
+### Etapa 2: inventario por objeto e informe de viabilidad
+- Esquema: `catalog/OBJECTS_SCHEMA.md`. Cada fuente tiene un script
+  `catalog/objects/scripts/<source_id>.py` que descarga sus tablas públicas a
+  `catalog/objects/raw/` (ignorado por git) y escribe `catalog/objects/parts/<source_id>.csv`.
+- `catalog/viability.py` une las fuentes por nombre y posición y escribe
+  `catalog/viability.md`: por subclase, cuántos objetos cumplen los niveles `foto`
+  (z espectroscópico, ≥3 bandas, ≥15 puntos), `espectro` (además ≥3 espectros) y `completo`
+  (además metalicidad y distancia usable). Ese informe decide con qué clases parte el NMF.
+
 ## Pendiente
 - Agente 2 (armado de templates desde los datos).
 - NMF, exportación a SNANA y validación.
