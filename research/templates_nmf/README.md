@@ -27,6 +27,11 @@ nuevos en `pipeline/models.yaml` y no modifican los existentes ni el simulador.
   (z espectroscópico, ≥3 bandas, ≥15 puntos), `espectro` (además ≥3 espectros) y `completo`
   (además metalicidad y distancia usable). Ese informe decide con qué clases parte el NMF.
 
+## Agente 2: armado de datos (en curso)
+- `assemble/`: librería determinista. Paso 1 hecho para SNII de CSP-I (`build_csp_snii.py`):
+  fotometría en AB corregida por la Vía Láctea, fase en reposo desde la explosión, índice de
+  espectros y metalicidad local. Ver `assemble/README.md`.
+- Falta, según lo que responda el profesor: distancia, extinción del host, mangling y rejilla.
+
 ## Pendiente
-- Agente 2 (armado de templates desde los datos).
 - NMF, exportación a SNANA y validación.
