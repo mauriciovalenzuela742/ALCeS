@@ -24,7 +24,9 @@ SID = "ptf_iin_nyholm20"
 ARXIV_SRC = "https://arxiv.org/src/1906.05812"
 TEX = "IIn-sample-paper-v4-match-journal.tex"
 CDS = "https://cdsarc.cds.unistra.fr/ftp/J/A+A/637/A73/"
-BAND_ORDER = ["B", "g", "R", "r", "i", "z"]
+# CDS principal primero; si no responde, el espejo de IDIA (Sudafrica) sirve las mismas tablas.
+VIZIER_MIRRORS = ["vizier.cds.unistra.fr", "vizier.idia.ac.za"]
+BAND_ORDER =["B", "g", "R", "r", "i", "z"]
 
 
 def strip_tex(s):
@@ -114,6 +116,40 @@ def count_photometry(d):
     return counts
 
 
+def count_photometry_vizier(d):
+    """Lo mismo desde la tabla J/A+A/637/A73/table2 de VizieR (asu-tsv), probando espejos."""
+    last = None
+    for host in VIZIER_MIRRORS:
+        url = (f"https://{host}/viz-bin/asu-tsv?-source=J/A%2BA/637/A73/table2"
+               "&-out=Name,Filter,mag&-out.max=unlimited")
+        try:
+            path = fetch(url, os.path.join(d, "table2.tsv"), timeout=120)
+            break
+        except Exception as e:
+            last = e
+    else:
+        raise last
+    counts = defaultdict(lambda: defaultdict(int))
+    header = None
+    for ln in open(path, encoding="utf-8").read().splitlines():
+        if not ln or ln.startswith("#"):
+            continue
+        cells = ln.split("\t")
+        if header is None:
+            header = [c.strip() for c in cells]
+            continue
+        if set(ln.strip()) <= set("-\t ") or len(cells) != len(header):
+            continue  # fila de unidades o separadores
+        r = dict(zip(header, (c.strip() for c in cells)))
+        try:
+            float(r["mag"])  # vacio = limite superior (lmag)
+        except ValueError:
+            continue
+        counts[r["Name"]][r["Filter"]] += 1
+    print("fotometria desde VizieR:", path)
+    return counts
+
+
 def main():
     d = raw_dir(SID)
     with tarfile.open(fetch(ARXIV_SRC, os.path.join(d, "arxiv_1906.05812_src.tar.gz")), "r:*") as t:
@@ -121,11 +157,15 @@ def main():
     summ = parse_summary(tex)
     spec = parse_speclog(tex)
 
-    try:
-        counts = count_photometry(d)
-    except Exception as e:  # CDS caido o bloqueado
-        print(f"FOTOMETRIA NO DISPONIBLE ({e.__class__.__name__}: {e})")
-        counts = {}
+    counts = {}
+    for fn in (count_photometry_vizier, count_photometry):
+        try:
+            counts = fn(d)
+            break
+        except Exception as e:  # CDS caido o bloqueado
+            print(f"{fn.__name__} fallo ({e.__class__.__name__}: {e})")
+    else:
+        print("FOTOMETRIA NO DISPONIBLE")
 
     rows = []
     for name, r in summ.items():

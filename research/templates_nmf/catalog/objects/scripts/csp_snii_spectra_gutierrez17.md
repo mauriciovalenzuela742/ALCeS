@@ -6,3 +6,4 @@
 - El tarball tiene 123 carpetas: incluye SN00cb (2000cb, parecida a 87A), que no está en la tabla del paper. Son 989 FITS, porque los brazos azul y rojo van en archivos separados.
 - z = v_helio/c. `host_spec` si la velocidad es de NED, `spec` si es de espectros propios (^1) y `unknown` si viene de Asiago (^2). E(B−V)_MW de Schlafly+11 según la tabla.
 - "SN 210" (SNFactory, sin nombre IAU) es el mismo objeto que "SN 200210" en Galbany+16. Los nombres no cruzan y esta fuente no da coordenadas.
+- Resuelto en `viability.py` con `NAME_ALIASES` ("SN 210" → "200210").

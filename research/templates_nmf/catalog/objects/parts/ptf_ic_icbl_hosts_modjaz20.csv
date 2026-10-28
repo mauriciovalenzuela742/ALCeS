@@ -42,7 +42,7 @@ PTF12cjy,,ptf_ic_icbl_hosts_modjaz20,Ic,,,0.044,host_spec,,,,,,,,,,,8.919,host_l
 PTF12dcp,,ptf_ic_icbl_hosts_modjaz20,Ic,,,0.031,host_spec,,,,,,,,,,,8.497,host_local,O3N2_PP04
 PTF12dtf,,ptf_ic_icbl_hosts_modjaz20,Ic,,,0.062,host_spec,,,,,,,,,,,8.281,host_local,O3N2_PP04
 PTF12fgw,,ptf_ic_icbl_hosts_modjaz20,Ic,,,0.055,host_spec,,,,,,,,,,,8.688,host_local,O3N2_PP04
-PTF12gzk,,ptf_ic_icbl_hosts_modjaz20,Ic,,,0.148,host_spec,,,,,,,,,,,8.071,host_local,O3N2_PP04
+PTF12gzk,,ptf_ic_icbl_hosts_modjaz20,Ic,,,0.014,host_spec,,,,,,,,,,,8.071,host_local,O3N2_PP04
 PTF12hni,,ptf_ic_icbl_hosts_modjaz20,SN-other,,,0.106,host_spec,,,,,,,,,,,8.211,host_local,O3N2_PP04
 PTF12hvv,,ptf_ic_icbl_hosts_modjaz20,Ic,,,0.029,host_spec,,,,,,,,,,,8.627,unknown,O3N2_PP04
 PTF12jxd,,ptf_ic_icbl_hosts_modjaz20,Ic,,,0.025,host_spec,,,,,,,,,,,8.701,host_local,O3N2_PP04

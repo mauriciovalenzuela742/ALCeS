@@ -7,3 +7,4 @@
 - Subclase: IIb para 2003bg (nota h), II para las parecidas a 87A (1999br, 2000cb, 2003cv; nota g) e IIP para el resto según el `.info`.
 - La línea `Filter:` de un archivo `.out_` está mal (dice B donde debía decir R). Se usa el sufijo del nombre de archivo.
 - "SN 200210" es "SN 210" en Gutiérrez+17 y Anderson+16; los nombres no cruzan (ver la nota de gutierrez17).
+- Resuelto en `viability.py` con `NAME_ALIASES` ("SN 210" → "200210").

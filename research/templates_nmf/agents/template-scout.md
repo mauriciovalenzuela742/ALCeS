@@ -46,7 +46,8 @@ Cuando te pidan el inventario por objeto de una fuente ya registrada en `sources
 1. Lee `research/templates_nmf/catalog/OBJECTS_SCHEMA.md`.
 2. Escribe `research/templates_nmf/catalog/objects/scripts/<source_id>.py`, que descarga las
    tablas públicas (con `urllib.request` de la librería estándar, porque `requests` no está instalado; VizieR por `vizier.cds.unistra.fr/viz-bin/asu-tsv`
-   funciona aunque WebFetch falle; también tarballs y GitHub) a
+   funciona aunque WebFetch falle; si CDS no responde, el espejo `vizier.idia.ac.za` sirve las
+   mismas tablas; también tarballs y GitHub) a
    `objects/raw/<source_id>/` y escribe `objects/parts/<source_id>.csv`.
    - Aquí **sí** se descargan tablas y fotometría, con un límite de unos 200 MB por fuente.
      Si es más grande, cuenta desde los metadatos y anótalo.

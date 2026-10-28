@@ -26,6 +26,11 @@ ARXIV = "https://arxiv.org/e-print/1901.00872"
 TYPE_MAP = {"Ic-bl": "Ic-BL", "Ic": "Ic", "Ic-peculiar": "Ic",
             "Ic/Ic-bl": "SN-other", "SLSN/Ic-bl": "SN-other", "Ib/c": "SN-other"}
 
+# Erratas de la tabla del paper. PTF12gzk: tab:emission dice 0.148 (fila insertada a mano, ver
+# comentario del .tex); Schulze+21 (fuente ptf_ccsn_hosts_schulze21) da z=0.01377, coherente con un host
+# enano de M*=10^6.95 que el mismo paper llama el menos luminoso. Se usa 0.0138.
+Z_FIX = {"PTF12gzk": 0.0138}
+
 
 def rows_of(tex, label):
     i = tex.index(label)
@@ -70,7 +75,7 @@ def main():
     for c in rows_of(tex, r"\label{tab:emission}"):
         n, _ = names(c[0])
         region[n] = c[1]
-        zhost[n] = val(c[2])
+        zhost[n] = Z_FIX.get(n, val(c[2]))
 
     rows = []
     for c in rows_of(tex, r"\label{tab:PTFZ}"):

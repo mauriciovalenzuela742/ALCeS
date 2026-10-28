@@ -44,11 +44,18 @@ TEMPLATE_CLASS = {"IIP": "II", "IIL": "II"}
 GENERIC = {"II", "Ia", "SN-other", "Ia-other"}
 
 
+# Mismo objeto con nombres que no cruzan y sin coordenadas en alguna fuente (nombre normalizado
+# -> nombre normalizado). Cada entrada debe estar justificada en la nota de la fuente.
+NAME_ALIASES = {
+    "sn210": "200210",  # CSP SNII sin nombre IAU: "SN 210" en Gutiérrez+17, "SN 200210" en Galbany+16
+}
+
+
 def norm_name(name):
     """'SN 2004et' -> '2004et'; 'AT2019abc' -> '2019abc'; 'ZTF19aaa' -> 'ztf19aaa'."""
     s = str(name).strip().lower().replace(" ", "").replace("_", "")
     s = re.sub(r"^(sn|at|psn)(?=\d{4})", "", s)
-    return s
+    return NAME_ALIASES.get(s, s)
 
 
 class UnionFind:

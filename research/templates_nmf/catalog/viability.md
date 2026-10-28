@@ -2,7 +2,7 @@
 
 Generado por `viability.py`. No editar a mano.
 
-- Filas de entrada: 20905 de 25 fuentes; objetos únicos tras cruzar nombres y posiciones (≤3"): 15912.
+- Filas de entrada: 20905 de 25 fuentes; objetos únicos tras cruzar nombres y posiciones (≤3"): 15911.
 - `foto`: z espectroscópico, ≥3 bandas y ≥15 puntos.
 - `espectro`: `foto` y ≥3 espectros.
 - `completo`: `espectro`, metalicidad y distancia usable (independiente o z ≥ 0.01).
@@ -11,9 +11,9 @@ Generado por `viability.py`. No editar a mano.
 | Subclase | Objetos | z espec. | foto | espectro | Metalicidad | completo | Conflictos de tipo |
 |---|---|---|---|---|---|---|---|
 | Ia | 10506 | 4249 | 2716 | 308 | 188 | 8 | 0 |
-| II | 2543 | 406 | 146 | 111 | 115 | 72 | 0 |
+| II | 2542 | 405 | 146 | 112 | 115 | 72 | 0 |
 | Ia-91T | 539 | 366 | 279 | 46 | 3 | 2 | 0 |
-| IIn | 440 | 109 | 16 | 8 | 4 | 0 | 3 |
+| IIn | 440 | 109 | 49 | 8 | 4 | 0 | 3 |
 | SLSN-I | 329 | 259 | 232 | 87 | 16 | 9 | 9 |
 | Ic | 320 | 86 | 24 | 10 | 32 | 0 | 0 |
 | Ib | 277 | 58 | 27 | 18 | 0 | 0 | 3 |
@@ -21,7 +21,7 @@ Generado por `viability.py`. No editar a mano.
 | Ia-91bg | 187 | 126 | 94 | 24 | 0 | 0 | 0 |
 | Ic-BL | 147 | 45 | 10 | 6 | 15 | 0 | 0 |
 | Ia-other | 82 | 31 | 25 | 2 | 0 | 0 | 0 |
-| SLSN-II | 73 | 15 | 0 | 0 | 8 | 0 | 10 |
+| SLSN-II | 73 | 15 | 1 | 0 | 8 | 0 | 10 |
 | SN-other | 62 | 9 | 1 | 0 | 0 | 0 | 0 |
 | Ibn | 54 | 11 | 3 | 3 | 0 | 0 | 0 |
 | Iax | 53 | 26 | 18 | 9 | 0 | 0 | 0 |

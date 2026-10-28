@@ -8,5 +8,5 @@
   - `unknown` si es nuc o HII lejos del sitio (8 hosts, incluido 12hvv, que viene de SDSS).
   - La sección 3 del paper confirma que la apertura se centra en la región HII más cercana al sitio de la SN. La metalicidad es **local**; en sources.csv figuraba `unknown`.
 - El E(B-V)_host de la tabla 4 es del gas (decremento de Balmer), no de la línea de visión de la SN, así que no se copia.
-- Aviso: PTF12gzk tiene z=0.148 en la tabla 2 del paper, pero en la literatura se cita z~0.014. Puede ser un error de la tabla; se dejó tal cual.
+- Errata corregida: PTF12gzk tiene z=0.148 en `tab:emission`, una fila que el `.tex` dice haber insertado a mano. Schulze+21 da z=0.01377 para el mismo host, y Modjaz+20 lo describe como el host menos luminoso de la muestra (M*=10^6.95 M☉), lo que no cuadra con z=0.148. El script lo reemplaza por 0.0138 (`Z_FIX`).
 - La fuente no trae fotometría ni espectros de la SN.
