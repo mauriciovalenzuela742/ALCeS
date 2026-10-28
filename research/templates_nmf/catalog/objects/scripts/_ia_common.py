@@ -4,6 +4,7 @@ Solo librería estándar + pandas. Las descargas se cachean en objects/raw/<sour
 si el archivo ya existe no se vuelve a bajar, así que correr de nuevo da lo mismo.
 """
 import os
+import time
 import urllib.request
 
 import pandas as pd
@@ -28,20 +29,26 @@ def raw_dir(source_id):
     return d
 
 
-def fetch(url, dest, timeout=300):
-    """Descarga url a dest si dest no existe. Devuelve dest."""
+def fetch(url, dest, timeout=120, retries=4):
+    """Descarga url a dest si dest no existe (con reintentos). Devuelve dest."""
     if os.path.exists(dest) and os.path.getsize(dest) > 0:
         return dest
-    req = urllib.request.Request(url, headers=UA)
     tmp = dest + ".part"
-    with urllib.request.urlopen(req, timeout=timeout) as r, open(tmp, "wb") as f:
-        while True:
-            chunk = r.read(1 << 20)
-            if not chunk:
-                break
-            f.write(chunk)
-    os.replace(tmp, dest)
-    return dest
+    for k in range(retries):
+        try:
+            req = urllib.request.Request(url, headers=UA)
+            with urllib.request.urlopen(req, timeout=timeout) as r, open(tmp, "wb") as f:
+                while True:
+                    chunk = r.read(1 << 20)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+            os.replace(tmp, dest)
+            return dest
+        except (OSError, TimeoutError) as e:
+            print(f"fetch {url}: intento {k + 1} falló ({e})")
+            time.sleep(5 * (k + 1))
+    raise RuntimeError(f"no se pudo descargar {url}")
 
 
 def fixed_width(path, spec, comment=None):
