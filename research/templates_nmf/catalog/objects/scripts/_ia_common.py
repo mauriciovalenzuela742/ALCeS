@@ -98,4 +98,34 @@ def fmt(x, nd=4):
         return ""
     if v != v:
         return ""
-    return f"{v:.{nd}f}".rstrip("0").rstrip(".") if nd else str(int(round(v)))
+    s = f"{v:.{nd}f}".rstrip("0").rstrip(".") if nd else str(int(round(v)))
+    return "0" if s == "-0" else s
+
+
+VIZ_MIRRORS = ["https://vizier.cds.unistra.fr", "https://vizier.idia.ac.za"]
+
+
+def viz_tsv(source, cols, dest, extra=""):
+    """Tabla de VizieR por asu-tsv (columnas `cols`), probando espejos. Devuelve DataFrame."""
+    import io
+    import urllib.parse
+    q = (f"-source={urllib.parse.quote(source)}&-out.max=unlimited&-out.add=_RAJ,_DEJ"
+         f"&-out={urllib.parse.quote(','.join(cols))}" + extra)
+    q = q.replace("&-out.add=_RAJ,_DEJ", "")
+    if not (os.path.exists(dest) and os.path.getsize(dest) > 0):
+        last = None
+        for m in VIZ_MIRRORS:
+            try:
+                fetch(f"{m}/viz-bin/asu-tsv?{q}", dest, retries=2)
+                break
+            except RuntimeError as e:
+                last = e
+        else:
+            raise last
+    lines = [ln for ln in open(dest, encoding="latin-1").read().splitlines()
+             if ln and not ln.startswith("#")]
+    # cabecera = primera línea; luego unidades y guiones
+    body = [lines[0]] + [ln for ln in lines[3:]]
+    df = pd.read_csv(io.StringIO("\n".join(body)), sep="\t", dtype=str,
+                     keep_default_na=False)
+    return df.apply(lambda c: c.str.strip())

@@ -13,7 +13,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _ia_common import fetch, fixed_width, fmt, raw_dir, sex2deg, write_part  # noqa: E402
+from _ia_common import fetch, fixed_width, fmt, raw_dir, sex2deg, viz_tsv, write_part  # noqa: E402
 
 SID = "cfa3_cfa4_photometry"
 V3 = "https://cdsarc.cds.unistra.fr/ftp/J/ApJ/700/331/"
@@ -49,8 +49,7 @@ def main():
     f = {}
     for t in ("table1", "table5", "table8"):
         f["3" + t] = fetch(V3 + t + ".dat", os.path.join(d, f"cfa3_{t}.dat"))
-    for t in ("table1", "table6"):
-        f["4" + t] = fetch(V4 + t + ".dat", os.path.join(d, f"cfa4_{t}.dat"))
+    f["4table1"] = fetch(V4 + "table1.dat", os.path.join(d, "cfa4_table1.dat"))
 
     pos = [("RAh", 0, 0), ("RAm", 0, 0), ("RAs", 0, 0), ("DE", 0, 0), ("DEd", 0, 0),
            ("DEm", 0, 0), ("DEs", 0, 0)]
@@ -63,7 +62,9 @@ def main():
         (n, a, b) for (n, _, _), (a, b) in zip(
             pos, [(16, 17), (19, 20), (22, 27), (29, 29), (30, 31), (33, 34), (36, 40)])]
         + [("z", 72, 77), ("zCMB", 79, 84), ("EBVmw", 86, 91)])
-    lc4 = fixed_width(f["4table6"], [("SN", 1, 14), ("Filt", 16, 17)])
+    # table6 por asu-tsv (el ftp de CDS se cortaba a mitad de descarga en este equipo).
+    lc4 = viz_tsv("J/ApJS/200/12/table6", ["SN", "Filt"],
+                  os.path.join(d, "cfa4_table6_SN_Filt.tsv"))
 
     s3 = summarize(lc3, FILT3)
     s4 = summarize(lc4)

@@ -1,0 +1,461 @@
+sn_name,alt_names,source_id,subclass,ra,dec,z,z_type,dist_mod,dist_method,ebv_mw,ebv_host,bands,n_phot,n_spec,phase_min,phase_max,phase_ref,oh12,oh12_type,oh12_calib
+PTF09dlc,,snfactory_hosts,Ia,,,0.06737,host_spec,,,,,,,,,,,8.22,host_global,R23_KK04->T04
+PTF09dnl,,snfactory_hosts,Ia,,,0.02338,host_spec,,,,,,,,,,,,,
+PTF09dnp,,snfactory_hosts,Ia,,,0.03717,host_spec,,,,,,,,,,,,,
+PTF09fox,,snfactory_hosts,Ia,,,0.07,host_spec,,,,,,,,,,,,,
+PTF09foz,,snfactory_hosts,Ia,,,0.05406,host_spec,,,,,,,,,,,,,
+PTF10acdh,,snfactory_hosts,Ia,,,0.05933,host_spec,,,,,,,,,,,,,
+PTF10hmv,,snfactory_hosts,Ia,,,0.03152,host_spec,,,,,,,,,,,8.04,host_global,R23_KK04->T04
+PTF10icb,,snfactory_hosts,Ia,,,0.00855,host_spec,,,,,,,,,,,8.71,host_global,N2_PP04->T04
+PTF10mwb,,snfactory_hosts,Ia,,,0.03136,host_spec,,,,,,,,,,,8.75,host_global,N2_PP04->T04
+PTF10ndc,,snfactory_hosts,Ia,,,0.0812,host_spec,,,,,,,,,,,8.63,host_global,N2_PP04->T04
+PTF10nlg,,snfactory_hosts,Ia,,,0.05592,host_spec,,,,,,,,,,,8.71,host_global,N2_PP04->T04
+PTF10qjl,,snfactory_hosts,Ia,,,0.05746,host_spec,,,,,,,,,,,8.59,host_global,N2_PP04->T04
+PTF10qjq,,snfactory_hosts,Ia,,,0.02811,host_spec,,,,,,,,,,,9.07,host_global,N2_PP04->T04
+PTF10qyz,,snfactory_hosts,Ia,,,,,,,,,,,,,,,,,
+PTF10tce,,snfactory_hosts,Ia,,,0.04095,host_spec,,,,,,,,,,,,,
+PTF10wnm,,snfactory_hosts,Ia,,,,,,,,,,,,,,,,,
+PTF10wof,,snfactory_hosts,Ia,,,0.05256,host_spec,,,,,,,,,,,8.78,host_global,N2_PP04->T04
+PTF10xyt,,snfactory_hosts,Ia,,,,,,,,,,,,,,,,,
+PTF10ygu,,snfactory_hosts,Ia,,,0.02488,host_spec,,,,,,,,,,,8.99,host_global,N2_PP04->T04
+PTF10yut,,snfactory_hosts,Ia,,,,,,,,,,,,,,,,,
+PTF10zdk,,snfactory_hosts,Ia,,,,,,,,,,,,,,,,,
+SN 2004dt,,snfactory_hosts,Ia,,,0.0195,host_spec,,,,,,,,,,,,,
+SN 2004ef,,snfactory_hosts,Ia,,,0.03083,host_spec,,,,,,,,,,,9.15,host_global,N2_PP04->T04
+SN 2004gc,,snfactory_hosts,Ia,,,0.03192,host_spec,,,,,,,,,,,9.22,host_global,N2_PP04->T04
+SN 2004gs,,snfactory_hosts,Ia,,,0.02741,host_spec,,,,,,,,,,,,,
+SN 2004il,,snfactory_hosts,Ia,,,0.1071,host_spec,,,,,,,,,,,,,
+SN 2005L,,snfactory_hosts,Ia,,,0.07045,host_spec,,,,,,,,,,,,,
+SN 2005M,,snfactory_hosts,Ia,,,0.02484,host_spec,,,,,,,,,,,8.86,host_global,N2_PP04->T04
+SN 2005ac,,snfactory_hosts,Ia,,,0.06996,host_spec,,,,,,,,,,,,,
+SN 2005ag,,snfactory_hosts,Ia,,,0.07949,host_spec,,,,,,,,,,,,,
+SN 2005ak,,snfactory_hosts,Ia,,,0.02671,host_spec,,,,,,,,,,,,,
+SN 2005al,,snfactory_hosts,Ia,,,0.0124,host_spec,,,,,,,,,,,,,
+SN 2005bc,,snfactory_hosts,Ia,,,0.01148,host_spec,,,,,,,,,,,9.18,host_global,N2_PP04->T04
+SN 2005bg,,snfactory_hosts,Ia,,,0.02282,host_spec,,,,,,,,,,,8.91,host_global,N2_PP04->T04
+SN 2005bl,,snfactory_hosts,Ia,,,0.02388,host_spec,,,,,,,,,,,,,
+SN 2005cc,,snfactory_hosts,Ia,,,0.00726,host_spec,,,,,,,,,,,8.86,host_global,N2_PP04->T04
+SN 2005cf,,snfactory_hosts,Ia,,,0.00643,host_spec,,,,,,,,,,,8.63,host_global,N2_PP04->T04
+SN 2005cg,,snfactory_hosts,Ia,,,0.0314,host_spec,,,,,,,,,,,8.11,host_global,R23_KK04->T04
+SN 2005de,,snfactory_hosts,Ia,,,0.01526,host_spec,,,,,,,,,,,8.97,host_global,N2_PP04->T04
+SN 2005dh,,snfactory_hosts,Ia,,,0.01457,host_spec,,,,,,,,,,,,,
+SN 2005di,,snfactory_hosts,Ia,,,0.0253,host_spec,,,,,,,,,,,,,
+SN 2005dm,,snfactory_hosts,Ia,,,0.01684,host_spec,,,,,,,,,,,,,
+SN 2005ec,,snfactory_hosts,Ia,,,0.02871,host_spec,,,,,,,,,,,,,
+SN 2005el,,snfactory_hosts,Ia,,,0.01494,host_spec,,,,,,,,,,,9.43,host_global,N2_PP04->T04
+SN 2005hc,,snfactory_hosts,Ia,,,0.0459,host_spec,,,,,,,,,,,,,
+SN 2005hj,,snfactory_hosts,Ia,,,0.0574,host_spec,,,,,,,,,,,8.98,host_global,N2_PP04->T04
+SN 2005ir,,snfactory_hosts,Ia,,,0.0763,host_spec,,,,,,,,,,,9.16,host_global,N2_PP04->T04
+SN 2005ki,,snfactory_hosts,Ia,,,0.01951,host_spec,,,,,,,,,,,,,
+SN 2005km,,snfactory_hosts,Ia,,,0.02797,host_spec,,,,,,,,,,,,,
+SN 2006D,,snfactory_hosts,Ia,,,0.00853,host_spec,,,,,,,,,,,,,
+SN 2006X,,snfactory_hosts,Ia,,,0.00524,host_spec,,,,,,,,,,,,,
+SN 2006ac,,snfactory_hosts,Ia,,,0.02328,host_spec,,,,,,,,,,,8.96,host_global,N2_PP04->T04
+SN 2006ar,,snfactory_hosts,Ia,,,0.02249,host_spec,,,,,,,,,,,9.03,host_global,N2_PP04->T04
+SN 2006bd,,snfactory_hosts,Ia,,,0.02572,host_spec,,,,,,,,,,,,,
+SN 2006bk,,snfactory_hosts,Ia,,,0.04884,host_spec,,,,,,,,,,,,,
+SN 2006bm,,snfactory_hosts,Ia,,,0.03177,host_spec,,,,,,,,,,,,,
+SN 2006bq,,snfactory_hosts,Ia,,,0.02191,host_spec,,,,,,,,,,,,,
+SN 2006bt,,snfactory_hosts,Ia,,,0.03193,host_spec,,,,,,,,,,,,,
+SN 2006cj,,snfactory_hosts,Ia,,,0.06752,host_spec,,,,,,,,,,,,,
+SN 2006dm,,snfactory_hosts,Ia,,,0.02202,host_spec,,,,,,,,,,,,,
+SN 2006do,,snfactory_hosts,Ia,,,0.02843,host_spec,,,,,,,,,,,,,
+SN 2006ob,,snfactory_hosts,Ia,,,0.05921,host_spec,,,,,,,,,,,,,
+SN 2007ba,,snfactory_hosts,Ia,,,0.03805,host_spec,,,,,,,,,,,,,
+SN 2007bc,,snfactory_hosts,Ia,,,0.02083,host_spec,,,,,,,,,,,,,
+SN 2007bd,,snfactory_hosts,Ia,,,0.03044,host_spec,,,,,,,,,,,,,
+SN 2007cq,,snfactory_hosts,Ia,,,0.02604,host_spec,,,,,,,,,,,8.95,host_global,N2_PP04->T04
+SN 2007fr,,snfactory_hosts,Ia,,,0.05104,host_spec,,,,,,,,,,,,,
+SN 2007kk,,snfactory_hosts,Ia,,,0.04117,host_spec,,,,,,,,,,,,,
+SN 2007le,,snfactory_hosts,Ia,,,0.00678,host_spec,,,,,,,,,,,9.02,host_global,N2_PP04->T04
+SN 2007nq,,snfactory_hosts,Ia,,,0.04521,host_spec,,,,,,,,,,,,,
+SN 2007qe,,snfactory_hosts,Ia,,,0.02396,host_spec,,,,,,,,,,,,,
+SN 2008ec,,snfactory_hosts,Ia,,,0.01626,host_spec,,,,,,,,,,,,,
+SN 2009hi,,snfactory_hosts,Ia,,,0.04112,host_spec,,,,,,,,,,,,,
+SN 2009hs,,snfactory_hosts,Ia,,,0.02721,host_spec,,,,,,,,,,,,,
+SN 2009ig,,snfactory_hosts,Ia,,,0.00877,host_spec,,,,,,,,,,,,,
+SN 2010dt,,snfactory_hosts,Ia,,,0.05289,host_spec,,,,,,,,,,,,,
+SN 2010ex,,snfactory_hosts,Ia,,,0.02281,host_spec,,,,,,,,,,,,,
+SN 2010kg,,snfactory_hosts,Ia,,,0.01637,host_spec,,,,,,,,,,,,,
+SNF20050519-000,,snfactory_hosts,Ia,,,0.0304,host_spec,,,,,,,,,,,,,
+SNF20050621-001,,snfactory_hosts,Ia,,,0.12072,host_spec,,,,,,,,,,,9.11,host_global,N2_PP04->T04
+SNF20050624-000,,snfactory_hosts,Ia,,,0.06719,host_spec,,,,,,,,,,,,,
+SNF20050704-008,,snfactory_hosts,Ia,,,0.11116,host_spec,,,,,,,,,,,9.02,host_global,N2_PP04->T04
+SNF20050727-005,,snfactory_hosts,Ia,,,0.0861,host_spec,,,,,,,,,,,,,
+SNF20050728-000,,snfactory_hosts,Ia,,,0.04293,host_spec,,,,,,,,,,,8.36,host_global,N2_PP04->T04
+SNF20050728-001,,snfactory_hosts,Ia,,,0.05651,host_spec,,,,,,,,,,,,,
+SNF20050728-006,,snfactory_hosts,Ia,,,0.05921,host_spec,,,,,,,,,,,,,
+SNF20050728-012,,snfactory_hosts,Ia,,,0.07477,host_spec,,,,,,,,,,,,,
+SNF20050729-008,,snfactory_hosts,Ia,,,0.08206,host_spec,,,,,,,,,,,8.98,host_global,N2_PP04->T04
+SNF20050730-003,,snfactory_hosts,Ia,,,0.01718,host_spec,,,,,,,,,,,,,
+SNF20050731-005,,snfactory_hosts,Ia,,,0.06746,host_spec,,,,,,,,,,,,,
+SNF20050731-011,,snfactory_hosts,Ia,,,0.05913,host_spec,,,,,,,,,,,,,
+SNF20050805-008,,snfactory_hosts,Ia,,,0.10603,host_spec,,,,,,,,,,,,,
+SNF20050820-004,,snfactory_hosts,Ia,,,0.11482,host_spec,,,,,,,,,,,,,
+SNF20050821-004,,snfactory_hosts,Ia,,,0.11021,host_spec,,,,,,,,,,,,,
+SNF20050821-007,,snfactory_hosts,Ia,,,0.0593,host_spec,,,,,,,,,,,8,host_global,R23_KK04->T04
+SNF20050822-000,,snfactory_hosts,Ia,,,0.13783,host_spec,,,,,,,,,,,8.46,host_global,O3N2_PP04->T04
+SNF20050822-004,,snfactory_hosts,Ia,,,0.09907,host_spec,,,,,,,,,,,,,
+SNF20050824-002,,snfactory_hosts,Ia,,,0.12423,host_spec,,,,,,,,,,,,,
+SNF20050826-004,,snfactory_hosts,Ia,,,0.09926,host_spec,,,,,,,,,,,8.75,host_global,N2_PP04->T04
+SNF20050826-010,,snfactory_hosts,Ia,,,0.02148,host_spec,,,,,,,,,,,,,
+SNF20050828-001,,snfactory_hosts,Ia,,,0.08082,host_spec,,,,,,,,,,,8.55,host_global,N2_PP04->T04
+SNF20050828-003,,snfactory_hosts,Ia,,,0.06753,host_spec,,,,,,,,,,,9,host_global,N2_PP04->T04
+SNF20050829-003,,snfactory_hosts,Ia,,,0.04527,host_spec,,,,,,,,,,,8.83,host_global,N2_PP04->T04
+SNF20050903-000,,snfactory_hosts,Ia,,,0.08855,host_spec,,,,,,,,,,,,,
+SNF20050919-000,,snfactory_hosts,Ia,,,0.03723,host_spec,,,,,,,,,,,8.48,host_global,N2_PP04->T04
+SNF20050924-004,,snfactory_hosts,Ia,,,0.08929,host_spec,,,,,,,,,,,8.72,host_global,N2_PP04->T04
+SNF20050925-010,,snfactory_hosts,Ia,,,0.03787,host_spec,,,,,,,,,,,,,
+SNF20050926-002,,snfactory_hosts,Ia,,,0.11472,host_spec,,,,,,,,,,,,,
+SNF20050927-005,,snfactory_hosts,Ia,,,0.04038,host_spec,,,,,,,,,,,8.76,host_global,N2_PP04->T04
+SNF20050927-008,,snfactory_hosts,Ia,,,0.024,host_spec,,,,,,,,,,,,,
+SNF20050928-001,,snfactory_hosts,Ia,,,0.02891,host_spec,,,,,,,,,,,,,
+SNF20050929-004,,snfactory_hosts,Ia,,,0.08644,host_spec,,,,,,,,,,,,,
+SNF20051002-006,,snfactory_hosts,Ia,,,0.11131,host_spec,,,,,,,,,,,,,
+SNF20051003-002,,snfactory_hosts,Ia,,,0.06075,host_spec,,,,,,,,,,,,,
+SNF20051003-003,,snfactory_hosts,Ia,,,0.01537,host_spec,,,,,,,,,,,8.99,host_global,N2_PP04->T04
+SNF20051003-004,,snfactory_hosts,Ia,,,0.03449,host_spec,,,,,,,,,,,,,
+SNF20051004-001,,snfactory_hosts,Ia,,,0.00906,host_spec,,,,,,,,,,,,,
+SNF20051006-001,,snfactory_hosts,Ia,,,0.08996,host_spec,,,,,,,,,,,,,
+SNF20051020-000,,snfactory_hosts,Ia,,,0.065,host_spec,,,,,,,,,,,,,
+SNF20051023-000,,snfactory_hosts,Ia,,,0.07428,host_spec,,,,,,,,,,,,,
+SNF20051023-005,,snfactory_hosts,Ia,,,0.11269,host_spec,,,,,,,,,,,,,
+SNF20051031-002,,snfactory_hosts,Ia,,,0.0777,host_spec,,,,,,,,,,,,,
+SNF20051113-000,,snfactory_hosts,Ia,,,0.08279,host_spec,,,,,,,,,,,8.55,host_global,O3N2_PP04->T04
+SNF20051113-003,,snfactory_hosts,Ia,,,0.113,host_spec,,,,,,,,,,,,,
+SNF20051119-004,,snfactory_hosts,Ia,,,0.072,host_spec,,,,,,,,,,,,,
+SNF20051120-005,,snfactory_hosts,Ia,,,0.07052,host_spec,,,,,,,,,,,9.18,host_global,N2_PP04->T04
+SNF20051121-001,,snfactory_hosts,Ia,,,0.04147,host_spec,,,,,,,,,,,,,
+SNF20060112-001,,snfactory_hosts,Ia,,,0.04362,host_spec,,,,,,,,,,,8.21,host_global,R23_KK04->T04
+SNF20060112-008,,snfactory_hosts,Ia,,,0.08254,host_spec,,,,,,,,,,,9,host_global,N2_PP04->T04
+SNF20060118-002,,snfactory_hosts,Ia,,,0.03547,host_spec,,,,,,,,,,,,,
+SNF20060125-004,,snfactory_hosts,Ia,,,0.01995,host_spec,,,,,,,,,,,8.89,host_global,N2_PP04->T04
+SNF20060208-002,,snfactory_hosts,Ia,,,0.05053,host_spec,,,,,,,,,,,,,
+SNF20060209-003,,snfactory_hosts,Ia,,,0.05305,host_spec,,,,,,,,,,,9.12,host_global,N2_PP04->T04
+SNF20060209-005,,snfactory_hosts,Ia,,,0.00267,host_spec,,,,,,,,,,,8.82,host_global,O3N2_PP04->T04
+SNF20060224-000,,snfactory_hosts,Ia,,,0.126,host_spec,,,,,,,,,,,,,
+SNF20060224-026,,snfactory_hosts,Ia,,,0.1,host_spec,,,,,,,,,,,,,
+SNF20060511-004,,snfactory_hosts,Ia,,,0.07847,host_spec,,,,,,,,,,,,,
+SNF20060511-014,,snfactory_hosts,Ia,,,0.04757,host_spec,,,,,,,,,,,8.97,host_global,N2_PP04->T04
+SNF20060512-001,,snfactory_hosts,Ia,,,0.03806,host_spec,,,,,,,,,,,8.88,host_global,N2_PP04->T04
+SNF20060512-002,,snfactory_hosts,Ia,,,0.05019,host_spec,,,,,,,,,,,,,
+SNF20060514-003,,snfactory_hosts,Ia,,,0.088,host_spec,,,,,,,,,,,,,
+SNF20060514-011,,snfactory_hosts,Ia,,,0.11394,host_spec,,,,,,,,,,,,,
+SNF20060520-007,,snfactory_hosts,Ia,,,0.03013,host_spec,,,,,,,,,,,,,
+SNF20060521-001,,snfactory_hosts,Ia,,,0.06667,host_spec,,,,,,,,,,,,,
+SNF20060521-008,,snfactory_hosts,Ia,,,0.05499,host_spec,,,,,,,,,,,,,
+SNF20060526-001,,snfactory_hosts,Ia,,,0.057,host_spec,,,,,,,,,,,,,
+SNF20060526-003,,snfactory_hosts,Ia,,,0.07795,host_spec,,,,,,,,,,,8.97,host_global,N2_PP04->T04
+SNF20060530-003,,snfactory_hosts,Ia,,,0.05701,host_spec,,,,,,,,,,,9.12,host_global,N2_PP04->T04
+SNF20060601-004,,snfactory_hosts,Ia,,,0.12718,host_spec,,,,,,,,,,,,,
+SNF20060601-005,,snfactory_hosts,Ia,,,0.15229,host_spec,,,,,,,,,,,,,
+SNF20060601-009,,snfactory_hosts,Ia,,,0.09337,host_spec,,,,,,,,,,,9.14,host_global,N2_PP04->T04
+SNF20060609-002,,snfactory_hosts,Ia,,,0.03959,host_spec,,,,,,,,,,,9.06,host_global,N2_PP04->T04
+SNF20060611-003,,snfactory_hosts,Ia,,,0.05761,host_spec,,,,,,,,,,,8.91,host_global,N2_PP04->T04
+SNF20060611-014,,snfactory_hosts,Ia,,,0.09402,host_spec,,,,,,,,,,,,,
+SNF20060611-019,,snfactory_hosts,Ia,,,0.10761,host_spec,,,,,,,,,,,,,
+SNF20060611-048,,snfactory_hosts,Ia,,,0.03024,host_spec,,,,,,,,,,,,,
+SNF20060618-014,,snfactory_hosts,Ia,,,0.06378,host_spec,,,,,,,,,,,8.49,host_global,N2_PP04->T04
+SNF20060618-023,,snfactory_hosts,Ia,,,0.11329,host_spec,,,,,,,,,,,8.47,host_global,N2_PP04->T04
+SNF20060618-025,,snfactory_hosts,Ia,,,0.096,host_spec,,,,,,,,,,,,,
+SNF20060621-012,,snfactory_hosts,Ia,,,0.06272,host_spec,,,,,,,,,,,8.56,host_global,N2_PP04->T04
+SNF20060621-015,,snfactory_hosts,Ia,,,0.0555,host_spec,,,,,,,,,,,,,
+SNF20060622-005,,snfactory_hosts,Ia,,,0.11814,host_spec,,,,,,,,,,,9.21,host_global,N2_PP04->T04
+SNF20060622-020,,snfactory_hosts,Ia,,,0.08,host_spec,,,,,,,,,,,,,
+SNF20060623-014,,snfactory_hosts,Ia,,,0.085,host_spec,,,,,,,,,,,,,
+SNF20060623-017,,snfactory_hosts,Ia,,,0.05932,host_spec,,,,,,,,,,,8.95,host_global,N2_PP04->T04
+SNF20060624-019,,snfactory_hosts,Ia,,,0.0743,host_spec,,,,,,,,,,,,,
+SNF20060719-011,,snfactory_hosts,Ia,,,0.03689,host_spec,,,,,,,,,,,,,
+SNF20060719-020,,snfactory_hosts,Ia,,,0.05731,host_spec,,,,,,,,,,,9.03,host_global,N2_PP04->T04
+SNF20060719-031,,snfactory_hosts,Ia,,,0.11326,host_spec,,,,,,,,,,,,,
+SNF20060720-042,,snfactory_hosts,Ia,,,0.08248,host_spec,,,,,,,,,,,8.65,host_global,N2_PP04->T04
+SNF20060906-011,,snfactory_hosts,Ia,,,0.07,host_spec,,,,,,,,,,,,,
+SNF20060907-000,,snfactory_hosts,Ia,,,0.05749,host_spec,,,,,,,,,,,,,
+SNF20060911-000,,snfactory_hosts,Ia,,,0.03654,host_spec,,,,,,,,,,,,,
+SNF20060911-006,,snfactory_hosts,Ia,,,0.12082,host_spec,,,,,,,,,,,8.26,host_global,R23_KK04->T04
+SNF20060911-013,,snfactory_hosts,Ia,,,0.10049,host_spec,,,,,,,,,,,8.62,host_global,N2_PP04->T04
+SNF20060911-014,,snfactory_hosts,Ia,,,0.09459,host_spec,,,,,,,,,,,,,
+SNF20060912-000,,snfactory_hosts,Ia,,,0.07345,host_spec,,,,,,,,,,,9.04,host_global,N2_PP04->T04
+SNF20060912-004,,snfactory_hosts,Ia,,,0.07799,host_spec,,,,,,,,,,,9.18,host_global,O3N2_PP04->T04
+SNF20060913-005,,snfactory_hosts,Ia,,,0.03889,host_spec,,,,,,,,,,,,,
+SNF20060913-010,,snfactory_hosts,Ia,,,0.0914,host_spec,,,,,,,,,,,8.52,host_global,N2_PP04->T04
+SNF20060915-006,,snfactory_hosts,Ia,,,0.08886,host_spec,,,,,,,,,,,8.81,host_global,N2_PP04->T04
+SNF20060916-002,,snfactory_hosts,Ia,,,0.07283,host_spec,,,,,,,,,,,8.25,host_global,N2_PP04->T04
+SNF20060919-007,,snfactory_hosts,Ia,,,0.07072,host_spec,,,,,,,,,,,,,
+SNF20060919-008,,snfactory_hosts,Ia,,,0.1,host_spec,,,,,,,,,,,,,
+SNF20060921-006,,snfactory_hosts,Ia,,,0.05279,host_spec,,,,,,,,,,,8.63,host_global,N2_PP04->T04
+SNF20060923-001,,snfactory_hosts,Ia,,,0.07883,host_spec,,,,,,,,,,,9.15,host_global,N2_PP04->T04
+SNF20061009-008,,snfactory_hosts,Ia,,,0.0572,host_spec,,,,,,,,,,,8.71,host_global,N2_PP04->T04
+SNF20061010-003,,snfactory_hosts,Ia,,,0.12319,host_spec,,,,,,,,,,,,,
+SNF20061011-005,,snfactory_hosts,Ia,,,0.02338,host_spec,,,,,,,,,,,8.35,host_global,N2_PP04->T04
+SNF20061019-005,,snfactory_hosts,Ia,,,0.063,host_spec,,,,,,,,,,,,,
+SNF20061019-019,,snfactory_hosts,Ia,,,0.08555,host_spec,,,,,,,,,,,8.49,host_global,N2_PP04->T04
+SNF20061020-000,,snfactory_hosts,Ia,,,0.03908,host_spec,,,,,,,,,,,9,host_global,N2_PP04->T04
+SNF20061021-002,,snfactory_hosts,Ia,,,0.03315,host_spec,,,,,,,,,,,,,
+SNF20061021-003,,snfactory_hosts,Ia,,,0.06273,host_spec,,,,,,,,,,,,,
+SNF20061022-004,,snfactory_hosts,Ia,,,0.1223,host_spec,,,,,,,,,,,8.18,host_global,O3N2_PP04->T04
+SNF20061022-005,,snfactory_hosts,Ia,,,0.07897,host_spec,,,,,,,,,,,9.1,host_global,N2_PP04->T04
+SNF20061022-014,,snfactory_hosts,Ia,,,0.04106,host_spec,,,,,,,,,,,9.28,host_global,N2_PP04->T04
+SNF20061023-022,,snfactory_hosts,Ia,,,0.125,host_spec,,,,,,,,,,,,,
+SNF20061023-023,,snfactory_hosts,Ia,,,0.13201,host_spec,,,,,,,,,,,8.72,host_global,N2_PP04->T04
+SNF20061023-027,,snfactory_hosts,Ia,,,0.09024,host_spec,,,,,,,,,,,8.95,host_global,N2_PP04->T04
+SNF20061024-000,,snfactory_hosts,Ia,,,0.05665,host_spec,,,,,,,,,,,,,
+SNF20061024-012,,snfactory_hosts,Ia,,,0.04329,host_spec,,,,,,,,,,,,,
+SNF20061026-003,,snfactory_hosts,Ia,,,0.055,host_spec,,,,,,,,,,,,,
+SNF20061026-004,,snfactory_hosts,Ia,,,0.09,host_spec,,,,,,,,,,,,,
+SNF20061030-010,,snfactory_hosts,Ia,,,0.02836,host_spec,,,,,,,,,,,8.96,host_global,N2_PP04->T04
+SNF20061101-003,,snfactory_hosts,Ia,,,0.1,host_spec,,,,,,,,,,,,,
+SNF20061101-005,,snfactory_hosts,Ia,,,0.112,host_spec,,,,,,,,,,,8.39,host_global,R23_KK04->T04
+SNF20061106-003,,snfactory_hosts,Ia,,,0.08772,host_spec,,,,,,,,,,,,,
+SNF20061107-004,,snfactory_hosts,Ia,,,0.08643,host_spec,,,,,,,,,,,8.45,host_global,R23_KK04->T04
+SNF20061107-027,,snfactory_hosts,Ia,,,0.05921,host_spec,,,,,,,,,,,,,
+SNF20061107-031,,snfactory_hosts,Ia,,,0.11401,host_spec,,,,,,,,,,,8.9,host_global,N2_PP04->T04
+SNF20061108-001,,snfactory_hosts,Ia,,,0.06515,host_spec,,,,,,,,,,,,,
+SNF20061108-004,,snfactory_hosts,Ia,,,0.08888,host_spec,,,,,,,,,,,,,
+SNF20061109-002,,snfactory_hosts,Ia,,,0.04362,host_spec,,,,,,,,,,,,,
+SNF20061109-011,,snfactory_hosts,Ia,,,0.08369,host_spec,,,,,,,,,,,,,
+SNF20061109-015,,snfactory_hosts,Ia,,,0.105,host_spec,,,,,,,,,,,,,
+SNF20061111-000,,snfactory_hosts,Ia,,,0.021,host_spec,,,,,,,,,,,,,
+SNF20061111-002,,snfactory_hosts,Ia,,,0.06896,host_spec,,,,,,,,,,,8.72,host_global,N2_PP04->T04
+SNF20061113-004,,snfactory_hosts,Ia,,,0.10739,host_spec,,,,,,,,,,,,,
+SNF20061114-006,,snfactory_hosts,Ia,,,0.07375,host_spec,,,,,,,,,,,8.91,host_global,N2_PP04->T04
+SNF20070326-012,,snfactory_hosts,Ia,,,0.07016,host_spec,,,,,,,,,,,9.14,host_global,N2_PP04->T04
+SNF20070326-023,,snfactory_hosts,Ia,,,0.08231,host_spec,,,,,,,,,,,,,
+SNF20070330-024,,snfactory_hosts,Ia,,,0.04069,host_spec,,,,,,,,,,,,,
+SNF20070331-013,,snfactory_hosts,Ia,,,0.06008,host_spec,,,,,,,,,,,,,
+SNF20070331-014,,snfactory_hosts,Ia,,,0.06704,host_spec,,,,,,,,,,,,,
+SNF20070331-025,,snfactory_hosts,Ia,,,0.07093,host_spec,,,,,,,,,,,,,
+SNF20070402-001,,snfactory_hosts,Ia,,,0.05614,host_spec,,,,,,,,,,,8.69,host_global,N2_PP04->T04
+SNF20070403-000,,snfactory_hosts,Ia,,,0.04878,host_spec,,,,,,,,,,,8.97,host_global,N2_PP04->T04
+SNF20070403-001,,snfactory_hosts,Ia,,,0.08034,host_spec,,,,,,,,,,,9.07,host_global,N2_PP04->T04
+SNF20070403-009,,snfactory_hosts,Ia,,,0.075,host_spec,,,,,,,,,,,,,
+SNF20070404-002,,snfactory_hosts,Ia,,,0.15329,host_spec,,,,,,,,,,,,,
+SNF20070404-003,,snfactory_hosts,Ia,,,0.08,host_spec,,,,,,,,,,,,,
+SNF20070404-006,,snfactory_hosts,Ia,,,0.1,host_spec,,,,,,,,,,,,,
+SNF20070404-010,,snfactory_hosts,Ia,,,0.05329,host_spec,,,,,,,,,,,,,
+SNF20070408-013,,snfactory_hosts,Ia,,,0.1,host_spec,,,,,,,,,,,,,
+SNF20070417-002,,snfactory_hosts,Ia,,,0.08937,host_spec,,,,,,,,,,,,,
+SNF20070418-007,,snfactory_hosts,Ia,,,0.10927,host_spec,,,,,,,,,,,8.46,host_global,N2_PP04->T04
+SNF20070418-019,,snfactory_hosts,Ia,,,0.088,host_spec,,,,,,,,,,,,,
+SNF20070418-026,,snfactory_hosts,Ia,,,0.13923,host_spec,,,,,,,,,,,8.82,host_global,N2_PP04->T04
+SNF20070419-006,,snfactory_hosts,Ia,,,0.034,host_spec,,,,,,,,,,,,,
+SNF20070419-011,,snfactory_hosts,Ia,,,0.11,host_spec,,,,,,,,,,,,,
+SNF20070420-001,,snfactory_hosts,Ia,,,0.09491,host_spec,,,,,,,,,,,8.42,host_global,O3N2_PP04->T04
+SNF20070422-003,,snfactory_hosts,Ia,,,0.03822,host_spec,,,,,,,,,,,8.32,host_global,N2_PP04->T04
+SNF20070422-007,,snfactory_hosts,Ia,,,0.08956,host_spec,,,,,,,,,,,9.3,host_global,N2_PP04->T04
+SNF20070424-003,,snfactory_hosts,Ia,,,0.06754,host_spec,,,,,,,,,,,8.7,host_global,N2_PP04->T04
+SNF20070424-006,,snfactory_hosts,Ia,,,0.07011,host_spec,,,,,,,,,,,,,
+SNF20070425-010,,snfactory_hosts,Ia,,,0.08502,host_spec,,,,,,,,,,,,,
+SNF20070427-000,,snfactory_hosts,Ia,,,0.05133,host_spec,,,,,,,,,,,8.9,host_global,N2_PP04->T04
+SNF20070427-001,,snfactory_hosts,Ia,,,0.0766,host_spec,,,,,,,,,,,,,
+SNF20070427-010,,snfactory_hosts,Ia,,,0.14,host_spec,,,,,,,,,,,,,
+SNF20070429-000,,snfactory_hosts,Ia,,,0.0664,host_spec,,,,,,,,,,,9.09,host_global,N2_PP04->T04
+SNF20070429-003,,snfactory_hosts,Ia,,,0.06744,host_spec,,,,,,,,,,,,,
+SNF20070429-007,,snfactory_hosts,Ia,,,0.12945,host_spec,,,,,,,,,,,8.94,host_global,N2_PP04->T04
+SNF20070430-004,,snfactory_hosts,Ia,,,0.095,host_spec,,,,,,,,,,,,,
+SNF20070504-012,,snfactory_hosts,Ia,,,0.1,host_spec,,,,,,,,,,,,,
+SNF20070504-017,,snfactory_hosts,Ia,,,0.08317,host_spec,,,,,,,,,,,8.96,host_global,N2_PP04->T04
+SNF20070506-006,,snfactory_hosts,Ia,,,0.03486,host_spec,,,,,,,,,,,8.89,host_global,N2_PP04->T04
+SNF20070509-001,,snfactory_hosts,Ia,,,0.125,host_spec,,,,,,,,,,,,,
+SNF20070513-002,,snfactory_hosts,Ia,,,0.03365,host_spec,,,,,,,,,,,8.39,host_global,N2_PP04->T04
+SNF20070524-000,,snfactory_hosts,Ia,,,0.14899,host_spec,,,,,,,,,,,,,
+SNF20070528-000,,snfactory_hosts,Ia,,,0.04564,host_spec,,,,,,,,,,,9.01,host_global,N2_PP04->T04
+SNF20070528-003,,snfactory_hosts,Ia,,,0.117,host_spec,,,,,,,,,,,7.74,host_global,R23_KK04->T04
+SNF20070530-003,,snfactory_hosts,Ia,,,0.09589,host_spec,,,,,,,,,,,8.86,host_global,N2_PP04->T04
+SNF20070531-002,,snfactory_hosts,Ia,,,0.09294,host_spec,,,,,,,,,,,,,
+SNF20070531-009,,snfactory_hosts,Ia,,,0.065,host_spec,,,,,,,,,,,,,
+SNF20070531-011,,snfactory_hosts,Ia,,,0.03517,host_spec,,,,,,,,,,,,,
+SNF20070604-000,,snfactory_hosts,Ia,,,0.07572,host_spec,,,,,,,,,,,9.07,host_global,N2_PP04->T04
+SNF20070605-008,,snfactory_hosts,Ia,,,0.11244,host_spec,,,,,,,,,,,,,
+SNF20070605-009,,snfactory_hosts,Ia,,,0.10234,host_spec,,,,,,,,,,,,,
+SNF20070608-005,,snfactory_hosts,Ia,,,0.12334,host_spec,,,,,,,,,,,8.72,host_global,N2_PP04->T04
+SNF20070617-008,,snfactory_hosts,Ia,,,0.0453,host_spec,,,,,,,,,,,,,
+SNF20070627-009,,snfactory_hosts,Ia,,,0.036,host_spec,,,,,,,,,,,,,
+SNF20070628-002,,snfactory_hosts,Ia,,,0.10018,host_spec,,,,,,,,,,,9.03,host_global,N2_PP04->T04
+SNF20070629-001,,snfactory_hosts,Ia,,,0.08323,host_spec,,,,,,,,,,,,,
+SNF20070630-005,,snfactory_hosts,Ia,,,0.0418,host_spec,,,,,,,,,,,,,
+SNF20070630-006,,snfactory_hosts,Ia,,,0.07189,host_spec,,,,,,,,,,,8.65,host_global,N2_PP04->T04
+SNF20070630-009,,snfactory_hosts,Ia,,,0.06705,host_spec,,,,,,,,,,,,,
+SNF20070701-005,,snfactory_hosts,Ia,,,0.06962,host_spec,,,,,,,,,,,9,host_global,N2_PP04->T04
+SNF20070703-007,,snfactory_hosts,Ia,,,0.08282,host_spec,,,,,,,,,,,8.73,host_global,N2_PP04->T04
+SNF20070705-007,,snfactory_hosts,Ia,,,0.11605,host_spec,,,,,,,,,,,,,
+SNF20070712-000,,snfactory_hosts,Ia,,,0.03,host_spec,,,,,,,,,,,8.91,host_global,N2_PP04->T04
+SNF20070712-002,,snfactory_hosts,Ia,,,0.09262,host_spec,,,,,,,,,,,8.37,host_global,O3N2_PP04->T04
+SNF20070712-003,,snfactory_hosts,Ia,,,0.07385,host_spec,,,,,,,,,,,7.75,host_global,R23_KK04->T04
+SNF20070713-000,,snfactory_hosts,Ia,,,0.055,host_spec,,,,,,,,,,,,,
+SNF20070714-007,,snfactory_hosts,Ia,,,0.04127,host_spec,,,,,,,,,,,,,
+SNF20070714-008,,snfactory_hosts,Ia,,,0.05918,host_spec,,,,,,,,,,,9.02,host_global,N2_PP04->T04
+SNF20070717-003,,snfactory_hosts,Ia,,,0.08602,host_spec,,,,,,,,,,,8.97,host_global,N2_PP04->T04
+SNF20070718-005,,snfactory_hosts,Ia,,,0.10348,host_spec,,,,,,,,,,,8.43,host_global,N2_PP04->T04
+SNF20070718-012,,snfactory_hosts,Ia,,,0.13,host_spec,,,,,,,,,,,,,
+SNF20070718-026,,snfactory_hosts,Ia,,,0.09586,host_spec,,,,,,,,,,,8.62,host_global,N2_PP04->T04
+SNF20070725-001,,snfactory_hosts,Ia,,,0.06803,host_spec,,,,,,,,,,,7.85,host_global,R23_KK04->T04
+SNF20070726-005,,snfactory_hosts,Ia,,,0.14104,host_spec,,,,,,,,,,,8.72,host_global,N2_PP04->T04
+SNF20070727-016,,snfactory_hosts,Ia,,,0.06606,host_spec,,,,,,,,,,,,,
+SNF20070730-002,,snfactory_hosts,Ia,,,0.04078,host_spec,,,,,,,,,,,8.32,host_global,N2_PP04->T04
+SNF20070731-005,,snfactory_hosts,Ia,,,0.03899,host_spec,,,,,,,,,,,,,
+SNF20070802-000,,snfactory_hosts,Ia,,,0.06472,host_spec,,,,,,,,,,,,,
+SNF20070803-005,,snfactory_hosts,Ia,,,0.03165,host_spec,,,,,,,,,,,9.05,host_global,N2_PP04->T04
+SNF20070806-026,,snfactory_hosts,Ia,,,0.04522,host_spec,,,,,,,,,,,,,
+SNF20070807-000,,snfactory_hosts,Ia,,,0.22137,host_spec,,,,,,,,,,,8.54,host_global,N2_PP04->T04
+SNF20070807-002,,snfactory_hosts,Ia,,,0.077,host_spec,,,,,,,,,,,,,
+SNF20070810-004,,snfactory_hosts,Ia,,,0.08403,host_spec,,,,,,,,,,,,,
+SNF20070816-002,,snfactory_hosts,Ia,,,0.06009,host_spec,,,,,,,,,,,8.97,host_global,N2_PP04->T04
+SNF20070816-006,,snfactory_hosts,Ia,,,0.07844,host_spec,,,,,,,,,,,,,
+SNF20070817-003,,snfactory_hosts,Ia,,,0.07019,host_spec,,,,,,,,,,,8.89,host_global,N2_PP04->T04
+SNF20070818-001,,snfactory_hosts,Ia,,,0.07449,host_spec,,,,,,,,,,,8.89,host_global,N2_PP04->T04
+SNF20070819-007,,snfactory_hosts,Ia,,,0.11553,host_spec,,,,,,,,,,,,,
+SNF20070820-000,,snfactory_hosts,Ia,,,0.06991,host_spec,,,,,,,,,,,9.04,host_global,N2_PP04->T04
+SNF20070820-006,,snfactory_hosts,Ia,,,0.165,host_spec,,,,,,,,,,,,,
+SNF20070822-004,,snfactory_hosts,Ia,,,0.089,host_spec,,,,,,,,,,,,,
+SNF20070824-001,,snfactory_hosts,Ia,,,0.02934,host_spec,,,,,,,,,,,8.46,host_global,N2_PP04->T04
+SNF20070824-002,,snfactory_hosts,Ia,,,0.05143,host_spec,,,,,,,,,,,,,
+SNF20070824-003,,snfactory_hosts,Ia,,,0.117,host_spec,,,,,,,,,,,,,
+SNF20070825-001,,snfactory_hosts,Ia,,,0.0745,host_spec,,,,,,,,,,,7.71,host_global,R23_KK04->T04
+SNF20070826-006,,snfactory_hosts,Ia,,,0.10773,host_spec,,,,,,,,,,,,,
+SNF20070831-009,,snfactory_hosts,Ia,,,0.074,host_spec,,,,,,,,,,,,,
+SNF20070831-015,,snfactory_hosts,Ia,,,0.06867,host_spec,,,,,,,,,,,8.91,host_global,N2_PP04->T04
+SNF20070831-022,,snfactory_hosts,Ia,,,0.04605,host_spec,,,,,,,,,,,,,
+SNF20070831-025,,snfactory_hosts,Ia,,,0.06498,host_spec,,,,,,,,,,,,,
+SNF20070901-005,,snfactory_hosts,Ia,,,0.11126,host_spec,,,,,,,,,,,9.02,host_global,N2_PP04->T04
+SNF20070901-016,,snfactory_hosts,Ia,,,0.085,host_spec,,,,,,,,,,,,,
+SNF20070902-005,,snfactory_hosts,Ia,,,0.07264,host_spec,,,,,,,,,,,,,
+SNF20070902-018,,snfactory_hosts,Ia,,,0.06911,host_spec,,,,,,,,,,,,,
+SNF20070902-021,,snfactory_hosts,Ia,,,0.07517,host_spec,,,,,,,,,,,,,
+SNF20070903-001,,snfactory_hosts,Ia,,,0.08144,host_spec,,,,,,,,,,,,,
+SNF20070909-023,,snfactory_hosts,Ia,,,0.062,host_spec,,,,,,,,,,,,,
+SNF20070910-005,,snfactory_hosts,Ia,,,0.10592,host_spec,,,,,,,,,,,,,
+SNF20070910-007,,snfactory_hosts,Ia,,,0.08247,host_spec,,,,,,,,,,,9.04,host_global,N2_PP04->T04
+SNF20070912-000,,snfactory_hosts,Ia,,,0.12304,host_spec,,,,,,,,,,,,,
+SNF20070920-014,,snfactory_hosts,Ia,,,0.03899,host_spec,,,,,,,,,,,,,
+SNF20070930-008,,snfactory_hosts,Ia,,,0.08792,host_spec,,,,,,,,,,,,,
+SNF20071001-005,,snfactory_hosts,Ia,,,0.04979,host_spec,,,,,,,,,,,,,
+SNF20071001-012,,snfactory_hosts,Ia,,,0.049,host_spec,,,,,,,,,,,,,
+SNF20071003-000,,snfactory_hosts,Ia,,,0.09782,host_spec,,,,,,,,,,,,,
+SNF20071003-001,,snfactory_hosts,Ia,,,0.05236,host_spec,,,,,,,,,,,8.59,host_global,N2_PP04->T04
+SNF20071003-004,,snfactory_hosts,Ia,,,0.07693,host_spec,,,,,,,,,,,,,
+SNF20071003-016,,snfactory_hosts,Ia,,,0.05552,host_spec,,,,,,,,,,,8.6,host_global,N2_PP04->T04
+SNF20071012-004,,snfactory_hosts,Ia,,,0.071,host_spec,,,,,,,,,,,,,
+SNF20071015-000,,snfactory_hosts,Ia,,,0.03865,host_spec,,,,,,,,,,,,,
+SNF20071019-003,,snfactory_hosts,Ia,,,0.03228,host_spec,,,,,,,,,,,8.08,host_global,R23_KK04->T04
+SNF20071021-000,,snfactory_hosts,Ia,,,0.0276,host_spec,,,,,,,,,,,8.94,host_global,N2_PP04->T04
+SNF20071108-003,,snfactory_hosts,Ia,,,0.08802,host_spec,,,,,,,,,,,,,
+SNF20071108-009,,snfactory_hosts,Ia,,,0.06541,host_spec,,,,,,,,,,,,,
+SNF20071108-018,,snfactory_hosts,Ia,,,0.11,host_spec,,,,,,,,,,,,,
+SNF20071108-021,,snfactory_hosts,Ia,,,0.07336,host_spec,,,,,,,,,,,8.53,host_global,N2_PP04->T04
+SNF20071109-003,,snfactory_hosts,Ia,,,0.07154,host_spec,,,,,,,,,,,8.35,host_global,N2_PP04->T04
+SNF20071115-003,,snfactory_hosts,Ia,,,0.03993,host_spec,,,,,,,,,,,8.52,host_global,N2_PP04->T04
+SNF20071117-006,,snfactory_hosts,Ia,,,0.077,host_spec,,,,,,,,,,,7.94,host_global,R23_KK04->T04
+SNF20071117-039,,snfactory_hosts,Ia,,,0.06167,host_spec,,,,,,,,,,,9.09,host_global,N2_PP04->T04
+SNF20071117-060,,snfactory_hosts,Ia,,,0.07,host_spec,,,,,,,,,,,,,
+SNF20071118-005,,snfactory_hosts,Ia,,,0.0624,host_spec,,,,,,,,,,,,,
+SNF20071118-006,,snfactory_hosts,Ia,,,0.06417,host_spec,,,,,,,,,,,8.59,host_global,O3N2_PP04->T04
+SNF20080320-007,,snfactory_hosts,Ia,,,0.02898,host_spec,,,,,,,,,,,,,
+SNF20080322-000,,snfactory_hosts,Ia,,,0.03026,host_spec,,,,,,,,,,,9.03,host_global,N2_PP04->T04
+SNF20080322-001,,snfactory_hosts,Ia,,,0.0887,host_spec,,,,,,,,,,,8.98,host_global,N2_PP04->T04
+SNF20080322-003,,snfactory_hosts,Ia,,,0.03066,host_spec,,,,,,,,,,,8.96,host_global,N2_PP04->T04
+SNF20080322-004,,snfactory_hosts,Ia,,,0.04684,host_spec,,,,,,,,,,,,,
+SNF20080322-005,,snfactory_hosts,Ia,,,0.04171,host_spec,,,,,,,,,,,8.84,host_global,N2_PP04->T04
+SNF20080323-008,,snfactory_hosts,Ia,,,0.05666,host_spec,,,,,,,,,,,8.96,host_global,N2_PP04->T04
+SNF20080323-009,,snfactory_hosts,Ia,,,0.08332,host_spec,,,,,,,,,,,,,
+SNF20080324-012,,snfactory_hosts,Ia,,,0.05085,host_spec,,,,,,,,,,,,,
+SNF20080329-003,,snfactory_hosts,Ia,,,0.06647,host_spec,,,,,,,,,,,,,
+SNF20080507-000,,snfactory_hosts,Ia,,,0.05395,host_spec,,,,,,,,,,,9.01,host_global,N2_PP04->T04
+SNF20080510-000,,snfactory_hosts,Ia,,,0.03461,host_spec,,,,,,,,,,,,,
+SNF20080510-001,,snfactory_hosts,Ia,,,0.07182,host_spec,,,,,,,,,,,7.77,host_global,R23_KK04->T04
+SNF20080510-005,,snfactory_hosts,Ia,,,0.08732,host_spec,,,,,,,,,,,8.28,host_global,O3N2_PP04->T04
+SNF20080512-000,,snfactory_hosts,Ia,,,0.04148,host_spec,,,,,,,,,,,8.97,host_global,N2_PP04->T04
+SNF20080512-008,,snfactory_hosts,Ia,,,0.07742,host_spec,,,,,,,,,,,7.89,host_global,R23_KK04->T04
+SNF20080512-010,,snfactory_hosts,Ia,,,0.06316,host_spec,,,,,,,,,,,,,
+SNF20080514-000,,snfactory_hosts,Ia,,,0.07619,host_spec,,,,,,,,,,,8.78,host_global,N2_PP04->T04
+SNF20080514-002,,snfactory_hosts,Ia,,,0.02188,host_spec,,,,,,,,,,,9.15,host_global,N2_PP04->T04
+SNF20080515-003,,snfactory_hosts,Ia,,,0.07161,host_spec,,,,,,,,,,,,,
+SNF20080516-000,,snfactory_hosts,Ia,,,0.07267,host_spec,,,,,,,,,,,7.86,host_global,R23_KK04->T04
+SNF20080516-021,,snfactory_hosts,Ia,,,0.07286,host_spec,,,,,,,,,,,,,
+SNF20080516-022,,snfactory_hosts,Ia,,,0.07436,host_spec,,,,,,,,,,,9.1,host_global,N2_PP04->T04
+SNF20080517-000,,snfactory_hosts,Ia,,,0.05089,host_spec,,,,,,,,,,,,,
+SNF20080517-010,,snfactory_hosts,Ia,,,0.12,host_spec,,,,,,,,,,,,,
+SNF20080517-013,,snfactory_hosts,Ia,,,0.12026,host_spec,,,,,,,,,,,8.99,host_global,N2_PP04->T04
+SNF20080522-000,,snfactory_hosts,Ia,,,0.04526,host_spec,,,,,,,,,,,8.69,host_global,N2_PP04->T04
+SNF20080522-001,,snfactory_hosts,Ia,,,0.04872,host_spec,,,,,,,,,,,,,
+SNF20080522-004,,snfactory_hosts,Ia,,,0.10624,host_spec,,,,,,,,,,,,,
+SNF20080522-011,,snfactory_hosts,Ia,,,0.03777,host_spec,,,,,,,,,,,8.27,host_global,N2_PP04->T04
+SNF20080528-000,,snfactory_hosts,Ia,,,0.111,host_spec,,,,,,,,,,,,,
+SNF20080529-001,,snfactory_hosts,Ia,,,0.11804,host_spec,,,,,,,,,,,,,
+SNF20080531-000,,snfactory_hosts,Ia,,,0.03658,host_spec,,,,,,,,,,,8.96,host_global,N2_PP04->T04
+SNF20080531-003,,snfactory_hosts,Ia,,,0.03512,host_spec,,,,,,,,,,,,,
+SNF20080606-012,,snfactory_hosts,Ia,,,0.07485,host_spec,,,,,,,,,,,8.43,host_global,N2_PP04->T04
+SNF20080610-000,,snfactory_hosts,Ia,,,0.0779,host_spec,,,,,,,,,,,,,
+SNF20080610-003,,snfactory_hosts,Ia,,,0.09535,host_spec,,,,,,,,,,,8.09,host_global,R23_KK04->T04
+SNF20080612-003,,snfactory_hosts,Ia,,,0.03258,host_spec,,,,,,,,,,,9.07,host_global,N2_PP04->T04
+SNF20080613-008,,snfactory_hosts,Ia,,,0.10276,host_spec,,,,,,,,,,,,,
+SNF20080614-010,,snfactory_hosts,Ia,,,0.07433,host_spec,,,,,,,,,,,,,
+SNF20080618-008,,snfactory_hosts,Ia,,,0.105,host_spec,,,,,,,,,,,,,
+SNF20080620-000,,snfactory_hosts,Ia,,,0.03295,host_spec,,,,,,,,,,,8.7,host_global,N2_PP04->T04
+SNF20080623-000,,snfactory_hosts,Ia,,,0.125,host_spec,,,,,,,,,,,,,
+SNF20080623-001,,snfactory_hosts,Ia,,,0.04517,host_spec,,,,,,,,,,,8.67,host_global,N2_PP04->T04
+SNF20080623-007,,snfactory_hosts,Ia,,,0.09049,host_spec,,,,,,,,,,,,,
+SNF20080626-002,,snfactory_hosts,Ia,,,0.02472,host_spec,,,,,,,,,,,8.43,host_global,N2_PP04->T04
+SNF20080629-004,,snfactory_hosts,Ia,,,0.10736,host_spec,,,,,,,,,,,,,
+SNF20080702-000,,snfactory_hosts,Ia,,,0.09032,host_spec,,,,,,,,,,,8.9,host_global,N2_PP04->T04
+SNF20080706-004,,snfactory_hosts,Ia,,,0.03954,host_spec,,,,,,,,,,,8.4,host_global,N2_PP04->T04
+SNF20080707-012,,snfactory_hosts,Ia,,,0.09786,host_spec,,,,,,,,,,,8.95,host_global,N2_PP04->T04
+SNF20080714-008,,snfactory_hosts,Ia,,,0.08472,host_spec,,,,,,,,,,,8.98,host_global,N2_PP04->T04
+SNF20080717-000,,snfactory_hosts,Ia,,,0.05985,host_spec,,,,,,,,,,,8.96,host_global,N2_PP04->T04
+SNF20080717-001,,snfactory_hosts,Ia,,,0.15081,host_spec,,,,,,,,,,,,,
+SNF20080717-002,,snfactory_hosts,Ia,,,0.062,host_spec,,,,,,,,,,,,,
+SNF20080720-001,,snfactory_hosts,Ia,,,0.02075,host_spec,,,,,,,,,,,,,
+SNF20080723-003,,snfactory_hosts,Ia,,,0.1,host_spec,,,,,,,,,,,,,
+SNF20080723-012,,snfactory_hosts,Ia,,,0.07454,host_spec,,,,,,,,,,,,,
+SNF20080725-000,,snfactory_hosts,Ia,,,0.09047,host_spec,,,,,,,,,,,8.86,host_global,N2_PP04->T04
+SNF20080725-003,,snfactory_hosts,Ia,,,0.05502,host_spec,,,,,,,,,,,,,
+SNF20080725-004,,snfactory_hosts,Ia,,,0.05519,host_spec,,,,,,,,,,,,,
+SNF20080731-000,,snfactory_hosts,Ia,,,0.07575,host_spec,,,,,,,,,,,,,
+SNF20080731-001,,snfactory_hosts,Ia,,,0.114,host_spec,,,,,,,,,,,,,
+SNF20080801-005,,snfactory_hosts,Ia,,,0.09731,host_spec,,,,,,,,,,,8.63,host_global,N2_PP04->T04
+SNF20080802-006,,snfactory_hosts,Ia,,,0.07211,host_spec,,,,,,,,,,,,,
+SNF20080803-000,,snfactory_hosts,Ia,,,0.05678,host_spec,,,,,,,,,,,9.26,host_global,N2_PP04->T04
+SNF20080805-007,,snfactory_hosts,Ia,,,0.13436,host_spec,,,,,,,,,,,9.05,host_global,N2_PP04->T04
+SNF20080806-002,,snfactory_hosts,Ia,,,0.06115,host_spec,,,,,,,,,,,,,
+SNF20080808-002,,snfactory_hosts,Ia,,,0.11,host_spec,,,,,,,,,,,,,
+SNF20080809-005,,snfactory_hosts,Ia,,,0.06896,host_spec,,,,,,,,,,,8.45,host_global,N2_PP04->T04
+SNF20080809-006,,snfactory_hosts,Ia,,,0.07612,host_spec,,,,,,,,,,,,,
+SNF20080810-001,,snfactory_hosts,Ia,,,0.04261,host_spec,,,,,,,,,,,,,
+SNF20080812-003,,snfactory_hosts,Ia,,,0.052,host_spec,,,,,,,,,,,,,
+SNF20080813-000,,snfactory_hosts,Ia,,,0.03704,host_spec,,,,,,,,,,,,,
+SNF20080813-002,,snfactory_hosts,Ia,,,0.07161,host_spec,,,,,,,,,,,8.8,host_global,N2_PP04->T04
+SNF20080815-017,,snfactory_hosts,Ia,,,0.06492,host_spec,,,,,,,,,,,,,
+SNF20080816-009,,snfactory_hosts,Ia,,,0.03964,host_spec,,,,,,,,,,,8.96,host_global,N2_PP04->T04
+SNF20080817-005,,snfactory_hosts,Ia,,,0.10057,host_spec,,,,,,,,,,,,,
+SNF20080821-000,,snfactory_hosts,Ia,,,0.07464,host_spec,,,,,,,,,,,,,
+SNF20080822-003,,snfactory_hosts,Ia,,,0.05257,host_spec,,,,,,,,,,,,,
+SNF20080822-005,,snfactory_hosts,Ia,,,0.07091,host_spec,,,,,,,,,,,,,
+SNF20080825-006,,snfactory_hosts,Ia,,,0.04204,host_spec,,,,,,,,,,,,,
+SNF20080825-010,,snfactory_hosts,Ia,,,0.04051,host_spec,,,,,,,,,,,,,
+SNF20080828-003,,snfactory_hosts,Ia,,,0.06664,host_spec,,,,,,,,,,,,,
+SNF20080903-002,,snfactory_hosts,Ia,,,0.08445,host_spec,,,,,,,,,,,8.99,host_global,N2_PP04->T04
+SNF20080906-002,,snfactory_hosts,Ia,,,0.08926,host_spec,,,,,,,,,,,8.44,host_global,N2_PP04->T04
+SNF20080906-009,,snfactory_hosts,Ia,,,0.08278,host_spec,,,,,,,,,,,8.33,host_global,N2_PP04->T04
+SNF20080908-000,,snfactory_hosts,Ia,,,0.05255,host_spec,,,,,,,,,,,8.1,host_global,R23_KK04->T04
+SNF20080909-024,,snfactory_hosts,Ia,,,0.12935,host_spec,,,,,,,,,,,,,
+SNF20080909-030,,snfactory_hosts,Ia,,,0.03134,host_spec,,,,,,,,,,,,,
+SNF20080910-005,,snfactory_hosts,Ia,,,0.09469,host_spec,,,,,,,,,,,9.08,host_global,N2_PP04->T04
+SNF20080910-007,,snfactory_hosts,Ia,,,0.07908,host_spec,,,,,,,,,,,7.74,host_global,R23_KK04->T04
+SNF20080911-007,,snfactory_hosts,Ia,,,0.08136,host_spec,,,,,,,,,,,,,
+SNF20080911-012,,snfactory_hosts,Ia,,,0.104,host_spec,,,,,,,,,,,,,
+SNF20080913-031,,snfactory_hosts,Ia,,,0.05519,host_spec,,,,,,,,,,,,,
+SNF20080913-034,,snfactory_hosts,Ia,,,0.09916,host_spec,,,,,,,,,,,,,
+SNF20080914-001,,snfactory_hosts,Ia,,,0.02363,host_spec,,,,,,,,,,,8.95,host_global,N2_PP04->T04
+SNF20080916-021,,snfactory_hosts,Ia,,,0.07447,host_spec,,,,,,,,,,,,,
+SNF20080917-002,,snfactory_hosts,Ia,,,0.03944,host_spec,,,,,,,,,,,8.98,host_global,N2_PP04->T04
+SNF20080918-000,,snfactory_hosts,Ia,,,0.06655,host_spec,,,,,,,,,,,9,host_global,N2_PP04->T04
+SNF20080918-002,,snfactory_hosts,Ia,,,0.08648,host_spec,,,,,,,,,,,8.86,host_global,N2_PP04->T04
+SNF20080919-000,,snfactory_hosts,Ia,,,0.05991,host_spec,,,,,,,,,,,,,
+SNF20080919-001,,snfactory_hosts,Ia,,,0.04214,host_spec,,,,,,,,,,,,,
+SNF20080919-002,,snfactory_hosts,Ia,,,0.05564,host_spec,,,,,,,,,,,9.03,host_global,N2_PP04->T04
+SNF20080920-000,,snfactory_hosts,Ia,,,0.04042,host_spec,,,,,,,,,,,8.96,host_global,N2_PP04->T04
+SNF20080922-009,,snfactory_hosts,Ia,,,0.06105,host_spec,,,,,,,,,,,,,
+SNF20080926-009,,snfactory_hosts,Ia,,,0.07255,host_spec,,,,,,,,,,,8.61,host_global,N2_PP04->T04
+SNF20080926-013,,snfactory_hosts,Ia,,,0.09,host_spec,,,,,,,,,,,,,
+SNF20080926-014,,snfactory_hosts,Ia,,,0.043,host_spec,,,,,,,,,,,,,
+SNF20080927-001,,snfactory_hosts,Ia,,,0.04152,host_spec,,,,,,,,,,,8.5,host_global,N2_PP04->T04

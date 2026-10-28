@@ -30,9 +30,9 @@ def main():
     d = u.raw_dir(SID)
     f = os.path.join(d, "commit.txt")
     if not os.path.exists(f):
-        req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/commits/main",
+        req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/git/ref/heads/main",
                                      headers=u.UA)
-        open(f, "w").write(json.load(urllib.request.urlopen(req, timeout=60))["sha"])
+        open(f, "w").write(json.load(urllib.request.urlopen(req, timeout=60))["object"]["sha"])
     sha = open(f).read().strip()
     tree = json.load(open(u.fetch(
         f"https://api.github.com/repos/{REPO}/git/trees/{sha}?recursive=1",

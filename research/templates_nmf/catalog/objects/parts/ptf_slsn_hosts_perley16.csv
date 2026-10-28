@@ -1,0 +1,33 @@
+sn_name,alt_names,source_id,subclass,ra,dec,z,z_type,dist_mod,dist_method,ebv_mw,ebv_host,bands,n_phot,n_spec,phase_min,phase_max,phase_ref,oh12,oh12_type,oh12_calib
+PTF09as,,ptf_slsn_hosts_perley16,SLSN-I,194.81610,27.27794,0.1867,unknown,,,0.008,,,,,,,,8.02,host_global,O3N2_PP04
+PTF09atu,,ptf_slsn_hosts_perley16,SLSN-I,247.60230,23.64040,0.5015,unknown,,,0.042,,,,,,,,,,
+PTF09cnd,,ptf_slsn_hosts_perley16,SLSN-I,243.03683,51.48778,0.2584,unknown,,,0.021,,,,,,,,8.23,host_global,O3N2_PP04
+PTF09cwl,SN 2009jh,ptf_slsn_hosts_perley16,SLSN-I,222.29200,29.41983,0.3499,unknown,,,0.014,,,,,,,,,,
+PTF09uy,,ptf_slsn_hosts_perley16,SLSN-II,190.98238,74.68544,0.3145,unknown,,,0.020,,,,,,,,8.47,host_global,O3N2_PP04
+PTF10aagc,,ptf_slsn_hosts_perley16,SLSN-I,144.98718,21.72141,0.206,unknown,,,0.022,,,,,,,,8.19,host_global,O3N2_PP04
+PTF10bfz,,ptf_slsn_hosts_perley16,SLSN-I,193.67203,15.40474,0.1701,unknown,,,0.018,,,,,,,,8.03,host_global,O3N2_PP04
+PTF10bjp,,ptf_slsn_hosts_perley16,SLSN-I,151.64292,67.98861,0.3584,unknown,,,0.055,,,,,,,,8.12,host_global,O3N2_PP04
+PTF10cwr,SN 2010gx,ptf_slsn_hosts_perley16,SLSN-I,171.44471,-8.82831,0.2297,unknown,,,0.035,,,,,,,,7.94,host_global,O3N2_PP04
+PTF10fel,,ptf_slsn_hosts_perley16,SLSN-II,246.87960,51.36207,0.2356,unknown,,,0.017,,,,,,,,8.22,host_global,O3N2_PP04
+PTF10heh,,ptf_slsn_hosts_perley16,SLSN-II,192.21688,13.44014,0.3379,unknown,,,0.024,,,,,,,,8.26,host_global,O3N2_PP04
+PTF10hgi,SN 2010md,ptf_slsn_hosts_perley16,SLSN-I,249.44614,6.20884,0.0987,unknown,,,0.074,,,,,,,,8.36,host_global,O3N2_PP04
+PTF10jwd,,ptf_slsn_hosts_perley16,SLSN-II,250.93052,44.52883,0.477,unknown,,,0.012,,,,,,,,8.56,host_global,O3N2_PP04
+PTF10nmn,,ptf_slsn_hosts_perley16,SLSN-I,237.51170,-7.41177,0.1237,unknown,,,0.138,,,,,,,,8.10,host_global,O3N2_PP04
+PTF10qaf,,ptf_slsn_hosts_perley16,SLSN-II,353.92870,10.77571,0.2836,unknown,,,0.070,,,,,,,,8.33,host_global,O3N2_PP04
+PTF10qwu,,ptf_slsn_hosts_perley16,SLSN-II,252.79405,28.30212,0.2258,unknown,,,0.040,,,,,,,,8.37,host_global,O3N2_PP04
+PTF10scc,,ptf_slsn_hosts_perley16,SLSN-II,352.04373,28.64197,0.242,unknown,,,0.093,,,,,,,,,,
+PTF10tpz,,ptf_slsn_hosts_perley16,SLSN-II,329.63225,-15.55072,0.0395,unknown,,,0.041,,,,,,,,8.85,unknown,O3N2_PP04
+PTF10uhf,,ptf_slsn_hosts_perley16,SLSN-I,253.19457,47.60604,0.2882,unknown,,,0.018,,,,,,,,8.70,host_global,O3N2_PP04
+PTF10vqv,,ptf_slsn_hosts_perley16,SLSN-I,45.77858,-1.54317,0.4518,unknown,,,0.061,,,,,,,,8.18,host_global,O3N2_PP04
+PTF10vwg,SN 2010hy,ptf_slsn_hosts_perley16,SLSN-I,284.88700,19.40715,0.1901,unknown,,,0.467,,,,,,,,,,
+PTF10yyc,,ptf_slsn_hosts_perley16,SLSN-II,69.82207,-0.34847,0.2147,unknown,,,0.041,,,,,,,,8.81,host_global,O3N2_PP04
+PTF11dij,SN 2011ke,ptf_slsn_hosts_perley16,SLSN-I,207.74083,26.27846,0.1428,unknown,,,0.011,,,,,,,,7.93,host_global,O3N2_PP04
+PTF11dsf,,ptf_slsn_hosts_perley16,SLSN-II,242.88979,40.30097,0.3848,unknown,,,0.009,,,,,,,,8.16,host_global,O3N2_PP04
+PTF11hrq,,ptf_slsn_hosts_perley16,SLSN-I,12.94675,-26.41944,0.057,unknown,,,0.012,,,,,,,,8.15,host_global,O3N2_PP04
+PTF11rks,,ptf_slsn_hosts_perley16,SLSN-I,24.93970,29.92429,0.1924,unknown,,,0.038,,,,,,,,8.17,host_global,O3N2_PP04
+PTF12dam,,ptf_slsn_hosts_perley16,SLSN-I,216.19262,46.23018,0.1073,unknown,,,0.100,,,,,,,,8.00,host_global,O3N2_PP04
+PTF12epg,,ptf_slsn_hosts_perley16,SLSN-II,193.90248,35.62661,0.3422,unknown,,,0.015,,,,,,,,8.44,host_global,O3N2_PP04
+PTF12gwu,,ptf_slsn_hosts_perley16,SLSN-II,225.63698,8.06374,0.275,unknown,,,0.033,,,,,,,,,,
+PTF12mkp,,ptf_slsn_hosts_perley16,SLSN-II,127.14622,65.18211,0.153,unknown,,,0.046,,,,,,,,,,
+PTF12mue,,ptf_slsn_hosts_perley16,SLSN-II,49.71280,-11.82043,0.2787,unknown,,,0.062,,,,,,,,8.05,host_global,O3N2_PP04
+PTF12mxx,,ptf_slsn_hosts_perley16,SLSN-I,337.56970,27.97278,0.3296,unknown,,,0.041,,,,,,,,8.35,host_global,O3N2_PP04

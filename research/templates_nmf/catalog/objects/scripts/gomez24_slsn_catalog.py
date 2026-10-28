@@ -31,9 +31,9 @@ def repo_commit(d):
     f = os.path.join(d, "commit.txt")
     if os.path.exists(f):
         return open(f).read().strip()
-    req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/commits/main",
+    req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/git/ref/heads/main",
                                  headers=u.UA)
-    sha = json.load(urllib.request.urlopen(req, timeout=60))["sha"]
+    sha = json.load(urllib.request.urlopen(req, timeout=60))["object"]["sha"]
     open(f, "w").write(sha)
     return sha
 
