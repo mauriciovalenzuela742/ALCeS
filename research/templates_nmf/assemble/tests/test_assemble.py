@@ -106,3 +106,42 @@ def test_folder_to_key():
     assert build.folder_to_key("SN04er", keys) == "2004er"
     assert build.folder_to_key("SN00cb", keys) == ""  # no esta en la tabla del paper
     assert build.folder_to_key("SN210", keys) == "210"
+
+
+# --- fin del plateau ----------------------------------------------------------------------
+
+fpe = pytest.importorskip("fit_plateau_end")
+
+
+def _curve(t, t_pt=100.0, a0=2.0, w0=4.0, noise=0.02, seed=0):
+    rng = np.random.default_rng(seed)
+    m = fpe.olivares(t, 17.0, a0, w0, 0.01, t_pt) + rng.normal(0, noise, len(t))
+    return t, m, np.full(len(t), noise)
+
+
+def test_plateau_end_recupera_t_pt():
+    r = fpe.fit_one(*_curve(np.arange(30.0, 160.0, 4.0)))
+    assert r["status"] == "ok"
+    assert r["t_pt"] == pytest.approx(100.0, abs=1.5)
+    assert r["a0"] == pytest.approx(2.0, abs=0.2)
+
+
+def test_plateau_sin_caida_no_inventa_t_pt():
+    r = fpe.fit_one(*_curve(np.arange(30.0, 85.0, 4.0)))
+    assert r["status"] == "sin_caida" and math.isnan(r["t_pt"])
+
+
+def test_plateau_cola_rala_infla_el_error():
+    t = np.r_[np.arange(30.0, 92.0, 4.0), 125.0, 140.0]  # hueco de 33 dias en la caida
+    r = fpe.fit_one(*_curve(t))
+    assert r["t_pt_err"] >= (125.0 - 90.0) / 2 - 1e-6
+    assert r["status"] == "mal_medido"
+
+
+def test_plateau_inicio_de_caida_con_a0_fijo():
+    t = np.arange(30.0, 104.0, 3.0)  # termina en medio de la caida, sin cola
+    r_libre = fpe.fit_one(*_curve(t))
+    r_fijo = fpe.fit_one(*_curve(t), fixed=(2.0, 4.0))
+    assert r_fijo["status"] == "ok"
+    assert r_fijo["t_pt"] == pytest.approx(100.0, abs=2.0)
+    assert r_libre["status"] != "ok" or abs(r_libre["t_pt"] - 100.0) < 5

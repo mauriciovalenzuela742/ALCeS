@@ -39,6 +39,8 @@ nuevos en `pipeline/models.yaml` y no modifican los existentes ni el simulador.
   componentes codifican la duración del plateau. Ver `nmf/README.md`.
 - Alineando por el fin del plateau (OPTd de Anderson+14, 37 SNe) el error de validación baja a
   la mitad para cada k y bastan 3–4 componentes.
+- `assemble/fit_plateau_end.py` mide el fin del plateau en V (Olivares+10) en 23 SNe; coincide
+  con OPTd con un corrimiento casi constante de unos 12 días, pero solo agrega 2 SNe sin OPTd.
 
 ## Pendiente
 - NMF, exportación a SNANA y validación.

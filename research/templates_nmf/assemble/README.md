@@ -54,3 +54,36 @@ Qué **no** se hace todavía (depende de las respuestas del profesor):
 python -m pytest research/templates_nmf/assemble/tests -q
 ```
 No necesitan descargas. No están en `testpaths` del repo, así que el CI no los corre.
+
+## Paso 2: fin del plateau de las SNII (`fit_plateau_end.py`)
+
+```
+python research/templates_nmf/assemble/fit_plateau_end.py
+```
+
+Mide t_PT, el centro de la caída del plateau a la cola, ajustando a la curva en V (fase ≥ 25
+días) el modelo de Olivares+10 sin el máximo temprano. Escribe `out/csp_snii/plateau_end.csv`.
+Sirve para alinear las curvas por el fin del plateau en el NMF (ver `nmf/README.md`) sin
+depender solo de los OPTd publicados.
+
+- **Pasada 1:** todos los parámetros libres. Se exigen 3 puntos en el plateau y 2 después de
+  t_PT. El error de t_PT es al menos la mitad del hueco entre el último punto del plateau y el
+  primero después, porque con la cola mal muestreada la covarianza lo subestima. Si el error
+  supera los 10 días, el estado es `mal_medido`.
+- **Pasada 2,** para las curvas que terminan dentro de la caída sin llegar a la cola: a0 y w0
+  quedan fijos en la mediana de los ajustes buenos de la pasada 1 (1.82 mag y 4.7 días); el
+  error suma la diferencia al usar los percentiles 16 y 84.
+
+### Resultado (2026-10-30)
+- De 70 SNe con V: **23 con t_PT** (15 libres y 8 con a0 y w0 fijos), 34 cuya curva termina
+  antes de la caída (`sin_caida`: solo vale t_PT > última fase), 10 con pocos puntos, 2 mal
+  medidas y 1 falla.
+- **Concuerda con OPTd de Anderson+14 con un corrimiento casi constante:** t_PT − OPTd tiene
+  mediana 12 días y MAD 5 días (21 SNe). Es lo esperado, porque OPTd marca el inicio de la
+  caída y t_PT su centro; la dispersión equivale a un bin del NMF. Las diferencias grandes
+  (2004fx +33, 2004er +26, 2005dz +25, 2008ag +23 días) pueden deberse a otra definición del
+  fin del plateau o a la época de explosión (Anderson+14 usó fotometría propia más completa).
+- Solo agrega **2 SNe sin OPTd** (2007aa y 2008K). La fotometría pública de CSP-I no alcanza
+  para medir el fin del plateau en la mayoría de las curvas: la mitad termina antes de la caída.
+  Para usar toda la muestra, el fin del plateau tendría que entrar al modelo como un
+  corrimiento libre por objeto (las curvas `sin_caida` aportan entonces una cota inferior).
