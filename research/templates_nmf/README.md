@@ -33,5 +33,10 @@ nuevos en `pipeline/models.yaml` y no modifican los existentes ni el simulador.
   espectros y metalicidad local. Ver `assemble/README.md`.
 - Falta, según lo que responda el profesor: distancia, extinción del host, mangling y rejilla.
 
+## NMF (en curso)
+- `nmf/wnmf.py`: NMF con pesos 1/σ², datos faltantes y ridge opcional, con tests.
+- Exploración fotométrica de SNII de CSP-I (solo forma): k = 5 por validación cruzada; varias
+  componentes codifican la duración del plateau. Ver `nmf/README.md`.
+
 ## Pendiente
 - NMF, exportación a SNANA y validación.
