@@ -37,6 +37,8 @@ nuevos en `pipeline/models.yaml` y no modifican los existentes ni el simulador.
 - `nmf/wnmf.py`: NMF con pesos 1/σ², datos faltantes y ridge opcional, con tests.
 - Exploración fotométrica de SNII de CSP-I (solo forma): k = 5 por validación cruzada; varias
   componentes codifican la duración del plateau. Ver `nmf/README.md`.
+- Alineando por el fin del plateau (OPTd de Anderson+14, 37 SNe) el error de validación baja a
+  la mitad para cada k y bastan 3–4 componentes.
 
 ## Pendiente
 - NMF, exportación a SNANA y validación.

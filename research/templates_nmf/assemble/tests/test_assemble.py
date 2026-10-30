@@ -79,6 +79,14 @@ def test_parse_explosion():
     assert math.isnan(t0) and meth == ""
 
 
+def test_signed_num_de_a16():
+    assert build.signed_num("0.45\t") == 0.45
+    assert build.signed_num("-0.07") == -0.07
+    assert build.signed_num("--0.01") == -0.01  # menos en LaTeX
+    assert build.signed_num("93.7    ") == 93.7
+    assert math.isnan(build.signed_num("$\\cdots$"))
+
+
 @pytest.mark.parametrize("hdr,fname,hint,mjd", [
     ({"JD": 2449366.65277778}, "x.fits", None, 49366.15277778),
     ({"MJD-OBS": 3.39e-20, "JD": None, "DATE-OBS": "2005-10-18T01:58:05"}, "x.fits", None, 53661.0),

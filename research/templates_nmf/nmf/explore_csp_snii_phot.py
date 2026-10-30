@@ -1,7 +1,7 @@
 """NMF fotometrico exploratorio de SNII de CSP-I (solo forma, sin distancias).
 
 Uso:
-    python explore_csp_snii_phot.py [--kmax 5] [--out out/csp_snii_phot]
+    python explore_csp_snii_phot.py [--kmax 5] [--align expl|ptend] [--require-optd]
 
 Entrada: assemble/out/csp_snii/photometry.csv (correr antes assemble/build_csp_snii.py).
 
@@ -27,23 +27,39 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import wnmf  # noqa: E402
 
-PHOT = os.path.join(HERE, "..", "assemble", "out", "csp_snii", "photometry.csv")
+CSP = os.path.join(HERE, "..", "assemble", "out", "csp_snii")
+PHOT = os.path.join(CSP, "photometry.csv")
+SAMPLE = os.path.join(CSP, "sample.csv")
 BANDS = ["u", "B", "g", "V", "r", "i"]
 PHASE_EDGES = np.arange(0.0, 144.0 + 1e-9, 4.0)  # 36 bins de 4 dias
+# Alineacion por fin del plateau: tau = fase - OPTd, en la misma cantidad de bins.
+TAU_EDGES = np.arange(-100.0, 44.0 + 1e-9, 4.0)
 NORM_BAND, NORM_WINDOW = "V", (20.0, 60.0)
 ERR_FLOOR_MAG = 0.03  # piso de calibracion, en cuadratura
 MIN_CELLS = 30  # celdas con dato por SN
 MIN_OBJ = 10  # SNe con dato por celda: con menos, la columna de H queda mal restringida
 
 
-def build_matrix(ph):
+def build_matrix(ph, align="expl", optd=None, only=None):
+    """align = "expl": fase desde la explosion; "ptend": tau = fase - OPTd (fin del plateau,
+    Anderson+14). `optd` es {sn: OPTd en dias}; `only` restringe a un conjunto de SNe."""
     ph = ph[ph["in_sample"] & ph["mag_ab"].notna() & ph["band"].isin(BANDS)].copy()
-    ph = ph[(ph["phase_rest"] >= PHASE_EDGES[0]) & (ph["phase_rest"] < PHASE_EDGES[-1])]
+    if only is not None:
+        ph = ph[ph["sn"].isin(only)]
+    if align == "expl":
+        edges, ph["t"] = PHASE_EDGES, ph["phase_rest"]
+    else:
+        ph = ph[ph["sn"].isin(optd)]
+        edges = TAU_EDGES
+        # OPTd se mide en el sistema del observador desde la explosion de A14; con z < 0.06 el
+        # paso a reposo cambia < 5 dias y aqui se ignora (ver README).
+        ph["t"] = ph["phase_rest"] - ph["sn"].map(optd)
+    ph = ph[(ph["t"] >= edges[0]) & (ph["t"] < edges[-1])]
     err_mag = np.hypot(ph["mag_err"], ERR_FLOOR_MAG)
     ph["ivar"] = 1.0 / (ph["fnu_ujy"] * err_mag * np.log(10) / 2.5) ** 2
-    ph["pbin"] = np.digitize(ph["phase_rest"], PHASE_EDGES) - 1
+    ph["pbin"] = np.digitize(ph["t"], edges) - 1
 
-    nb = len(PHASE_EDGES) - 1
+    nb = len(edges) - 1
     cells = [(b, i) for b in BANDS for i in range(nb)]
     col = {c: j for j, c in enumerate(cells)}
     sns = sorted(ph["sn"].unique())
@@ -73,11 +89,21 @@ def main(argv=None):
     ap.add_argument("--kmax", type=int, default=5)
     ap.add_argument("--folds", type=int, default=5)
     ap.add_argument("--alphas", type=float, nargs="+", default=[0.0, 1e-3, 1e-2, 1e-1])
-    ap.add_argument("--out", default=os.path.join(HERE, "out", "csp_snii_phot"))
+    ap.add_argument("--align", choices=["expl", "ptend"], default="expl",
+                    help="eje temporal: desde la explosion o desde el fin del plateau (OPTd)")
+    ap.add_argument("--require-optd", action="store_true",
+                    help="usar solo SNe con OPTd (para comparar ambas alineaciones)")
+    ap.add_argument("--out", default=None)
     args = ap.parse_args(argv)
+    if args.out is None:
+        tag = args.align + ("_optd" if args.require_optd else "")
+        args.out = os.path.join(HERE, "out", f"csp_snii_phot_{tag}")
     os.makedirs(args.out, exist_ok=True)
 
-    V, Wt, sns, cells = build_matrix(pd.read_csv(PHOT, dtype={"sn": str}))
+    sample = pd.read_csv(SAMPLE, dtype={"sn": str})
+    optd = sample.dropna(subset=["optd_a14_d"]).set_index("sn")["optd_a14_d"].to_dict()
+    only = set(optd) if args.require_optd else None
+    V, Wt, sns, cells = build_matrix(pd.read_csv(PHOT, dtype={"sn": str}), args.align, optd, only)
     cover = (Wt > 0).mean()
     print(f"matriz: {V.shape[0]} SNe x {V.shape[1]} celdas; cobertura {cover:.0%}")
 
@@ -104,24 +130,26 @@ def main(argv=None):
     print(f"elegido: a={best_a:g}, k={best}; chi2 reducido del ajuste = {chi2_red:.2f}; "
           f"iteraciones = {len(hist) - 1}")
 
+    edges = PHASE_EDGES if args.align == "expl" else TAU_EDGES
     np.savez_compressed(os.path.join(args.out, "nmf.npz"), V=V, weights=Wt, W=W, H=H,
-                        sns=np.array(sns), bands=np.array(BANDS), phase_edges=PHASE_EDGES)
+                        sns=np.array(sns), bands=np.array(BANDS), phase_edges=edges)
     with open(os.path.join(args.out, "summary.json"), "w") as f:
         json.dump({"n_sne": len(sns), "n_cells": len(cells), "coverage": cover,
                    "cv": [{"a": a, "k": k, "mean": v[0], "std": v[1], "median": v[2]}
                           for (a, k), v in cv.items()],
+                   "align": args.align, "require_optd": args.require_optd,
                    "a": best_a, "k": best, "chi2_red": chi2_red}, f, indent=1)
-    plot(H, W, cells, args.out)
+    plot(H, W, cells, args.out, edges, args.align)
     return 0
 
 
-def plot(H, W, cells, out):
+def plot(H, W, cells, out, edges, align):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     k = H.shape[0]
-    mid = 0.5 * (PHASE_EDGES[:-1] + PHASE_EDGES[1:])
+    mid = 0.5 * (edges[:-1] + edges[1:])
     fig, axes = plt.subplots(1, k, figsize=(4 * k, 3.2), squeeze=False)
     for c in range(k):
         ax = axes[0, c]
@@ -129,7 +157,8 @@ def plot(H, W, cells, out):
             idx = [j for j, (cb, _) in enumerate(cells) if cb == b]
             ax.plot([mid[cells[j][1]] for j in idx], H[c, idx], ".-", label=b)
         ax.set_title(f"componente {c + 1}")
-        ax.set_xlabel("dias desde la explosion (reposo)")
+        ax.set_xlabel("dias desde la explosion (reposo)" if align == "expl"
+                      else "dias desde el fin del plateau")
     axes[0, 0].set_ylabel("flujo relativo (norma 1)")
     axes[0, 0].legend(fontsize=7)
     fig.tight_layout()

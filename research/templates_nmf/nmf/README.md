@@ -49,3 +49,43 @@ plateau y cola. Varias componentes representan **distintas duraciones del platea
 gasta componentes en un corrimiento temporal. Si se alinean las curvas por el fin del plateau
 (o se modela la duración aparte), probablemente bastan menos componentes. Esto conviene
 discutirlo con el profesor junto con la pregunta 1 (NMF espectral o fotométrico).
+
+## Alineación por fin del plateau (2026-10-30)
+
+`--align ptend` mide el tiempo como τ = fase − OPTd, donde OPTd es la duración de la fase
+ópticamente gruesa (explosión → fin del plateau en V) de Anderson+14, tomada de la tabla A.1 de
+Anderson+16 (`sample.csv`, columna `optd_a14_d`). Hay OPTd para 66 SNe (igual que el paper), y
+37 de ellas quedan en la matriz. Para comparar en igualdad de condiciones, ambas alineaciones
+se corren solo con esas SNe (`--require-optd`):
+
+```
+python explore_csp_snii_phot.py --kmax 6 --alphas 0.01 0.1 --require-optd --align expl
+python explore_csp_snii_phot.py --kmax 6 --alphas 0.01 0.1 --require-optd --align ptend
+```
+
+χ² medio por celda oculta (± dispersión entre pliegues), mejor de a = 0.01 y 0.1:
+
+| k | desde la explosión | desde el fin del plateau |
+|---|---|---|
+| 1 | 155 ± 29 | 117 ± 15 |
+| 2 | 407 ± 615 | 53 ± 5 |
+| 3 | 48 ± 7 | 23 ± 2 |
+| 4 | 31 ± 7 | 17 ± 2 |
+| 5 | 28 ± 10 | 22 ± 7 |
+| 6 | 35 ± 11 | 17 ± 3 |
+
+**Alinear por el fin del plateau baja el error a la mitad para cada k**, y con k = 3 ya supera
+a la mejor alineación por explosión. Es decir, ahorra unas dos componentes, que antes se
+gastaban en representar el corrimiento temporal. La CV también queda más estable (pliegues
+con menos dispersión). Con alineación por plateau, k = 3–4 basta; la regla automática elige
+k = 6 con a = 0.1, pero k = 4 con a = 0.01 empata (17 ± 2) y con 37 SNe conviene el k chico.
+
+Advertencias:
+- OPTd se mide desde la época de explosión de Anderson+14; para las SNe en que Gutiérrez+17
+  cambió esa época (`t_expl_changed_vs_a14`), τ queda corrido por la diferencia. Tampoco se
+  pasa OPTd a reposo (z < 0.06: < 5 días, un bin).
+- La caída en las componentes aparece en τ ≈ +10 a +20 días, no en 0: OPTd marca el fin del
+  plateau, no el medio de la caída.
+- Solo 66 de 122 SNe tienen OPTd. Para usar esta alineación con toda la muestra (o con SNe
+  nuevas) habría que medir el fin del plateau de cada curva, por ejemplo con el ajuste de
+  Olivares+10, o tratarlo como parámetro libre del modelo (un corrimiento por objeto).

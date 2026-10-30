@@ -15,7 +15,7 @@ sus scripts en `catalog/objects/scripts/`). Escribe en `out/csp_snii/`:
 
 | Archivo | Contenido |
 |---|---|
-| `sample.csv` | 122 SNe de Gutiérrez+17: z heliocéntrico, E(B−V)_MW (Schlafly+11), época de explosión con su error y método, 12+log(O/H) local (M13 N2, Anderson+16), puntos y noches con espectro |
+| `sample.csv` | 122 SNe de Gutiérrez+17: z heliocéntrico, E(B−V)_MW (Schlafly+11), época de explosión con su error y método, 12+log(O/H) local (M13 N2, Anderson+16), s2 y OPTd de Anderson+14 (66 SNe, vía la tabla A.1 de Anderson+16), puntos y noches con espectro |
 | `photometry.csv` | 11 689 puntos de Anderson+24 (uBgVri + YJH): magnitud natural, AB, corregida por la Vía Láctea, f_ν en µJy, fase en reposo desde la explosión y λ_eff en reposo |
 | `spectra.csv` | Índice de los 989 FITS de Gutiérrez+17: fecha, rango de λ, brazo, fase en reposo |
 

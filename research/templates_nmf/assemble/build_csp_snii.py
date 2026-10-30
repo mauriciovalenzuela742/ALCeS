@@ -95,6 +95,14 @@ def parse_explosion(cell):
     return float(m.group(1)), meth, float(m.group(3)), m.group(4) == "*"
 
 
+def signed_num(cell):
+    """'0.45', '-0.07' o '--0.01' (menos en LaTeX); sin numero (cdots) -> NaN."""
+    m = re.match(r"^\s*(-{0,2})([0-9]+(?:\.[0-9]+)?)", cell)
+    if not m:
+        return math.nan
+    return -float(m.group(2)) if m.group(1) else float(m.group(2))
+
+
 def read_sample():
     tex = g17.tex_members(os.path.join(G17, "arxiv_1709.02487_src.tar.gz"))
     info = g17.parse_info(tex["table_info.tex"])
@@ -105,16 +113,22 @@ def read_sample():
             expl[cells[0]] = parse_explosion(cells[7])
 
     text = a16.read_tex(os.path.join(A16, "arxiv_1602.00011_src.tar.gz"))
-    oh = {}
+    oh, lc = {}, {}
     for b in a16.tabulars(text):
         if "M13 N2" in b:
             for name, mark, cells in a16.rows_of(b):
                 oh[name] = (a16.num(cells[2]), mark == "*")
+        elif "OPTd" in b:
+            # Tabla A.1 de Anderson+16 (valores de Anderson+14): s2 y OPTd, este ultimo
+            # medido desde la explosion de A14 hasta el fin del plateau en V.
+            for name, mark, cells in a16.rows_of(b):
+                lc[name] = (signed_num(cells[4]), signed_num(cells[6]))
 
     rows = []
     for name, r in info.items():
         t0, meth, t0_err, changed = expl.get(name, (math.nan, "", math.nan, False))
         o, from_a10 = oh.get(name, (None, False))
+        s2, optd = lc.get(name, (math.nan, math.nan))
         rows.append({
             "sn": name,
             "z_helio": r["v"] / C_KMS if r["v"] else math.nan,
@@ -127,6 +141,8 @@ def read_sample():
             "oh12": o if o is not None else math.nan,
             "oh12_calib": "N2_M13" if o is not None else "",
             "oh12_from_a10": from_a10 if o is not None else "",
+            "s2_a14": s2,
+            "optd_a14_d": optd,
         })
     return pd.DataFrame(rows)
 
