@@ -31,6 +31,8 @@ nuevos en `pipeline/models.yaml` y no modifican los existentes ni el simulador.
 - `assemble/`: librería determinista. Paso 1 hecho para SNII de CSP-I (`build_csp_snii.py`):
   fotometría en AB corregida por la Vía Láctea, fase en reposo desde la explosión, índice de
   espectros y metalicidad local. Ver `assemble/README.md`.
+- Paso 3: SN despojadas de CSP-I (`build_csp_sesn.py`, 34 SNe, solo fotometría, fase desde
+  T(B)max, E(B−V)_MW de IRSA).
 - Falta, según lo que responda el profesor: distancia, extinción del host, mangling y rejilla.
 
 ## NMF (en curso)

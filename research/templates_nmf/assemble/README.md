@@ -87,3 +87,37 @@ depender solo de los OPTd publicados.
   para medir el fin del plateau en la mayoría de las curvas: la mitad termina antes de la caída.
   Para usar toda la muestra, el fin del plateau tendría que entrar al modelo como un
   corrimiento libre por objeto (las curvas `sin_caida` aportan entonces una cota inferior).
+
+## Paso 3: SN despojadas de CSP-I (`build_csp_sesn.py`)
+
+```
+python research/templates_nmf/assemble/build_csp_sesn.py
+```
+
+Toma Stritzinger+18a (J/A+A/609/A134) y la extinción del host de Stritzinger+18b, con el mismo
+sistema AB y la misma corrección por la Vía Láctea que las SNII. Escribe en `out/csp_sesn/`
+`sample.csv` y `photometry.csv`, con las mismas columnas que en SNII salvo la fase.
+
+Diferencias con las SNII:
+- **Fase desde T(B)max** (en reposo), porque el paper no da épocas de explosión. En 17 SNe
+  T(B)max no está medido, sino estimado con la relación de la fig. 3 de Taddia+18
+  (`tbmax_from_relation`).
+- **E(B−V)_MW** no está en el paper: se consulta el servicio DUST de IRSA (Schlafly &
+  Finkbeiner 2011, igual que Gutiérrez+17 para las SNII) en las coordenadas de table1. Queda
+  en caché en `out/csp_sesn/ebv_mw_irsa.csv`.
+- **E(B−V)_host** de Stritzinger+18b (21 SNe) queda en `sample.csv` sin aplicar, igual que en
+  SNII (pregunta 3 al profesor).
+- No hay espectros ópticos públicos de CSP-I para estas SNe en el catálogo: la muestra es
+  solo fotométrica.
+
+### Resultado (2026-10-30)
+- 34 SNe: 11 Ib, 11 Ic, 10 IIb y 2 Ic-BL, igual que el paper.
+- 4029 puntos (2986 ópticos y 1043 NIR), igual que el inventario del catálogo. 31 son de
+  du Pont + Tek5, sin calibración AB (NaN, como en las SNII).
+- E(B−V)_MW: mediana 0.039, máximo 0.17; 33 de 34 bajo 0.1.
+- Cobertura antes del máximo en óptico: **12 SNe desde 5 días antes**, igual que el abstract.
+  Con algún punto antes de T(B)max salen 22 (el abstract dice 20); 5 de ellas tienen T(B)max
+  estimado, así que la cuenta depende de cómo se trate ese caso. No reproduje el 20 exacto.
+- Mediana de noches ópticas por SN: 12 (Ic) a 18 (Ib). Con 34 SNe repartidas en cuatro
+  subtipos, un NMF por subtipo tendría 10 objetos o menos: conviene un NMF conjunto de las
+  despojadas, o sumar CfA (Bianco+14, otro sistema fotométrico) antes de separar.

@@ -145,3 +145,24 @@ def test_plateau_inicio_de_caida_con_a0_fijo():
     assert r_fijo["status"] == "ok"
     assert r_fijo["t_pt"] == pytest.approx(100.0, abs=2.0)
     assert r_libre["status"] != "ok" or abs(r_libre["t_pt"] - 100.0) < 5
+
+
+# --- armado CSP SESN ----------------------------------------------------------------------
+
+sesn = pytest.importorskip("build_csp_sesn")
+
+
+def test_sesn_parse_irsa():
+    xml = "<statistics>\n <refPixelValueSandF>\n     0.0194 (mag)\n </refPixelValueSandF>"
+    assert sesn.parse_irsa(xml) == 0.0194
+    assert math.isnan(sesn.parse_irsa("<error/>"))
+
+
+def test_sesn_lee_fotometria_con_huecos(tmp_path):
+    p = tmp_path / "t.dat"
+    p.write_text("2004ew 2453289.70  ---     ---   18.666 0.013  17.655 0.011  17.382 0.011"
+                 "  19.256 0.015  18.063 0.021\n")
+    ph = sesn.read_photometry(str(p), "Swope+Site3", sesn.OPT)
+    assert list(ph["band"]) == ["g", "r", "i", "B", "V"]  # u es '---'
+    assert ph.loc[ph["band"] == "V", "mag_nat"].item() == 18.063
+    assert ph.loc[ph["band"] == "g", "mag_err"].item() == 0.013
