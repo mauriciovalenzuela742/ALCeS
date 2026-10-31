@@ -15,8 +15,10 @@ Primera pasada: 2026-10-20. Segunda pasada (citas hacia adelante y pendientes 4-
   "LightCurve MoE". Pero su v1 (mayo 2023) es justamente el estudio de Kepler: "Transfer
   Learning Applied to Stellar Light Curve Classification" (Wang+23), con wavelets, GAF y
   *recurrence plots*. La v3 (julio 2025) cambió el título y el método. Volvió a `refs.bib`.
-- **Fichas:** salen de abstracts y resúmenes. Solo Moreno-Cartagena et al. (2025a) se leyó en
-  texto completo. Las cifras se tienen que confirmar en el PDF antes de usarlas.
+- **Fichas:** salen de abstracts y resúmenes, salvo las leídas en texto completo:
+  Moreno-Cartagena et al. (2025a), y el 2026-10-31 ORACLE, Biswas+23, El-CID, Liang+23 y
+  Alves+23 (ver "Lectura en texto completo"). En las demás, las cifras se tienen que confirmar
+  en el PDF antes de usarlas.
 
 ## Registro de búsquedas (2026-10-20)
 | # | Cadena (buscador web) | Hallazgos relevantes |
@@ -60,7 +62,7 @@ Búsquedas web de esta pasada:
 | Trabajo | Representación | Modelo | Datos | ¿KN? | ¿Pocas épocas? | Resultado clave | Qué deja abierto |
 |---|---|---|---|---|---|---|---|
 | **SCONE**, Qu+21 | Imagen: GP 2D (tiempo × λ), canales de flujo e incertidumbre | CNN | PLAsTiCC | No (solo SN) | No | 98.2% en 6 tipos de SN | Rendimiento fuera de distribución menor |
-| **SCONE temprano**, Qu & Sako 22 | Igual a SCONE, truncado a 0-50 días del trigger | CNN | LSST simulado | No | **Sí**, por días | ~75% en el trigger, ~89% a 50 días (con z) | Sin KN; corta por días, no por número de noches detectadas |
+| **SCONE temprano**, Qu & Sako 22 (AJ, doi:10.3847/1538-3881/ac39a1) | Igual a SCONE, truncado a 0, 5, 15, 25 y 50 días del trigger | CNN | LSST simulado | No | **Sí**, por días | 75 % en el trigger y 89 % a 50 días con z (60 % y 82 % sin z) | Sin KN; corta por días, no por número de noches detectadas |
 | **Moreno-Cartagena+25a** (ALeRCE / U. de Concepción) | Imagen: gráfico matplotlib 256×256 (grilla o superpuesto) | SwinV2 preentrenado | ELAsTiCC (20 clases), MACHO | No se mencionan | **No** | F1 macro 65.5 en ELAsTiCC (ATAT 64.2 sin metadatos) | Subclases de SN difíciles; sin metadatos; sin evaluación temprana; no agrupa por template |
 | Moreno-Cartagena+25b | Imagen, ViT en dos ramas | SwinV2 | ZTF + ATLAS reales | — | No | Combinar surveys mejora | Taller ICML-ML4Astro |
 | Mahabal+17 | Imagen dm-dt | CNN | CRTS (periódicas) | No | — | Las curvas escasas quedan sin clasificar | Ya identifica la escasez como modo de falla |
@@ -70,10 +72,10 @@ Búsquedas web de esta pasada:
 | Avocado, Boone 19 | Features + aumentación con GP | GBDT | PLAsTiCC | Sí | — | Ganó PLAsTiCC | — |
 | ParSNIP, Boone 21 | Latente físico | VAE + clasificador | PLAsTiCC, PS1 | Sí | — | 2-2.3x menos contaminación de SN Ia | — |
 | Brunel+19 | CNN 1D vs LSTM | — | SN simuladas | No | — | — | Única comparación directa CNN vs RNN encontrada |
-| **Biswas+23** (KN en Fink) | PCA + random forest | RF | Simulaciones tipo ZTF | **Sí** | **Sí** | ~69% de precisión y recall | Usa features, no imágenes |
-| **Liang+23** (WFST) | — | — | Bulla + MOSFiT, contra SN Ia | **Sí** | Sí, 3 días | >98% KN vs resto | Clasificación binaria; no separa modelos de KN |
-| **El-CID**, Chatterjee+21 | — | — | Bulla + Kasen | **Sí** | Sí | Verifica que no aprende la cadencia | Modelos de KN aún inmaduros |
-| **Alves+22, Alves+23** | Features (snmachine) | — | PLAsTiCC con varias cadencias | No | — | Rolling +25%; 3 visitas por noche empeora | Un solo clasificador; no evalúa imágenes |
+| **Biswas+23** (KN en Fink) | PCA + random forest | RF | Simulaciones tipo ZTF | **Sí**, binaria (KN vs resto) | **Sí**, ventana de 30 días | 69.3 % de precisión y 69.7 % de recall (simulado) | Usa features, no imágenes; partición aleatoria |
+| **Liang+23** (WFST) | Curva interpolada | Red neuronal | Bulla + MOSFiT, contra 6 tipos de SN | **Sí**, binaria | Sí, 3 días tras el trigger | Exactitud 98.4 %; precisión 94.8 % y recall 94.1 % | No separa modelos de KN; partición aleatoria 70/30 |
+| **El-CID**, Chatterjee+21 | Curva interpolada a 12 pasos en 10 días | Red chica (~13 000 parámetros) | Bulla + Kasen | **Sí**, binaria | Sí, ~3 días | ≥99 % de exactitud a ~3 días | La prueba de que no aprende la cadencia usa una sola cadencia (minion_1016) |
+| **Alves+22, Alves+23** | Features (snmachine: wavelets de un GP 2D + PCA) | LightGBM | PLAsTiCC / baseline_v2.0 y variantes | No | No evalúa clasificación temprana, pero **estratifica por muestreo** (largo, huecos, observaciones cerca del pico) | En rolling, la región activa tiene ~25 % mejor log-loss que la de fondo, pero el rolling mejora poco en total; 3 visitas por noche empeora ~10 % | Un solo clasificador; no evalúa imágenes |
 | Hložek+23, Kessler+19 | Desafío PLAsTiCC | — | — | Sí | — | Los mejores clasifican bien SN Ia y KN | — |
 | Carrasco-Davis+21 | Stamps de píxeles | CNN | ZTF real | — | 1ª detección | ~94% (5 clases amplias) | Es la opción B, fuera de alcance |
 | Sánchez-Sáez+21, Pavez-Herrera+25 | Features | BHRF | ZTF real | No | — | Clasificador LC de ALeRCE (+TDE) | — |
@@ -137,6 +139,36 @@ El "uso de GPU" deja de ser la pregunta y pasa a ser el medio.
 - Medir (b) primero, porque es barato: el mismo modelo con partición aleatoria vs agrupada
   por `TEMPLATE_INDEX`. Si la diferencia es grande, ese resultado vale por sí solo.
 
+**Lectura en texto completo (2026-10-31).** Tres preguntas en cada trabajo: cómo trunca,
+cómo particiona y cómo trata los modelos de KN.
+
+| Trabajo | Truncamiento | Partición train/test | Modelos de KN |
+|---|---|---|---|
+| ORACLE (Shah+25) | Entrena con una fracción aleatoria de las observaciones; prueba por días desde el trigger (1 a 1024) | 70/30 sin decir si es aleatoria o agrupada; no menciona templates | **KN_K17 y KN_B19 juntos en una clase "KN"** |
+| Biswas+23 | Ventana de 30 días | **Aleatoria** | Binaria (KN vs resto); mezcla Kasen y otras simulaciones |
+| El-CID (Chatterjee+21) | 10 días desde el trigger | 60/40 sin decir cómo | **BU19 y KN17 juntos**; solo reporta que la detección no prefiere un modelo |
+| Liang+23 | 3 días desde el trigger | **Aleatoria** 70/30 | **Bulla y MOSFiT juntos** |
+| Alves+23 | No trunca | No la describe | Sin KN |
+
+Esto **refuerza los huecos (b) y (c)**:
+- Ningún trabajo agrupa la partición por template, y dos dicen explícitamente que es
+  aleatoria.
+- Todos los que incluyen KN juntan los modelos en una sola clase: nadie pregunta si se
+  distinguen.
+
+Para (a), ninguno corta por número de noches con detección; el más cercano en espíritu es
+Alves+23, que estratifica por propiedades del muestreo, pero solo con features y curvas
+completas.
+
+**Cifras corregidas respecto de la primera pasada:**
+- Alves+23: el "+25 %" no es del rolling en general, sino de la región activa contra la de
+  fondo.
+- Liang+23: los contaminantes son 6 tipos de SN, no solo Ia.
+- ORACLE: el abstract da 0.96 de precisión macro (transiente vs variable) "a 1 día", pero la
+  tabla 5 la da a 2 días.
+- Liang+23 se contradice: la sección 3.2 y la 5 dan con las clases invertidas el ≳98 % y
+  ≳92 % por clase.
+
 **5. ELAsTiCC no tiene paper oficial de resultados.** El portal de DESC
 (portal.nersc.gov/cfs/lsst/DESC_TD_PUBLIC/ELASTICC) solo enlaza dos pósters (AAS enero 2023 y
 Cosmic Streams diciembre 2023). Los trabajos lo citan como "Knop & ELAsTiCC Team 2023" o
@@ -148,8 +180,9 @@ pósters o el portal.
 1. Repetir las cadenas en ADS y registrar el número de resultados.
 2. ~~Citas hacia adelante de SCONE, Moreno-Cartagena+25a y Biswas+23~~ (hecho 2026-10-31).
    Falta repetirlo en ADS, que cuenta citas distinto a Semantic Scholar.
-3. Leer en texto completo SCONE temprano, Biswas+23, El-CID, Liang+23, Alves+23 y, ahora,
-   ORACLE (su evaluación por días es la comparación directa para (a)).
+3. ~~Leer en texto completo Biswas+23, El-CID, Liang+23, Alves+23 y ORACLE~~ (hecho
+   2026-10-31). De SCONE temprano solo el abstract: falta el texto completo, y confirmar en
+   ADS las revistas de Biswas+23, El-CID y Liang+23 (arXiv no las dice).
 4. ~~Estudio de Kepler y clasificador de TDE~~ (hecho: Wang+23 y Bhardwaj+25).
 5. ~~Paper de resultados de ELAsTiCC~~ (no existe).
 6. Reemplazar las entradas `@misc` por las de revista desde ADS.

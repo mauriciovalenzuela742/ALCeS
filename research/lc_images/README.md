@@ -8,7 +8,8 @@ modifica**: nada aquí toca `CODE_FILES`, `run_hash` ni la regresión dorada.
   detección y con particiones agrupadas por template.
 - **Estado (2026-10-20):** propuesta enviada al profesor. Ningún experimento ha corrido.
 - **Revisión bibliográfica:** `literature.md` y `refs.bib` (segunda pasada 2026-10-31: los
-  cuatro huecos siguen abiertos; lo más cercano a (a) es ORACLE, solo con secuencias).
+  cuatro huecos siguen abiertos; lo más cercano a (a) es ORACLE, solo con secuencias. En
+  texto completo: ningún trabajo agrupa por template y todos juntan los modelos de KN).
 
 ## Experimentos
 | ID | Pregunta | Comparación | Hardware |
