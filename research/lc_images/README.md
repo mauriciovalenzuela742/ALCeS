@@ -6,7 +6,8 @@ modifica**: nada aquí toca `CODE_FILES`, `run_hash` ni la regresión dorada.
 - **Pregunta:** ¿cuánta información de clase sobrevive al muestreo escaso de LSST, y depende
   de la representación (imagen, secuencia o features)? Se evalúa según el número de noches con
   detección y con particiones agrupadas por template.
-- **Estado (2026-10-20):** propuesta enviada al profesor. Ningún experimento ha corrido.
+- **Estado (2026-10-31):** propuesta enviada al profesor. Código de E1 listo y probado con
+  datos sintéticos; **ningún experimento ha corrido con datos reales** (espera su visto bueno).
 - **Revisión bibliográfica:** `literature.md` y `refs.bib` (segunda pasada 2026-10-31: los
   cuatro huecos siguen abiertos; lo más cercano a (a) es ORACLE, solo con secuencias. En
   texto completo: ningún trabajo agrupa por template y todos juntan los modelos de KN).
@@ -62,13 +63,39 @@ modifica**: nada aquí toca `CODE_FILES`, `run_hash` ni la regresión dorada.
 ```
 research/lc_images/
   README.md, literature.md, refs.bib
-  data/          # regeneración: sbatch que llama a run_simsed_poc.main(...) y reduce a detectados
+  data/          # runs.py: carga de corridas y rasgos (reusa el diagnóstico KN)
   reps/          # phot_df -> .npz: imagen GP, gráfico, secuencia, features
-  models/        # gbdt.py, cnn.py, swin.py, seq.py
-  experiments/   # e1_leakage.py ... e4_cadence.py: cada uno escribe results/<exp>/<run>/
+  models/        # knn.py, gbdt.py (y luego cnn.py, swin.py, seq.py)
+  experiments/   # splits.py, metrics.py, e1_leakage.py ... e4_cadence.py -> results/<exp>/<run>/
+  tests/         # tests sintéticos
   slurm/         # sbatch por experimento
   results/       # ignorado por git; solo tablas y figuras finales se versionan
 ```
+
+## E1: fuga por template (código listo, sin correr)
+```
+python -m pytest research/lc_images/tests -q          # 8 tests, datos sintéticos
+sbatch research/lc_images/slurm/e1_leakage.sbatch     # en NLHPC, tras regenerar las corridas
+```
+- **Datos:** el layout de `kn_confusion_diag/runs` (`<clase>_seed<N>/head_df.parquet` y
+  `phot_df.parquet`). `data/runs.py` importa `load_runs` y `object_features` del diagnóstico KN
+  en vez de copiarlas: mismos detectados, mismos rasgos y mismo `n_det_nights`. Exige
+  `TEMPLATE_INDEX`, así que primero hay que volver a correr `kn_confusion_gen.sbatch` con el
+  código actual (las corridas guardadas son anteriores a la Fase 98).
+- **Grupo:** clase + `TEMPLATE_INDEX`. En clases sin template cada objeto es su grupo y la
+  partición agrupada se reduce a la aleatoria. Una clase con un solo template no se puede
+  evaluar agrupada y se reporta aparte.
+- **Diseño:** el mismo modelo y los mismos rasgos con partición aleatoria (estratificada por
+  clase) y agrupada (grupos enteros a un lado, ~30 % de cada clase en test), más un control con
+  etiquetas barajadas. El escalado y la imputación usan solo train. Modelo por defecto: el kNN
+  del diagnóstico (numpy, corre en el venv del simulador; al memorizar vecinos es el más
+  sensible a la fuga); `--model gbdt` necesita el venv aparte con sklearn.
+- **Salida** (`results/e1/<tag>/`, ignorado por git): `config.json` (argumentos, commit, SHA256
+  de cada parquet, detectados y templates por clase), `features.parquet`, `metrics.csv` (por
+  semilla, partición y bin de noches) y `summary.md` (media ± desviación y la fuga).
+- **Verificado con datos sintéticos:** con templates que son una huella fuerte, la aleatoria da
+  1.00 y la agrupada 0.58 (fuga +0.42); con templates que casi no cambian la curva, la fuga
+  sale ≈ 0 (+0.02). El control barajado da el azar (0.49 con 2 clases, 0.31 con 3).
 
 ## Etapas y decisiones
 1. **Cerrar la revisión bibliográfica:** ADS, citas hacia adelante y lectura completa.
