@@ -1,19 +1,20 @@
 # Revisión bibliográfica: curvas de luz como imágenes para clasificar transientes
 
-Primera pasada: 2026-10-20. Es la Parte 1 del plan "Opción A". Las referencias están en
-`refs.bib`.
+Primera pasada: 2026-10-20. Segunda pasada (citas hacia adelante y pendientes 4-5):
+2026-10-31. Es la Parte 1 del plan "Opción A". Las referencias están en `refs.bib`.
 
 ## Estado de esta revisión (léase primero)
 - **Herramientas:** la búsqueda se hizo con un buscador web general más la lectura de los
   abstracts y HTML de arXiv. **Todavía no se hizo en NASA ADS**, porque no tengo acceso a su
   API. Falta repetir las cadenas en ADS y anotar cuántos resultados da cada una.
-- **Origen de las BibTeX:** las 28 entradas de `refs.bib` se bajaron de `arxiv.org/bibtex/<id>`
+- **Origen de las BibTeX:** las 37 entradas de `refs.bib` se bajaron de `arxiv.org/bibtex/<id>`
   y no se escribieron a mano. Son entradas `@misc` de arXiv. Antes de citar en un paper hay que
   reemplazarlas por la versión con revista desde ADS. Por ejemplo, para ATAT las fuentes dan
   dos referencias distintas: A&A 689, A289 y A&A 691, A163.
-- **Un ID descartado:** la búsqueda asoció 2305.13745 a un estudio de codificaciones GAF y
-  *recurrence plots* con curvas de Kepler, pero ese ID corresponde a otro paper (LightCurve MoE).
-  Lo saqué de `refs.bib` y el estudio de Kepler queda **sin verificar**.
+- **ID 2305.13745, resuelto:** en la primera pasada lo descarté porque su título actual es
+  "LightCurve MoE". Pero su v1 (mayo 2023) es justamente el estudio de Kepler: "Transfer
+  Learning Applied to Stellar Light Curve Classification" (Wang+23), con wavelets, GAF y
+  *recurrence plots*. La v3 (julio 2025) cambió el título y el método. Volvió a `refs.bib`.
 - **Fichas:** salen de abstracts y resúmenes. Solo Moreno-Cartagena et al. (2025a) se leyó en
   texto completo. Las cifras se tienen que confirmar en el PDF antes de usarlas.
 
@@ -36,6 +37,24 @@ Primera pasada: 2026-10-20. Es la Parte 1 del plan "Opción A". Las referencias 
 | 14 | Fink kilonova | Biswas+23 (2210.17433) |
 | 15 | PLAsTiCC modelos y resultados | Kessler+19, Hložek+23 |
 | 16 | efecto de la cadencia de LSST en la clasificación | Alves+22, Alves+23 |
+
+**Segunda pasada (2026-10-31).** Citas hacia adelante desde la API de Semantic Scholar (sin
+llave), filtradas por título y leídas en el abstract de arXiv:
+
+| Semilla | Citas | Relevantes |
+|---|---|---|
+| SCONE (2106.04370) | 39 | ORACLE (2501.01496); el resto es cosmología con SN Ia, otros surveys o espectros |
+| SCONE temprano (2111.05539) | 17 | WFST SSVAE (2506.01216), PIE-ADA (2606.29367), NEEDLE, TLW |
+| Moreno-Cartagena+25a (2502.20479) | 6 | AppleCiDEr (2507.16088), Moreno-Cartagena+25b, revisión de Rehemtulla+25 (2512.11959) |
+| Biswas+23 (2210.17433) | 10 | KilonovaSCORER (2604.22994), Stevenson+25 (2510.12932), Plestkova+25 (2507.11785) |
+
+Búsquedas web de esta pasada:
+
+| # | Cadena | Hallazgos |
+|---|---|---|
+| 17 | Kepler GAF / recurrence plot / MTF CNN | Wang+23 (= v1 de 2305.13745), Choudhary+25 (2506.16597), Donnelly & Dutta (AAAI 2024, sin arXiv) |
+| 18 | clasificador de TDE Rubin ELAsTiCC2 A&A 2025 | Bhardwaj+25 (2509.25902, A&A 703, A95) |
+| 19 | paper de resultados de ELAsTiCC | **no existe** (ver abajo); sí NAPTIME (2607.19236) y "Beyond the Final Label" (2604.23792) |
 
 ## Fichas
 | Trabajo | Representación | Modelo | Datos | ¿KN? | ¿Pocas épocas? | Resultado clave | Qué deja abierto |
@@ -60,6 +79,15 @@ Primera pasada: 2026-10-20. Es la Parte 1 del plan "Opción A". Las referencias 
 | Sánchez-Sáez+21, Pavez-Herrera+25 | Features | BHRF | ZTF real | No | — | Clasificador LC de ALeRCE (+TDE) | — |
 | Fraga+24 (Fink), MALLORN 25, NEEDLE 23, ATCAT 25 | Varias | — | ELAsTiCC / real | Varía | — | Contexto de brokers | ATCAT sin revisión por pares |
 | Wang & Oates 15, Hatami+17 | GAF, *recurrence plot* | CNN | Series genéricas | — | — | Origen de las codificaciones como imagen | — |
+| **ORACLE**, Shah+25 (ApJ 995, 4) | Secuencia + contexto del host | GRU jerárquica | ELAsTiCC (19 clases) | **Sí** | **Sí, por días** desde la 1ª detección (1 a 1024) | Precisión macro 0.96 en transiente vs variable con 1 día; 0.83 en 19 clases a 1024 días | Sin imágenes; corta por días, no por noches detectadas; sin partición por template |
+| Zhou+26, "Beyond the Final Label" (ApJ 1006, 223) | Historias de clasificación de los brokers | RNN + atención | ELAsTiCC | Sí | Propone métricas de estabilidad y clasificación temprana | Mejora sobre los clasificadores del desafío | Métricas de interés para nuestro protocolo |
+| NAPTIME, Earl+26 | Secuencia, *neural process* | — | ELAsTiCC2, MALLORN | — | Parcial: 10 % inicial de las medidas | F1 macro 0.874 sin metadatos; ~0.34 con el 10 % inicial | Corta por fracción de medidas, no por noches |
+| WFST SSVAE, Tang+25 (AJ 169, 304) | Secuencia | VAE semisupervisado | WFST simulado | — | **Sí**, 3 días tras el trigger | +5.6 % de exactitud sobre RNN | Sin imágenes |
+| AppleCiDEr, Junell+25 | Fotometría + stamps + metadatos + espectros | Transformers + CNN | ~30 000 alertas reales de ZTF | — | Clasificación temprana | Marco multimodal | Las imágenes son stamps (opción B), no la curva |
+| Bhardwaj+25 (A&A 703, A95) | Features de GP | XGBoost | ELAsTiCC2 | — | No | TDE: precisión 95 %, recall 72 % | Es el "clasificador de TDE para Rubin" del pendiente 4 |
+| KilonovaSCORER, Darc & Kilpatrick 26 | Consistencia con una grilla de KN | ABC | Simulaciones LSST ToO | **Sí** | **Sí**, días tras el trigger GW | Descarta SN en 3-4 días | KN vs SN; no separa modelos de KN |
+| Wang+23 (v1 de 2305.13745) | Imagen: wavelet, GAF, *recurrence plot* | 6 CNN (VGG-19 la mejor) | Kepler (variables) | No | No | Wavelet la mejor (95.6 %) | Es el estudio de Kepler buscado; series densas, no escasas |
+| Choudhary+25 (2506.16597) | GAF y *recurrence plot* | ViT | Kepler (tránsitos) | No | No | RP mejor que GAF | Series densas |
 
 ## Hueco identificado
 
@@ -69,8 +97,10 @@ trabajo es del **mismo entorno ALeRCE** (Cabrera-Vives, U. de Concepción). Por 
 la pregunta original como "¿sirven las imágenes?" **no es nuevo**. Antes de seguir, el
 profesor tiene que saberlo y conviene coordinarse o colaborar con ese grupo.
 
-**2. Lo que no encontré.** Esto es ausencia en una primera pasada, no prueba de que no exista.
-Hay que confirmarlo en ADS.
+**2. Lo que no encontré.** Esto es ausencia en dos pasadas (búsqueda web y citas hacia
+adelante de las cuatro semillas), no prueba de que no exista. Hay que confirmarlo en ADS.
+La segunda pasada no cambió ninguno de los cuatro huecos: lo más cercano a (a) es ORACLE,
+que evalúa por días desde la primera detección pero solo con secuencias.
 - **(a) Imagen vs secuencia en el régimen de pocas noches.** No hay comparación controlada
   estratificada por **número de noches con detección**. SCONE trunca por días y
   Moreno-Cartagena+25a no evalúa curvas tempranas.
@@ -107,12 +137,19 @@ El "uso de GPU" deja de ser la pregunta y pasa a ser el medio.
 - Medir (b) primero, porque es barato: el mismo modelo con partición aleatoria vs agrupada
   por `TEMPLATE_INDEX`. Si la diferencia es grande, ese resultado vale por sí solo.
 
+**5. ELAsTiCC no tiene paper oficial de resultados.** El portal de DESC
+(portal.nersc.gov/cfs/lsst/DESC_TD_PUBLIC/ELASTICC) solo enlaza dos pósters (AAS enero 2023 y
+Cosmic Streams diciembre 2023). Los trabajos lo citan como "Knop & ELAsTiCC Team 2023" o
+"Narayan & ELAsTiCC Team 2023", y el *white paper* de IA/ML de DESC (2601.14235) describe la
+infraestructura, no la exactitud. Si usamos ELAsTiCC como referencia, hay que citar los
+pósters o el portal.
+
 ## Pendientes de esta revisión
-1. Repetir las 16 cadenas en ADS y registrar el número de resultados.
-2. Hacer *snowballing* de citas hacia adelante de SCONE, Moreno-Cartagena+25a y Biswas+23.
-   Es lo más probable para encontrar trabajo de 2025-2026 sobre (a) y (c).
-3. Leer en texto completo SCONE temprano, Biswas+23, El-CID, Liang+23 y Alves+23.
-4. Verificar o encontrar el estudio de codificaciones de Kepler y el clasificador de TDE para
-   Rubin (A&A 2025, ELAsTiCC2).
-5. Buscar si hay un paper oficial de resultados de ELAsTiCC.
+1. Repetir las cadenas en ADS y registrar el número de resultados.
+2. ~~Citas hacia adelante de SCONE, Moreno-Cartagena+25a y Biswas+23~~ (hecho 2026-10-31).
+   Falta repetirlo en ADS, que cuenta citas distinto a Semantic Scholar.
+3. Leer en texto completo SCONE temprano, Biswas+23, El-CID, Liang+23, Alves+23 y, ahora,
+   ORACLE (su evaluación por días es la comparación directa para (a)).
+4. ~~Estudio de Kepler y clasificador de TDE~~ (hecho: Wang+23 y Bhardwaj+25).
+5. ~~Paper de resultados de ELAsTiCC~~ (no existe).
 6. Reemplazar las entradas `@misc` por las de revista desde ADS.

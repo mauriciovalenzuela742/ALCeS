@@ -7,7 +7,8 @@ modifica**: nada aquí toca `CODE_FILES`, `run_hash` ni la regresión dorada.
   de la representación (imagen, secuencia o features)? Se evalúa según el número de noches con
   detección y con particiones agrupadas por template.
 - **Estado (2026-10-20):** propuesta enviada al profesor. Ningún experimento ha corrido.
-- **Revisión bibliográfica:** `literature.md` y `refs.bib`.
+- **Revisión bibliográfica:** `literature.md` y `refs.bib` (segunda pasada 2026-10-31: los
+  cuatro huecos siguen abiertos; lo más cercano a (a) es ORACLE, solo con secuencias).
 
 ## Experimentos
 | ID | Pregunta | Comparación | Hardware |
