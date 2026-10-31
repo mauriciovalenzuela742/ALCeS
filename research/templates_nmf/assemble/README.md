@@ -106,7 +106,7 @@ Diferencias con las SNII:
   Finkbeiner 2011, igual que Gutiérrez+17 para las SNII) en las coordenadas de table1. Queda
   en caché en `out/csp_sesn/ebv_mw_irsa.csv`.
 - **E(B−V)_host** de Stritzinger+18b (21 SNe) queda en `sample.csv` sin aplicar, igual que en
-  SNII (pregunta 3 al profesor).
+  SNII (pendiente: pregunta al profesor sobre la extinción del host).
 - No hay espectros ópticos públicos de CSP-I para estas SNe en el catálogo: la muestra es
   solo fotométrica.
 

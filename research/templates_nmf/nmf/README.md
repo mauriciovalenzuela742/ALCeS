@@ -149,7 +149,7 @@ cobertura. La CV elige **k = 4** (a = 0.1; χ² reducido 9.9):
 
 - **Componentes:** las tres de CSP-I (pico rojo típico, pico azul temprano y breve, curva
   ancha lenta) y una cuarta muy roja y casi plana en r e i, que probablemente refleja
-  enrojecimiento del host (aún sin corregir, pregunta 3 al profesor).
+  enrojecimiento del host (aún sin corregir; pregunta pendiente al profesor).
 - **Ninguna componente es de una sola SN** (cada SN aporta como mucho el 10 % del peso de
   una componente) **ni de un survey:** la fracción media de cada componente es casi igual en
   CSP-I y CfA (Mann-Whitney p = 0.08 a 0.79). La diferencia de sistema no se nota.
