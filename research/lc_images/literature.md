@@ -94,7 +94,7 @@ stamps, que es la opción B.
 | Trabajo | Representación | Modelo | Datos | ¿KN? | ¿Pocas épocas? | Resultado clave | Qué deja abierto |
 |---|---|---|---|---|---|---|---|
 | **SCONE**, Qu+21 | Imagen: GP 2D (tiempo × λ), canales de flujo e incertidumbre | CNN | PLAsTiCC | No (solo SN) | No | 98.2% en 6 tipos de SN | Rendimiento fuera de distribución menor |
-| **SCONE temprano**, Qu & Sako 22 (AJ, doi:10.3847/1538-3881/ac39a1) | Igual a SCONE, truncado a 0, 5, 15, 25 y 50 días del trigger | CNN | LSST simulado | No | **Sí**, por días | 75 % en el trigger y 89 % a 50 días con z (60 % y 82 % sin z) | Sin KN; corta por días, no por número de noches detectadas |
+| **SCONE temprano**, Qu & Sako 22 (AJ 163, 57) | Igual a SCONE, truncado a 0, 5, 15, 25 y 50 días del trigger (trigger = 2ª detección, al menos una noche después de la 1ª) | CNN | PLAsTiCC (modelos de SNANA), 7685 SNe por tipo | No | **Sí**, por días | 74.3 % en el trigger y 89.0 % a 50 días con z (59.7 % y 82.2 % sin z); el abstract redondea a 75 % | Sin KN; corta por días; partición aleatoria 80/10/10; frente a RAPID solo compara cifras publicadas, sin datos comunes |
 | **Moreno-Cartagena+25a** (ALeRCE / U. de Concepción) | Imagen: gráfico matplotlib 256×256 (grilla o superpuesto) | SwinV2 preentrenado | ELAsTiCC (20 clases), MACHO | No se mencionan | **No** | F1 macro 65.5 en ELAsTiCC (ATAT 64.2 sin metadatos) | Subclases de SN difíciles; sin metadatos; sin evaluación temprana; no agrupa por template |
 | Moreno-Cartagena+25b | Imagen, ViT en dos ramas | SwinV2 | ZTF + ATLAS reales | — | No | Combinar surveys mejora | Taller ICML-ML4Astro |
 | Mahabal+17 | Imagen dm-dt | CNN | CRTS (periódicas) | No | — | Las curvas escasas quedan sin clasificar | Ya identifica la escasez como modo de falla |
@@ -123,7 +123,7 @@ stamps, que es la opción B.
 | Wang+23 (v1 de 2305.13745) | Imagen: wavelet, GAF, *recurrence plot* | 6 CNN (VGG-19 la mejor) | Kepler (variables) | No | No | Wavelet la mejor (95.6 %) | Es el estudio de Kepler buscado; series densas, no escasas |
 | Choudhary+25 (2506.16597) | GAF y *recurrence plot* | ViT | Kepler (tránsitos) | No | No | RP mejor que GAF | Series densas |
 | **Lin+26** (Universe 12, 268) | Features vs secuencia | XGBoost, LSTM, Transformer | ~1.7 M segmentos reales de ZTF y ATLAS, 7 clases | No | **Sí, por número de observaciones (3 a 30)** | Transformer preentrenado 0.946; >90 % con 7 observaciones; sin preentrenar 0.513 | Sin imágenes; datos reales, no simulaciones con template |
-| **Qu 2022** (taller ML4Astro, 2207.09440) | Imagen GP (SCONE) | CNN | SN simuladas | No | **Sí, por noches** | 60 % en 6 tipos de SN con 2 noches; 98 % con la curva completa | Imagen por noches, pero sin comparar con secuencias ni features |
+| **Qu 2022** (taller ML4Astro, 2207.09440) | Imagen GP (SCONE) | CNN | PLAsTiCC | No | Por días desde el trigger, igual que SCONE temprano | ~60 % en 6 tipos de SN en el trigger ("dos noches de datos" = corte en la 2ª detección); 98 % con la curva completa | No estratifica por noches; partición aleatoria 80/10/10 |
 | Bugueño+21 (A&C 35, 100461) | Imagen MTF de 2 canales para muestreo irregular | CNN | Kepler (tránsitos) | No | No | Competitivo y más simple | Codificación pensada para muestreo irregular |
 | Pagliaro+26 (A&A 714, A146) | Features, curva cruda, imagen GAF | 9 clasificadores (incluye CNN2D sobre GAF) | PLAsTiCC | Sí (PLAsTiCC) | No | *Benchmark* de explicabilidad, 5 semillas | Compara representaciones, pero para explicabilidad, no exactitud con pocas noches |
 | Gupta+25 (MNRAS 542, L132) | Secuencia | Transferencia de aprendizaje | ZTF simulado → real; ZTF → LSST | — | No | 95 % menos etiquetas reales | Brecha simulación-realidad; relevante para entrenar con ALCeS |
@@ -139,8 +139,10 @@ profesor tiene que saberlo y conviene coordinarse o colaborar con ese grupo.
 **2. Lo que no encontré.** Esto es ausencia en dos pasadas (búsqueda web, citas hacia
 adelante y NASA ADS), no prueba de que no exista. Los cuatro huecos siguen abiertos, pero (a)
 queda acotado:
-- Qu 2022 ya evalúa una imagen GP **por noches** (60 % con 2 noches), y Lin+26 compara
-  features y secuencias **por número de observaciones** (3 a 30) en datos reales.
+- Lin+26 compara features y secuencias **por número de observaciones** (3 a 30) en datos
+  reales. Qu 2022 habla de "dos noches de datos", pero en el texto completo es el corte en el
+  trigger (segunda detección), igual que SCONE temprano: corta por días, no estratifica por
+  noches.
 - Lo que nadie hace es la comparación **controlada** imagen vs secuencia vs features, con los
   mismos objetos y estratificada por noches con detección. Ese es el aporte de (a).
 - En ADS, "kilonova + (Kasen o Bulla) + clasificación" da **0** resultados y "fuga +
@@ -224,7 +226,8 @@ pósters o el portal.
    Semantic Scholar y en ADS).
 3. ~~Leer en texto completo Biswas+23, El-CID, Liang+23, Alves+23 y ORACLE~~ (hecho
    2026-10-31). Revistas confirmadas en ADS: Biswas+23 (A&A 677, A77), El-CID (MNRAS 509,
-   914) y Liang+23 (Universe 10, 10). Falta el texto completo de SCONE temprano y de Qu 2022.
+   914) y Liang+23 (Universe 10, 10). SCONE temprano y Qu 2022 leídos en texto completo el
+   mismo día: ambos cortan por días desde el trigger y usan partición aleatoria.
 4. ~~Estudio de Kepler y clasificador de TDE~~ (hecho: Wang+23 y Bhardwaj+25).
 5. ~~Paper de resultados de ELAsTiCC~~ (no existe).
 6. ~~Reemplazar las entradas `@misc` por las de revista desde ADS~~ (hecho 2026-10-31).
