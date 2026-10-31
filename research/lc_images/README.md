@@ -10,6 +10,8 @@ modifica**: nada aquí toca `CODE_FILES`, `run_hash` ni la regresión dorada.
 - **Revisión bibliográfica:** `literature.md` y `refs.bib` (segunda pasada 2026-10-31: los
   cuatro huecos siguen abiertos; lo más cercano a (a) es ORACLE, solo con secuencias. En
   texto completo: ningún trabajo agrupa por template y todos juntan los modelos de KN).
+  Repetida en NASA ADS el mismo día (`scripts/ads_search.py`); BibTeX desde ADS
+  (`scripts/ads_bib.py`).
 
 ## Experimentos
 | ID | Pregunta | Comparación | Hardware |

@@ -1,16 +1,17 @@
 # Revisión bibliográfica: curvas de luz como imágenes para clasificar transientes
 
-Primera pasada: 2026-10-20. Segunda pasada (citas hacia adelante y pendientes 4-5):
-2026-10-31. Es la Parte 1 del plan "Opción A". Las referencias están en `refs.bib`.
+Primera pasada: 2026-10-20. Segunda pasada (citas hacia adelante, texto completo y NASA
+ADS): 2026-10-31. Es la Parte 1 del plan "Opción A". Las referencias están en `refs.bib`.
 
 ## Estado de esta revisión (léase primero)
-- **Herramientas:** la búsqueda se hizo con un buscador web general más la lectura de los
-  abstracts y HTML de arXiv. **Todavía no se hizo en NASA ADS**, porque no tengo acceso a su
-  API. Falta repetir las cadenas en ADS y anotar cuántos resultados da cada una.
-- **Origen de las BibTeX:** las 37 entradas de `refs.bib` se bajaron de `arxiv.org/bibtex/<id>`
-  y no se escribieron a mano. Son entradas `@misc` de arXiv. Antes de citar en un paper hay que
-  reemplazarlas por la versión con revista desde ADS. Por ejemplo, para ATAT las fuentes dan
-  dos referencias distintas: A&A 689, A289 y A&A 691, A163.
+- **Herramientas:** buscador web general, abstracts y HTML de arXiv, API de Semantic Scholar
+  y, desde el 2026-10-31, la API de NASA ADS (registro abajo).
+- **Origen de las BibTeX:** ninguna se escribió a mano. De las 42 entradas de `refs.bib`, 33
+  vienen de la exportación de ADS (28 reemplazaron a su `@misc` de arXiv conservando la clave
+  de cita, y 5 son nuevas con la clave = bibcode). Las otras 9 siguen como `@misc` de
+  `arxiv.org/bibtex` porque ADS no tiene versión con revista, o porque se cita una versión de
+  arXiv distinta de la publicada (2305.13745, con una nota en la entrada). ATAT quedó como
+  A&A 689, A289 (la referencia A&A 691, A163 de la primera pasada no corresponde).
 - **ID 2305.13745, resuelto:** en la primera pasada lo descarté porque su título actual es
   "LightCurve MoE". Pero su v1 (mayo 2023) es justamente el estudio de Kepler: "Transfer
   Learning Applied to Stellar Light Curve Classification" (Wang+23), con wavelets, GAF y
@@ -58,6 +59,37 @@ Búsquedas web de esta pasada:
 | 18 | clasificador de TDE Rubin ELAsTiCC2 A&A 2025 | Bhardwaj+25 (2509.25902, A&A 703, A95) |
 | 19 | paper de resultados de ELAsTiCC | **no existe** (ver abajo); sí NAPTIME (2607.19236) y "Beyond the Final Label" (2604.23792) |
 
+**Registro en NASA ADS (2026-10-31).** Cadenas en la sintaxis de ADS sobre título, abstract
+y palabras clave (`abs:`), con filtro `year:2015-2026 collection:astronomy`. Se revisaron los
+25 primeros por relevancia que no estaban en `refs.bib`. Las cadenas exactas están en
+`scripts/ads_search.py` (y el reemplazo de BibTeX en `scripts/ads_bib.py`).
+
+| # | Tema (cadena `abs:`) | Resultados | Nuevo y relevante |
+|---|---|---|---|
+| 1 | GP + heatmap o CNN + supernova + clasificación | 4 | Qu 2022 (taller ML4Astro, 2207.09440) |
+| 2 | curva de luz + imagen o 2D + CNN o ViT + transiente + clasificación | 17 | Bugueño+21 (MTF) |
+| 3 | kilonova + clasificación + LSST/Rubin/ZTF + fotométrica | 25 | — (sobre todo GCN y búsquedas de contrapartes) |
+| 4 | GAF / recurrence plot / MTF + curva de luz | 20 | Bugueño+21; Pagliaro+26 |
+| 5 | ALeRCE + transformer | 2 | — |
+| 6 | ELAsTiCC | 26 | Solo resúmenes de AAS 241 (no hay paper de resultados) |
+| 7 | (transformer o RNN) + CNN + curva de luz + clasificación | 5 | — |
+| 8 | dm-dt + curva de luz | 14 | — (binarias) |
+| 9 | kilonova + (Kasen o Bulla) + clasificación | **0** | — |
+| 10 | ALeRCE + clasificador | 93 | — |
+| 12 | fuga (*leakage*) + template o simulación + clasificación | **2** | — (ninguno de transientes) |
+| 13 | vision transformer + curva de luz | 7 | — |
+| 14 | Fink + kilonova | 17 | — |
+| 15 | PLAsTiCC + clasificación | 46 | — |
+| 16 | cadencia + LSST + clasificación fotométrica | 12 | — |
+| 20 | clasificación temprana + transiente + LSST/ZTF/Rubin | 12 | Lin+26 |
+| 21 | kilonova + distinguir o comparar modelos + curva de luz + LSST | 5 | — |
+| 22 | escasa o pocas épocas + curva de luz + clasificación + LSST | 19 | — |
+
+Citas hacia adelante en ADS (más completas que Semantic Scholar): SCONE 71, SCONE temprano
+29, Moreno-Cartagena+25a 10 y Biswas+23 16. Lo nuevo y relevante es Gupta+25 (transferencia
+de simulaciones a datos reales y de ZTF a LSST); ConvEntion (Bairouk+23) usa series de
+stamps, que es la opción B.
+
 ## Fichas
 | Trabajo | Representación | Modelo | Datos | ¿KN? | ¿Pocas épocas? | Resultado clave | Qué deja abierto |
 |---|---|---|---|---|---|---|---|
@@ -90,6 +122,11 @@ Búsquedas web de esta pasada:
 | KilonovaSCORER, Darc & Kilpatrick 26 | Consistencia con una grilla de KN | ABC | Simulaciones LSST ToO | **Sí** | **Sí**, días tras el trigger GW | Descarta SN en 3-4 días | KN vs SN; no separa modelos de KN |
 | Wang+23 (v1 de 2305.13745) | Imagen: wavelet, GAF, *recurrence plot* | 6 CNN (VGG-19 la mejor) | Kepler (variables) | No | No | Wavelet la mejor (95.6 %) | Es el estudio de Kepler buscado; series densas, no escasas |
 | Choudhary+25 (2506.16597) | GAF y *recurrence plot* | ViT | Kepler (tránsitos) | No | No | RP mejor que GAF | Series densas |
+| **Lin+26** (Universe 12, 268) | Features vs secuencia | XGBoost, LSTM, Transformer | ~1.7 M segmentos reales de ZTF y ATLAS, 7 clases | No | **Sí, por número de observaciones (3 a 30)** | Transformer preentrenado 0.946; >90 % con 7 observaciones; sin preentrenar 0.513 | Sin imágenes; datos reales, no simulaciones con template |
+| **Qu 2022** (taller ML4Astro, 2207.09440) | Imagen GP (SCONE) | CNN | SN simuladas | No | **Sí, por noches** | 60 % en 6 tipos de SN con 2 noches; 98 % con la curva completa | Imagen por noches, pero sin comparar con secuencias ni features |
+| Bugueño+21 (A&C 35, 100461) | Imagen MTF de 2 canales para muestreo irregular | CNN | Kepler (tránsitos) | No | No | Competitivo y más simple | Codificación pensada para muestreo irregular |
+| Pagliaro+26 (A&A 714, A146) | Features, curva cruda, imagen GAF | 9 clasificadores (incluye CNN2D sobre GAF) | PLAsTiCC | Sí (PLAsTiCC) | No | *Benchmark* de explicabilidad, 5 semillas | Compara representaciones, pero para explicabilidad, no exactitud con pocas noches |
+| Gupta+25 (MNRAS 542, L132) | Secuencia | Transferencia de aprendizaje | ZTF simulado → real; ZTF → LSST | — | No | 95 % menos etiquetas reales | Brecha simulación-realidad; relevante para entrenar con ALCeS |
 
 ## Hueco identificado
 
@@ -99,10 +136,15 @@ trabajo es del **mismo entorno ALeRCE** (Cabrera-Vives, U. de Concepción). Por 
 la pregunta original como "¿sirven las imágenes?" **no es nuevo**. Antes de seguir, el
 profesor tiene que saberlo y conviene coordinarse o colaborar con ese grupo.
 
-**2. Lo que no encontré.** Esto es ausencia en dos pasadas (búsqueda web y citas hacia
-adelante de las cuatro semillas), no prueba de que no exista. Hay que confirmarlo en ADS.
-La segunda pasada no cambió ninguno de los cuatro huecos: lo más cercano a (a) es ORACLE,
-que evalúa por días desde la primera detección pero solo con secuencias.
+**2. Lo que no encontré.** Esto es ausencia en dos pasadas (búsqueda web, citas hacia
+adelante y NASA ADS), no prueba de que no exista. Los cuatro huecos siguen abiertos, pero (a)
+queda acotado:
+- Qu 2022 ya evalúa una imagen GP **por noches** (60 % con 2 noches), y Lin+26 compara
+  features y secuencias **por número de observaciones** (3 a 30) en datos reales.
+- Lo que nadie hace es la comparación **controlada** imagen vs secuencia vs features, con los
+  mismos objetos y estratificada por noches con detección. Ese es el aporte de (a).
+- En ADS, "kilonova + (Kasen o Bulla) + clasificación" da **0** resultados y "fuga +
+  template + clasificación" no da ninguno de transientes: refuerza (b) y (c).
 - **(a) Imagen vs secuencia en el régimen de pocas noches.** No hay comparación controlada
   estratificada por **número de noches con detección**. SCONE trunca por días y
   Moreno-Cartagena+25a no evalúa curvas tempranas.
@@ -177,12 +219,14 @@ infraestructura, no la exactitud. Si usamos ELAsTiCC como referencia, hay que ci
 pósters o el portal.
 
 ## Pendientes de esta revisión
-1. Repetir las cadenas en ADS y registrar el número de resultados.
-2. ~~Citas hacia adelante de SCONE, Moreno-Cartagena+25a y Biswas+23~~ (hecho 2026-10-31).
-   Falta repetirlo en ADS, que cuenta citas distinto a Semantic Scholar.
+1. ~~Repetir las cadenas en ADS~~ (hecho 2026-10-31).
+2. ~~Citas hacia adelante de SCONE, Moreno-Cartagena+25a y Biswas+23~~ (hecho 2026-10-31, en
+   Semantic Scholar y en ADS).
 3. ~~Leer en texto completo Biswas+23, El-CID, Liang+23, Alves+23 y ORACLE~~ (hecho
-   2026-10-31). De SCONE temprano solo el abstract: falta el texto completo, y confirmar en
-   ADS las revistas de Biswas+23, El-CID y Liang+23 (arXiv no las dice).
+   2026-10-31). Revistas confirmadas en ADS: Biswas+23 (A&A 677, A77), El-CID (MNRAS 509,
+   914) y Liang+23 (Universe 10, 10). Falta el texto completo de SCONE temprano y de Qu 2022.
 4. ~~Estudio de Kepler y clasificador de TDE~~ (hecho: Wang+23 y Bhardwaj+25).
 5. ~~Paper de resultados de ELAsTiCC~~ (no existe).
-6. Reemplazar las entradas `@misc` por las de revista desde ADS.
+6. ~~Reemplazar las entradas `@misc` por las de revista desde ADS~~ (hecho 2026-10-31).
+   KilonovaSCORER figura en ADS publicado en PASP 138, 084502, pero su registro de arXiv aún
+   no está unido al de la revista: actualizarlo más adelante.
