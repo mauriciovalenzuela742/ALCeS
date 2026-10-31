@@ -138,7 +138,9 @@ def main(argv=None):
     ph["lambda_rest"] = ph["lambda_eff"] / (1 + z)
     ph["type"] = ph["sn"].map(sample["type"])
     ph = ph.drop(columns=["jd"])
-    ph.to_csv(os.path.join(args.out, "photometry.csv"), index=False, float_format="%.5g")
+    # El MJD aparte: con %.5g perderia la fraccion del dia.
+    ph.assign(mjd=ph["mjd"].map("{:.5f}".format)).to_csv(
+        os.path.join(args.out, "photometry.csv"), index=False, float_format="%.5g")
 
     ok = ph[ph["mag_ab"].notna()]
     sample["n_phot"] = ok.groupby("sn").size().reindex(sample.index).fillna(0).astype(int)
@@ -149,7 +151,8 @@ def main(argv=None):
     opt = ok[ok["band"].isin(OPT)]
     sample["phase_min_opt"] = opt.groupby("sn")["phase_rest"].min().reindex(sample.index)
     sample["phase_max_opt"] = opt.groupby("sn")["phase_rest"].max().reindex(sample.index)
-    sample.reset_index().to_csv(os.path.join(args.out, "sample.csv"), index=False, float_format="%.6g")
+    sample.reset_index().assign(tbmax_mjd=sample["tbmax_mjd"].map("{:.3f}".format).to_numpy()).to_csv(
+        os.path.join(args.out, "sample.csv"), index=False, float_format="%.6g")
 
     print(f"sample: {len(sample)} SNe ({sample['type'].value_counts().to_dict()}); "
           f"E(B-V)_MW: {sample['ebv_mw'].notna().sum()}; E(B-V)_host: {sample['ebv_host_s18b'].notna().sum()}")

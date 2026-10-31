@@ -1,15 +1,21 @@
 """NMF fotometrico exploratorio de las SN despojadas de CSP-I (solo forma, sin distancias).
 
 Uso:
-    python explore_csp_sesn_phot.py [--kmax 5] [--alphas 0.1 0.3] [--exclude 2005bf]
+    python explore_csp_sesn_phot.py [--kmax 5] [--alphas 0.1 0.3] [--exclude 2005bf] [--with-cfa]
 
-Entrada: assemble/out/csp_sesn/photometry.csv (correr antes assemble/build_csp_sesn.py).
+Entrada: assemble/out/csp_sesn/photometry.csv (correr antes assemble/build_csp_sesn.py) y, con
+--with-cfa, assemble/out/cfa_sesn/photometry.csv (assemble/build_cfa_sesn.py).
 
 Igual que explore_csp_snii_phot.py, pero con la fase desde T(B)max y una ventana mas corta:
 las despojadas evolucionan rapido y la fotometria de CSP-I llega a ~+80 dias. Cada SN se
 divide por su flujo medio en V cerca del maximo (NORM_WINDOW), asi que el NMF ve forma y color.
 Se ajusta un NMF conjunto (IIb, Ib, Ic, Ic-BL): por subtipo hay 10 SNe o menos. Al final se
 compara W por subtipo, para ver si las componentes separan los subtipos.
+
+Con --with-cfa se suman las SNe de CfA (Bianco+14) que no estan en CSP-I. CfA no tiene g; su U
+y u' se usan como u y r'i' como r e i (en las SNe comunes, CfA - CSP da 0.03-0.05 mag en BVri).
+R e I de Johnson quedan fuera porque su lambda_eff no calza con r e i. Tambien se imprime W
+por survey, para ver si alguna componente absorbe la diferencia entre sistemas.
 """
 import argparse
 import json
@@ -24,12 +30,25 @@ sys.path.insert(0, HERE)
 import wnmf  # noqa: E402
 
 PHOT = os.path.join(HERE, "..", "assemble", "out", "csp_sesn", "photometry.csv")
+CFA_PHOT = os.path.join(HERE, "..", "assemble", "out", "cfa_sesn", "photometry.csv")
+CFA_BANDS = {"U": "u", "u'": "u", "B": "B", "V": "V", "r'": "r", "i'": "i"}
+SESN_TYPES = ["IIb", "Ib", "Ic", "Ic-BL"]  # deja fuera Ibn, Ca-rich e Ic/Ic-BL de CfA
 BANDS = ["u", "B", "g", "V", "r", "i"]
 PHASE_EDGES = np.arange(-20.0, 80.0 + 1e-9, 4.0)  # 25 bins de 4 dias
 NORM_BAND, NORM_WINDOW = "V", (-5.0, 15.0)
 ERR_FLOOR_MAG = 0.03
 MIN_CELLS = 20  # celdas con dato por SN
 MIN_OBJ = 8  # SNe con dato por celda (hay 34 en total)
+
+
+def load(with_cfa=False):
+    ph = pd.read_csv(PHOT, dtype={"sn": str}).assign(survey="CSP")
+    if not with_cfa:
+        return ph
+    c = pd.read_csv(CFA_PHOT, dtype={"sn": str})
+    c = c[~c["sn"].isin(ph["sn"]) & c["band"].isin(CFA_BANDS) & c["type"].isin(SESN_TYPES)]
+    c = c.assign(band=c["band"].map(CFA_BANDS), survey="CfA")
+    return pd.concat([ph, c.reindex(columns=ph.columns)], ignore_index=True)
 
 
 def build_matrix(ph, exclude=()):
@@ -44,6 +63,7 @@ def build_matrix(ph, exclude=()):
     col = {c: j for j, c in enumerate(cells)}
     sns = sorted(ph["sn"].unique())
     types = ph.groupby("sn")["type"].first()
+    survey = ph.groupby("sn")["survey"].first() if "survey" in ph else pd.Series("CSP", index=sns)
     V = np.zeros((len(sns), len(cells)))
     Wt = np.zeros_like(V)
     norm = {}
@@ -63,7 +83,8 @@ def build_matrix(ph, exclude=()):
     V, Wt = V[keep], Wt[keep]
     sns = [s for s, k in zip(sns, keep) if k]
     good = (Wt > 0).sum(0) >= MIN_OBJ
-    return V[:, good], Wt[:, good], sns, [types[s] for s in sns], [c for c, g in zip(cells, good) if g]
+    return (V[:, good], Wt[:, good], sns, [types[s] for s in sns],
+            [c for c, g in zip(cells, good) if g], [survey[s] for s in sns])
 
 
 def main(argv=None):
@@ -73,14 +94,17 @@ def main(argv=None):
     ap.add_argument("--alphas", type=float, nargs="+", default=[0.1, 0.3])
     ap.add_argument("--exclude", nargs="*", default=[],
                     help="SNe a dejar fuera (p. ej. 2005bf, Ib peculiar de doble maximo)")
-    ap.add_argument("--out", default=os.path.join(HERE, "out", "csp_sesn_phot"))
+    ap.add_argument("--with-cfa", action="store_true", help="sumar las SNe de CfA (Bianco+14)")
+    ap.add_argument("--out", default=None)
     args = ap.parse_args(argv)
+    args.out = args.out or os.path.join(HERE, "out", "sesn_phot_csp_cfa" if args.with_cfa else "csp_sesn_phot")
     os.makedirs(args.out, exist_ok=True)
 
-    V, Wt, sns, types, cells = build_matrix(pd.read_csv(PHOT, dtype={"sn": str}), args.exclude)
+    V, Wt, sns, types, cells, surveys = build_matrix(load(args.with_cfa), args.exclude)
     cover = (Wt > 0).mean()
     print(f"matriz: {V.shape[0]} SNe x {V.shape[1]} celdas; cobertura {cover:.0%}; "
-          f"tipos {pd.Series(types).value_counts().to_dict()}")
+          f"tipos {pd.Series(types).value_counts().to_dict()}; "
+          f"surveys {pd.Series(surveys).value_counts().to_dict()}")
 
     wmed = float(np.median(Wt[Wt > 0]))
     cv = {}
@@ -107,16 +131,23 @@ def main(argv=None):
     by_type = pd.DataFrame(frac, columns=[f"c{i + 1}" for i in range(best)]).assign(type=types)
     print("fraccion media de cada componente por subtipo:")
     print(by_type.groupby("type").mean().round(2).to_string())
+    by_survey = pd.DataFrame(frac, columns=by_type.columns[:-1]).assign(survey=surveys)
+    if by_survey["survey"].nunique() > 1:
+        print("fraccion media de cada componente por survey:")
+        print(by_survey.groupby("survey").mean().round(2).to_string())
 
     np.savez_compressed(os.path.join(args.out, "nmf.npz"), V=V, weights=Wt, W=W, H=H,
-                        sns=np.array(sns), types=np.array(types), bands=np.array(BANDS),
+                        sns=np.array(sns), types=np.array(types), surveys=np.array(surveys),
+                        bands=np.array(BANDS),
                         phase_edges=PHASE_EDGES)
     with open(os.path.join(args.out, "summary.json"), "w") as f:
         json.dump({"n_sne": len(sns), "n_cells": len(cells), "coverage": cover,
                    "cv": [{"a": a, "k": k, "mean": v[0], "std": v[1], "median": v[2]}
                           for (a, k), v in cv.items()],
                    "exclude": args.exclude, "a": best_a, "k": best, "chi2_red": chi2_red,
-                   "frac_by_type": by_type.groupby("type").mean().to_dict()}, f, indent=1)
+                   "with_cfa": args.with_cfa,
+                   "frac_by_type": by_type.groupby("type").mean().to_dict(),
+                   "frac_by_survey": by_survey.groupby("survey").mean().to_dict()}, f, indent=1)
     plot(H, cells, args.out)
     return 0
 

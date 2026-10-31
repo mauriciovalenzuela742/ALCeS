@@ -9,7 +9,8 @@
 - `explore_csp_snii_phot.py`: NMF fotométrico **exploratorio** de las SNII de CSP-I (entrada:
   `assemble/out/csp_snii/photometry.csv`). Salidas en `out/` (ignorado por git).
 - `explore_csp_sesn_phot.py`: lo mismo para las despojadas de CSP-I (entrada:
-  `assemble/out/csp_sesn/photometry.csv`), con fase desde T(B)max.
+  `assemble/out/csp_sesn/photometry.csv`), con fase desde T(B)max. Con `--with-cfa` suma
+  las SNe de CfA que no están en CSP-I.
 
 ```
 python research/templates_nmf/nmf/explore_csp_snii_phot.py [--kmax 8] [--alphas 0.01]
@@ -126,3 +127,32 @@ NMF es conjunto porque por subtipo hay 10 SNe o menos.
   define por líneas espectrales (H, He), no por la forma de la curva de luz. Templates por
   subtipo necesitarían espectros o tomar el subtipo como etiqueta externa; con fotometría
   sola, un único NMF de despojadas tiene la misma información.
+
+### Con CfA (Bianco+14)
+
+```
+python explore_csp_sesn_phot.py --exclude 2005bf --with-cfa
+```
+
+Se suman las SNe de CfA con T(B)max que no están en CSP-I y son IIb, Ib, Ic o Ic-BL. CfA no
+tiene g; U y u' se usan como u, r'i' como r e i, y R e I de Johnson quedan fuera. Quedan
+**50 SNe** (32 CSP-I y 18 CfA; 19 Ib, 15 Ic, 11 IIb, 5 Ic-BL), 107 celdas y 45 % de
+cobertura. La CV elige **k = 4** (a = 0.1; χ² reducido 9.9):
+
+| k | χ² medio por celda oculta | mediana |
+|---|---|---|
+| 1 | 59.4 ± 9.2 | 13.2 |
+| 2 | 39.9 ± 10.0 | 10.2 |
+| 3 | 28.9 ± 7.5 | 5.2 |
+| 4 | 17.5 ± 2.4 | 3.9 |
+| 5 | 19.8 ± 9.0 | 3.3 |
+
+- **Componentes:** las tres de CSP-I (pico rojo típico, pico azul temprano y breve, curva
+  ancha lenta) y una cuarta muy roja y casi plana en r e i, que probablemente refleja
+  enrojecimiento del host (aún sin corregir, pregunta 3 al profesor).
+- **Ninguna componente es de una sola SN** (cada SN aporta como mucho el 10 % del peso de
+  una componente) **ni de un survey:** la fracción media de cada componente es casi igual en
+  CSP-I y CfA (Mann-Whitney p = 0.08 a 0.79). La diferencia de sistema no se nota.
+- **Los subtipos siguen sin separarse** (Kruskal-Wallis p = 0.07 a 0.95). La única
+  diferencia marginal es que las Ic-BL usan menos la componente roja (0.10 contra 0.26), con
+  solo 5 Ic-BL.

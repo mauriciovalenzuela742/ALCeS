@@ -32,7 +32,8 @@ nuevos en `pipeline/models.yaml` y no modifican los existentes ni el simulador.
   fotometría en AB corregida por la Vía Láctea, fase en reposo desde la explosión, índice de
   espectros y metalicidad local. Ver `assemble/README.md`.
 - Paso 3: SN despojadas de CSP-I (`build_csp_sesn.py`, 34 SNe, solo fotometría, fase desde
-  T(B)max, E(B−V)_MW de IRSA).
+  T(B)max, E(B−V)_MW de IRSA) y de CfA (`build_cfa_sesn.py`, 64 SNe de Bianco+14 en AB;
+  T(B)max de la fuente LaTeX en 38). En las SNe comunes CfA y CSP-I difieren en 0.03–0.05 mag.
 - Falta, según lo que responda el profesor: distancia, extinción del host, mangling y rejilla.
 
 ## NMF (en curso)

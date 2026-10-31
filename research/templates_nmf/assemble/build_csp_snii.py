@@ -272,7 +272,9 @@ def main(argv=None):
     ph["lambda_rest"] = ph["lambda_eff"] / (1 + z)
     ph["in_sample"] = ph["sn"].isin(sample.index)
     ph = ph.drop(columns=["jd"])
-    ph.to_csv(os.path.join(args.out, "photometry.csv"), index=False, float_format="%.5g")
+    # El MJD aparte: con %.5g perderia la fraccion del dia.
+    ph.assign(mjd=ph["mjd"].map("{:.5f}".format)).to_csv(
+        os.path.join(args.out, "photometry.csv"), index=False, float_format="%.5g")
 
     sp = read_spectra()
     sp["sn"] = [folder_to_key(f, set(sample.index)) for f in sp["folder"]]

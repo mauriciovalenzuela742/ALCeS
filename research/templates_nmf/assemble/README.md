@@ -121,3 +121,38 @@ Diferencias con las SNII:
 - Mediana de noches ópticas por SN: 12 (Ic) a 18 (Ib). Con 34 SNe repartidas en cuatro
   subtipos, un NMF por subtipo tendría 10 objetos o menos: conviene un NMF conjunto de las
   despojadas, o sumar CfA (Bianco+14, otro sistema fotométrico) antes de separar.
+
+## Paso 3b: SN despojadas de CfA (`build_cfa_sesn.py`)
+
+```
+python research/templates_nmf/assemble/build_cfa_sesn.py
+```
+
+Toma Bianco+14 (J/ApJS/213/19) y escribe en `out/cfa_sesn/` `sample.csv` y `photometry.csv`
+con las mismas columnas que CSP-I (salvo `mag_nat` y `filter`, con `mag_std` y `code` en su
+lugar). Si existe `out/csp_sesn/`, compara además las SNe comunes.
+
+- **Sistema:** se usa la fotometría estándar (table6), porque CfA no publica curvas de
+  transmisión por cámara. UBVRI (Bessell) y JHKs (2MASS) pasan a AB con m_AB − m_Vega y
+  λ_eff de la tabla 1 de Blanton & Roweis (2007); u'r'i' (SDSS) ya están en AB.
+- **T(B)max:** VizieR no trae el máximo; sale de las tablas 4–6 de la fuente LaTeX
+  (arXiv:1405.1428, se baja sola). Si B no está medido se usa V, R, I o U corrido por la
+  mediana del desfase respecto de V (tabla 7 del paper), con su dispersión sumada al error
+  (`tbmax_band` dice de dónde sale). Los picos NIR no se usan (3–5 días de dispersión).
+- **Sanidad:** se rechaza un máximo más de 25 días después del descubrimiento
+  (`tbmax_rejected_mjd`). Cae 2004gt: Bianco+14 da B en MJD 53388.5 y CSP-I 53359.6,
+  probablemente una errata de 30 días en el paper. Las fechas de descubrimiento de 2009jf y
+  2007aw en VizieR son de otra SN (el año no calza) y quedan en NaN.
+- **E(B−V)_MW** viene en table2 (Schlafly & Finkbeiner 2011, el mismo mapa que IRSA).
+
+### Resultado (2026-10-30)
+- 64 SNe (23 Ib, 19 Ic, 9 IIb, 9 Ic-BL, 2 Ibn, 1 Ca-rich, 1 Ic/Ic-BL) y 6462 puntos (4543
+  ópticos, 1919 NIR), igual que el ReadMe de VizieR.
+- T(B)max en 38 SNe: 17 medido en B, 12 desde V, 5 desde I y 4 desde R. 25 sin máximo.
+- 19 SNe están también en CSP-I. En las 14 con ambos máximos, CfA − CSP da mediana +0.1 d y
+  MAD 2.5 d; difieren más de 5 días 2006bf (+6) y 2007rz (+18), las dos con el T(B)max de
+  CSP-I estimado por relación.
+- **Validación de la conversión a AB:** en las SNe comunes, misma noche (±0.6 d), CfA − CSP en
+  AB corregido por MW da +0.05 (B), +0.03 (V), +0.03 (r') y +0.05 (i') mag, con MAD ≤ 0.05.
+  Es el orden esperado entre fotometría estándar y natural sin correcciones S
+  (`out/cfa_sesn/compare_csp.csv`).

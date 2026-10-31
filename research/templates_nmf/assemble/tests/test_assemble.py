@@ -166,3 +166,47 @@ def test_sesn_lee_fotometria_con_huecos(tmp_path):
     assert list(ph["band"]) == ["g", "r", "i", "B", "V"]  # u es '---'
     assert ph.loc[ph["band"] == "V", "mag_nat"].item() == 18.063
     assert ph.loc[ph["band"] == "g", "mag_err"].item() == 0.013
+
+
+# --- armado CfA SESN ----------------------------------------------------------------------
+
+cfa = pytest.importorskip("build_cfa_sesn")
+
+_TEX = r"""
+\startdata
+%SN~2001ej &  - - & - - & - - &    - - & - - & - - &    - - & - - & - - \
+SN~2004fe &  - - & - - & - - &    - - & - - & - - &   53318.80 (0.46) & 17.09 (0.02) & - - \
+SN~2005bf\tablenotemark{c} & 53473.20 (0.05) & 17.16 (0.03) & - - & 53474.22 (0.18) & 17.66 (0.02)  & - - & 53476.75 (0.42) & 17.46 (0.03)  &- - \
+SN~2005bf\tablenotemark{c} & 53498.54 (0.09) & 16.42 (0.02) & 1.13 (0.08) & 53497.73 (0.14) & 16.71 (0.02) & 1.12 (0.06) & 53498.46 (0.33) & 16.43 (0.02) & 0.86 (0.02) \
+\enddata
+\startdata
+SN 2006F &    - - & - - & - - &   53752.48 (0.58) & 17.47 (0.03) & 0.57 (0.09) \
+\enddata
+"""
+
+
+def test_cfa_lee_maximos_y_queda_el_primer_pico():
+    p = cfa.parse_peaks(_TEX)
+    assert "2001ej" not in p  # fila comentada
+    assert p["2004fe"] == {"V": (53318.80, 0.46)}
+    assert p["2005bf"]["B"] == (53474.22, 0.18)  # primer pico, como CSP-I
+    assert p["2006F"] == {"I": (53752.48, 0.58)}
+
+
+def test_cfa_tbmax_desde_otra_banda():
+    t, e, b = cfa.tbmax_from_peaks({"V": (53318.80, 0.46)})
+    assert b == "V" and t == pytest.approx(53318.80 - 2.3)
+    assert e == pytest.approx(math.hypot(0.46, 1.3))
+    t, e, b = cfa.tbmax_from_peaks({"B": (100.0, 0.2), "V": (103.0, 0.1)})
+    assert (t, e, b) == (100.0, 0.2, "B")
+    t, _, b = cfa.tbmax_from_peaks({"J": (100.0, 0.2)})  # el NIR no se usa
+    assert math.isnan(t) and b == ""
+
+
+def test_cfa_lee_fotometria_estandar(tmp_path):
+    p = tmp_path / "t6.dat"
+    p.write_text("2005hg r' 53680.31300 17.712 0.020 CfA3_KEP\n2005hg Ks 53690.12000 16.501 0.081 PAIRITEL\n")
+    ph = cfa.read_photometry(str(p))
+    assert list(ph["band"]) == ["r'", "Ks"]
+    assert ph["mjd"].iloc[0] == 53680.313 and ph["mag_std"].iloc[1] == 16.501
+    assert cfa.BANDS["r'"][2] == 0.0 and cfa.BANDS["B"][2] == -0.09
