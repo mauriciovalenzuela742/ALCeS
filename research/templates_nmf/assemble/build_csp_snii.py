@@ -35,7 +35,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, SCRIPTS)
 
 import csp_system  # noqa: E402
-from extinction import a_lambda  # noqa: E402
+from mw_extinction import a_lambda  # noqa: E402
 from _common import C_KMS, RAW  # noqa: E402
 import anderson16_snii_hii_metallicity as a16  # noqa: E402
 import csp_snii_spectra_gutierrez17 as g17  # noqa: E402

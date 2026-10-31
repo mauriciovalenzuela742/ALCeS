@@ -37,7 +37,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, SCRIPTS)
 
 import csp_system  # noqa: E402
-from extinction import a_lambda  # noqa: E402
+from mw_extinction import a_lambda  # noqa: E402
 from _common import RAW  # noqa: E402
 import _stripped_util as u  # noqa: E402
 import csp1_se_photometry_stritzinger18 as s18  # noqa: E402

@@ -74,7 +74,7 @@ research/lc_images/
 
 ## E1: fuga por template (código listo, sin correr)
 ```
-python -m pytest research/lc_images/tests -q          # 8 tests, datos sintéticos
+python -m pytest research/lc_images/tests -q          # 8 tests sintéticos (también en el CI)
 sbatch research/lc_images/slurm/e1_leakage.sbatch     # en NLHPC, tras regenerar las corridas
 ```
 - **Datos:** el layout de `kn_confusion_diag/runs` (`<clase>_seed<N>/head_df.parquet` y

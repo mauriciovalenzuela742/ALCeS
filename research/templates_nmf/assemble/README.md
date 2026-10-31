@@ -23,7 +23,7 @@ Qué se hace:
 - **AB:** m_AB = m_natural + offset del filtro, con λ_eff y offsets de la tabla de CSP
   (Krisciunas+17), por instrumento y fecha (`csp_system.py`). La V de CSP-I cambió de filtro
   dos veces en enero de 2006 y la J de la Swope en enero de 2009.
-- **Vía Láctea:** CCM89 + O'Donnell94 con R_V = 3.1 (`extinction.py`), evaluada en la λ_eff del
+- **Vía Láctea:** CCM89 + O'Donnell94 con R_V = 3.1 (`mw_extinction.py`; no se llama `extinction.py` para no chocar con el paquete `extinction` que instala sncosmo), evaluada en la λ_eff del
   filtro. Es una aproximación de banda ancha (no integra el espectro por el filtro); el error es
   pequeño para E(B−V) < 0.1, que cubre el 88 % de la muestra.
 - **Fase:** (MJD − t_explosión) / (1 + z_helio).

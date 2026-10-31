@@ -40,7 +40,7 @@ SCRIPTS = os.path.join(HERE, "..", "catalog", "objects", "scripts")
 sys.path.insert(0, HERE)
 sys.path.insert(0, SCRIPTS)
 
-from extinction import a_lambda  # noqa: E402
+from mw_extinction import a_lambda  # noqa: E402
 from _common import RAW  # noqa: E402
 import _stripped_util as u  # noqa: E402
 

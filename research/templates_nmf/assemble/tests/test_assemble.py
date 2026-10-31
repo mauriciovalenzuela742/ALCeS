@@ -12,7 +12,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 import csp_system  # noqa: E402
-from extinction import a_lambda, ccm89_odonnell94  # noqa: E402
+from mw_extinction import a_lambda, ccm89_odonnell94  # noqa: E402
 
 
 # --- extincion -----------------------------------------------------------------------------
