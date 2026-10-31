@@ -8,6 +8,8 @@
   penalización ridge opcional `alpha` sobre W y H.
 - `explore_csp_snii_phot.py`: NMF fotométrico **exploratorio** de las SNII de CSP-I (entrada:
   `assemble/out/csp_snii/photometry.csv`). Salidas en `out/` (ignorado por git).
+- `explore_csp_sesn_phot.py`: lo mismo para las despojadas de CSP-I (entrada:
+  `assemble/out/csp_sesn/photometry.csv`), con fase desde T(B)max.
 
 ```
 python research/templates_nmf/nmf/explore_csp_snii_phot.py [--kmax 8] [--alphas 0.01]
@@ -89,3 +91,38 @@ Advertencias:
 - Solo 66 de 122 SNe tienen OPTd. Para usar esta alineación con toda la muestra (o con SNe
   nuevas) habría que medir el fin del plateau de cada curva, por ejemplo con el ajuste de
   Olivares+10, o tratarlo como parámetro libre del modelo (un corrimiento por objeto).
+
+## Exploración fotométrica de SN despojadas (2026-10-30)
+
+```
+python explore_csp_sesn_phot.py                       # las 33 SNe con datos suficientes
+python explore_csp_sesn_phot.py --exclude 2005bf      # sin la Ib de doble máximo
+```
+
+Matriz: uBgVri × bins de 4 días entre −20 y +80 días desde T(B)max (en reposo); quedan las
+celdas entre −8 y +56 días, que tienen al menos 8 SNe. Cada SN se normaliza por su flujo en V
+entre −5 y +15 días. Hay 33 SNe (11 Ib, 10 IIb, 10 Ic, 2 Ic-BL) y la cobertura es del 57 %. El
+NMF es conjunto porque por subtipo hay 10 SNe o menos.
+
+- **Con todas, la CV es inestable** incluso con ridge (a = 0.1: k = 2 da 197 ± 247). Una
+  componente queda dedicada casi solo a **SN 2005bf**, la Ib peculiar de doble máximo (70 % de
+  su peso).
+- **Sin 2005bf**, la CV es estable y elige **k = 3** (a = 0.1):
+
+| k | χ² medio por celda oculta | mediana |
+|---|---|---|
+| 1 | 40.9 ± 8.0 | 13.4 |
+| 2 | 21.4 ± 1.8 | 8.6 |
+| 3 | 14.5 ± 1.5 | 5.5 |
+| 4 | 14.1 ± 2.1 | 5.4 |
+| 5 | 13.4 ± 1.4 | 4.3 |
+
+- **Componentes:** un pico rojo con caída rápida (la curva típica), un pico temprano azul y
+  breve, y una curva ancha de declinación lenta. La mezcla de la primera y la tercera codifica
+  el ancho de la curva (como el Δm15 de las Ia): otra vez el NMF gasta componentes en una
+  escala temporal, como con el plateau de las SNII.
+- **Las componentes no separan los subtipos.** La fracción de cada componente por SN no
+  difiere entre IIb, Ib e Ic (Kruskal-Wallis, p = 0.21 a 0.89). Es lo esperado: el subtipo se
+  define por líneas espectrales (H, He), no por la forma de la curva de luz. Templates por
+  subtipo necesitarían espectros o tomar el subtipo como etiqueta externa; con fotometría
+  sola, un único NMF de despojadas tiene la misma información.

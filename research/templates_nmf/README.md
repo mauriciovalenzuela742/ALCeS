@@ -43,6 +43,8 @@ nuevos en `pipeline/models.yaml` y no modifican los existentes ni el simulador.
   la mitad para cada k y bastan 3–4 componentes.
 - `assemble/fit_plateau_end.py` mide el fin del plateau en V (Olivares+10) en 23 SNe; coincide
   con OPTd con un corrimiento casi constante de unos 12 días, pero solo agrega 2 SNe sin OPTd.
+- Despojadas de CSP-I: sin SN 2005bf (doble máximo), la CV elige k = 3; las componentes
+  codifican color y ancho de la curva, pero no separan IIb, Ib e Ic.
 
 ## Pendiente
 - NMF, exportación a SNANA y validación.
