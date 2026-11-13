@@ -1,4 +1,4 @@
-# Simulaciones de Curvas de Luz — Vera C. Rubin / SNANA
+# Automatic Ligth Curve Simulator (ALCeS)
 
 Pipeline config-driven para generar datasets sintéticos de curvas de luz a
 partir de las simulaciones de estrategia de observación (OpSim) del
